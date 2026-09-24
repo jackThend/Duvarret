@@ -45,7 +45,7 @@ e2e/           # Pruebas Playwright
   - Archivos: `src-tauri/{Cargo.toml,build.rs,tauri.conf.json,src/main.rs,src/lib.rs,capabilities/default.json,icons/*}`
   - Verificación: `cd src-tauri && cargo check && cargo test`
   - Éxito: crate compila; comandos Rust con tests.
-- [ ] **1.4 Esquema Zod del `story_manifest.json` (doc 03 completo)**
+- [x] **1.4 Esquema Zod del `story_manifest.json` (doc 03 completo)**
   - Archivos: `src/core/manifest/schema.ts`, `src/core/manifest/catalog.ts`
   - Cubre: metadata, global_settings, character_registry, item_registry, acoustic_environment, nodes (typographic_engine, acoustic_events, visual_novel_overlay, gameplay_overlay, rpg_checks, screenless_mode, navigation).
   - Verificación: `npm test -- manifest`
