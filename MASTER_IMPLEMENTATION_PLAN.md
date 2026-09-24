@@ -103,7 +103,7 @@ e2e/           # Pruebas Playwright
 
 ## OLEADA 3 — Cerebro Semántico y Grafo de Lore
 
-- [ ] **3.1 Capa de drivers SQL (sql.js WASM / Tauri SQL)**
+- [x] **3.1 Capa de drivers SQL (sql.js WASM / Tauri SQL)**
   - Archivos: `src/core/lore/driver.ts`, `src/core/lore/sqljsDriver.ts`, `src/core/lore/tauriDriver.ts`
 - [ ] **3.2 Esquema del grafo (`lore_graph.db`)**
   - Archivos: `src/core/lore/schema.sql.ts`, `src/core/lore/LoreGraph.ts`

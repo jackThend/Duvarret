@@ -24,6 +24,7 @@
     "@tailwindcss/vite": "4.3.3",
     "@tauri-apps/cli": "2.11.5",
     "@types/node": "26.6.2",
+    "@types/sql.js": "1.4.11",
     "@vitejs/plugin-vue": "6.0.9",
     "@vue/test-utils": "2.5.1",
     "eslint": "10.11.0",
@@ -41,8 +42,10 @@
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
+    "@tauri-apps/plugin-sql": "2.4.1",
     "pinia": "4.0.3",
     "resonance-audio": "1.0.0",
+    "sql.js": "1.14.2",
     "vue": "3.5.43",
     "zod": "4.6.5"
   }
