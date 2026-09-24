@@ -110,11 +110,11 @@ e2e/           # Pruebas Playwright
   - Tablas `nodes`, `edges` (ponderadas, timeline), `flags`, `events` (causalidad temporal), FTS5, claves foráneas.
 - [x] **3.3 Consultas del grafo**
   - Vecinos, búsqueda FTS, estado temporal de entidades, subgrafo para visualización.
-- [ ] **3.4 Supervisor de continuidad**
+- [x] **3.4 Supervisor de continuidad**
   - Archivos: `src/core/lore/continuity.ts`
   - Detecta: ítem consumido/destruido/confiscado reaparece, personaje muerto actúa, contradicción de ubicación, flag requerido ausente.
   - Rendimiento: < 50 ms con 1.000 entidades / 5.000 aristas.
-- [ ] **3.5 Tests de integridad referencial y rendimiento**
+- [x] **3.5 Tests de integridad referencial y rendimiento**
 
 ## OLEADA 4 — Pipeline del Agente Co-Director
 
