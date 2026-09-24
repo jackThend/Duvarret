@@ -1,6 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import App from '../App.vue';
+import PlayerApp from './PlayerApp.vue';
 import '../styles/main.css';
 
-createApp(App).use(createPinia()).mount('#app');
+createApp(PlayerApp).use(createPinia()).mount('#app');

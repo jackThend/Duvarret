@@ -139,8 +139,8 @@ e2e/           # Pruebas Playwright
 
 - [x] **5.1 Store del proyecto y persistencia `.duvarret`**
   - Archivos: `src/studio/stores/{project.ts,studio.ts}`, `src/core/project/*.ts`
-- [ ] **5.2 Layout tripartito 20/45/35 con panel izquierdo colapsable**
-- [ ] **5.3 Panel izquierdo: árbol de beats, personajes, inventario, grafo constelación**
+- [x] **5.2 Layout tripartito 20/45/35 con panel izquierdo colapsable**
+- [x] **5.3 Panel izquierdo: árbol de beats, personajes, inventario, grafo constelación**
 - [ ] **5.4 Lienzo de escritura + Ghost Markers + alerta de continuidad**
 - [ ] **5.5 Pitch Cards + barra de entrada natural**
 - [ ] **5.6 Live Preview reactivo (< 200 ms)**
