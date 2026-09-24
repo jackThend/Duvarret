@@ -140,3 +140,16 @@ test.describe('Obra insignia: El Corazón Delator', () => {
     await expect(page.getByTestId('continuity-mark')).toHaveText('El viejo');
   });
 });
+
+test.describe('Exportación a un clic', () => {
+  test('descarga la obra como aplicación web instalable', async ({ page }) => {
+    await page.addInitScript(() => localStorage.clear());
+    await page.goto('/');
+    await expect(page.getByTestId('work-title')).toHaveValue('El Corazón Delator');
+    await page.getByTestId('open-export').click();
+    await expect(page.getByTestId('export-ready')).toBeVisible();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-web').click()]);
+    expect(download.suggestedFilename()).toBe('el-corazon-delator-web.zip');
+    await expect(page.getByTestId('export-message')).toContainText('el-corazon-delator-web.zip');
+  });
+});

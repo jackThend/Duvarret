@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath, URL } from 'node:url';
-import { renameSync, existsSync, cpSync, createReadStream, statSync } from 'node:fs';
+import { renameSync, existsSync, cpSync, createReadStream, statSync, readdirSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 
 // Dos entradas: el Studio (editor completo) y el Player (runtime aislado para exportación).
@@ -40,7 +40,24 @@ export default defineConfig(({ mode }) => {
           });
         },
         closeBundle() {
-          if (isPlayer || mode === 'test' || !existsSync(WORKS_DIR)) return;
+          if (isPlayer || mode === 'test') return;
+          // El runtime del reproductor viaja dentro del Studio para exportar sin herramientas externas.
+          const player = fileURLToPath(new URL('./dist-player', import.meta.url));
+          if (existsSync(join(player, 'index.html'))) {
+            const target = fileURLToPath(new URL('./dist/player', import.meta.url));
+            cpSync(player, target, { recursive: true });
+            const list: string[] = [];
+            const walk = (dir: string, prefix = '') => {
+              for (const entry of readdirSync(dir)) {
+                const full = join(dir, entry);
+                if (statSync(full).isDirectory()) walk(full, `${prefix}${entry}/`);
+                else list.push(`${prefix}${entry}`);
+              }
+            };
+            walk(target);
+            writeFileSync(join(target, 'files.json'), JSON.stringify(list.filter((f) => f !== 'files.json')));
+          }
+          if (!existsSync(WORKS_DIR)) return;
           const out = fileURLToPath(new URL('./dist/works', import.meta.url));
           for (const work of ['el-corazon-delator.duvarret']) {
             for (const entry of WORK_FILES) {

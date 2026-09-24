@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build --mode player && vite build",
     "build:player": "vite build --mode player",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
@@ -19,7 +19,8 @@
     "schema": "tsx scripts/generate-schema.ts",
     "duvarret": "tsx scripts/duvarret.ts",
     "foley": "tsx scripts/synthesize-foley.ts",
-    "flagship": "tsx scripts/build-flagship.ts"
+    "flagship": "tsx scripts/build-flagship.ts",
+    "build:desktop": "tsx scripts/build-desktop.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

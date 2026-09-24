@@ -35,3 +35,4 @@ dist-player
 playwright-report
 test-results
 src-tauri/gen/schemas
+dist-native-player

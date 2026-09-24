@@ -44,6 +44,37 @@ fn project_list_assets(root: String) -> Result<Vec<String>, String> {
     project::list_assets(&PathBuf::from(root)).map_err(to_msg)
 }
 
+/// Copia el reproductor de escritorio (recurso del Studio) junto a la carpeta `obra/` exportada.
+#[tauri::command]
+fn export_player_binary(app: tauri::AppHandle, root: String, relative_dir: String, name: String) -> Result<String, String> {
+    use tauri::Manager;
+    let exe_name = if cfg!(windows) { "duvarret-player.exe" } else { "duvarret-player" };
+    let source = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?
+        .join("player")
+        .join(exe_name);
+    if !source.is_file() {
+        return Err("Esta instalación no incluye el reproductor de escritorio.".into());
+    }
+    let safe_name: String = name
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    let file = if cfg!(windows) { format!("{safe_name}.exe") } else { safe_name };
+    let dir = project::resolve_inside(&PathBuf::from(&root), &relative_dir).map_err(to_msg)?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let target = dir.join(file);
+    std::fs::copy(&source, &target).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755));
+    }
+    Ok(target.display().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -67,7 +98,8 @@ pub fn run() {
             project_read_text,
             project_write_bytes,
             project_read_bytes,
-            project_list_assets
+            project_list_assets,
+            export_player_binary
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar Duvarret");
