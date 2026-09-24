@@ -151,12 +151,34 @@ e2e/           # Pruebas Playwright
 
 ## OLEADA 6 — Compilador, Exportación y Obra Insignia
 
-- [ ] **6.1 Compilador interno (validación + optimización + inyección)**
+- [x] **6.1 Compilador interno (validación + optimización + inyección)**
   - Archivos: `src/core/compiler/*.ts`, `scripts/duvarret.ts`
-- [ ] **6.2 Exportación Web/PWA autocontenida**
-- [ ] **6.3 Exportación de audio-drama autocontenido**
-- [ ] **6.4 Binario nativo del reproductor (Tauri, perfil release LTO)**
-- [ ] **6.5 Obra insignia: *El Corazón Delator* (E. A. Poe)**
+- [x] **6.2 Exportación Web/PWA autocontenida**
+- [x] **6.3 Exportación de audio-drama autocontenido**
+- [x] **6.4 Binario nativo del reproductor (Tauri, perfil release LTO)**
+- [x] **6.5 Obra insignia: *El Corazón Delator* (E. A. Poe)**
   - `works/el-corazon-delator.duvarret/` con manifiesto completo y foley sintetizado.
-- [ ] **6.6 CI multiplataforma (GitHub Actions)**
-- [ ] **6.7 Verificación final de builds**
+- [x] **6.6 CI multiplataforma (GitHub Actions)**
+- [x] **6.7 Verificación final de builds**
+
+---
+
+## Registro de verificación final
+
+| Verificación | Resultado |
+| :--- | :--- |
+| `npm run typecheck` / `npm run lint` | Sin errores ni avisos |
+| `npm test` (Vitest) | 220 pruebas en verde (21 archivos) |
+| `npm run test:e2e` (Playwright, Chromium) | 11 pruebas en verde (Studio, obra insignia, exportación) |
+| `cargo clippy -D warnings` / `cargo test` | En verde (proyecto, protocolo `obra://`) |
+| Validación de la obra insignia | 14 escenas, 0 errores, 0 avisos |
+| Exportación Web/PWA | 26 archivos, 1,34 MB (ZIP 0,89 MB); service worker activo; sin errores en navegador |
+| Exportación audio-drama | Arranca en modo sin pantalla, guion accesible y lista M3U |
+| Binario nativo Linux (release, LTO) | 5,58 MB (< 20 MB); arranca bajo Xvfb |
+| Binarios Windows / macOS | Delegados al CI (`.github/workflows/ci.yml`, matriz de tres sistemas con comprobación de tamaño) |
+
+Pendiente / limitaciones conocidas:
+- El `.exe` de Windows y el `.app` de macOS solo se compilan en CI; en este entorno solo se verificó el binario Linux.
+- La RAM < 150 MB no se midió de forma representativa (Xvfb con renderizado por software).
+- La transcodificación a Ogg/WebP depende de que `ffmpeg` esté instalado; sin él, los assets se empaquetan tal cual.
+- Ingesta: .txt, .md y .pdf (el PRD menciona también .docx y .epub, aún no soportados).
