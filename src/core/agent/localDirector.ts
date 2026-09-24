@@ -5,6 +5,7 @@
  */
 import { analyzeBeat, normalizeText, TONE_LABELS } from '../ingest/toneAnalyzer';
 import { parseSpatialDescription } from './spatialLanguage';
+import type { StoryNode } from '../manifest';
 import { newCallId, type CompletionRequest, type CompletionResponse, type LlmProvider, type ToolCall } from './types';
 
 export interface PitchSuggestion {
@@ -45,11 +46,23 @@ function dialogueFromText(text: string, characters: string[]): { speaker: string
 }
 
 /** Propuestas dramatúrgicas para un beat (tarjetas de dirección). */
-export function suggestForBeat(nodeId: string, text: string, options: { characters?: string[] } = {}): PitchSuggestion[] {
+export function suggestForBeat(nodeId: string, text: string, options: { characters?: string[]; node?: StoryNode } = {}): PitchSuggestion[] {
   const analysis = analyzeBeat(text);
   const out: PitchSuggestion[] = [];
+  const node = options.node;
   const tone = analysis.dominantTone ? TONE_LABELS[analysis.dominantTone].toLowerCase() : null;
+  const te = node?.typographic_engine;
+  const already: Record<string, boolean> = {
+    narrow_corridor: te?.layout_mode === 'narrow_corridor',
+    heartbeat_tremor: !!te?.heartbeat_sync?.enabled,
+    flashlight_mask: !!te?.flashlight_reveal?.enabled || te?.layout_mode === 'flashlight_mask',
+    melt_text: !!te?.melt?.enabled || te?.layout_mode === 'melt_text',
+    visual_novel: !!node?.visual_novel_overlay?.enabled,
+    cipher_lock: !!node?.gameplay_overlay,
+    crt_terminal: !!node?.gameplay_overlay,
+  };
   for (const cue of analysis.cues) {
+    if (already[cue]) continue;
     switch (cue) {
       case 'narrow_corridor':
         out.push({
@@ -118,6 +131,7 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
   const norm = normalizeText(text);
   for (const [re, file, label] of SOUND_NOUNS) {
     if (!re.test(norm) || out.length >= 5) continue;
+    if (node?.acoustic_events.some((e) => e.asset.includes(file) || normalizeText(e.label ?? e.event_id).includes(normalizeText(label).trim()))) continue;
     const reading = parseSpatialDescription(text);
     out.push({
       id: `${nodeId}:sound:${file}`,

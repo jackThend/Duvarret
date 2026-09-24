@@ -349,3 +349,14 @@ describe('director local', () => {
     expect(res.content).toContain('¿Qué te gustaría?');
   });
 });
+
+describe('propuestas no redundantes', () => {
+  it('no propone lo que la escena ya tiene', () => {
+    const node = manifest().nodes[0]!; // pasillo angosto con gotera
+    const text = 'El pasillo angosto y estrecho, encerrado; una gotera caía.';
+    const titles = suggestForBeat('inicio', text, { node }).map((s) => s.title);
+    expect(titles).not.toContain('Estrechar la página');
+    expect(titles.some((t) => t.includes('gotera'))).toBe(false);
+    expect(suggestForBeat('inicio', text).map((s) => s.title)).toContain('Estrechar la página');
+  });
+});

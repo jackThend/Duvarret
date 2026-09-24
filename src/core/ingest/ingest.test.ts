@@ -35,7 +35,8 @@ describe('parseManuscript', () => {
   });
 
   it('toma el título de un encabezado Markdown inicial', () => {
-    expect(parseManuscript('# El Molino\n\n## Capítulo 1\n\nTexto.').title).toBe('El Molino');
+    expect(parseManuscript('# El Molino\n\n## Capítulo 1\n\nTexto.', { title: 'archivo' }).title).toBe('El Molino');
+    expect(parseManuscript('Texto sin encabezado.', { title: 'archivo' }).title).toBe('archivo');
   });
 
   it('una obra breve produce un único beat', () => {

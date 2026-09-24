@@ -104,7 +104,8 @@ export function parseManuscript(text: string, options: { title?: string } = {}):
   const normalized = text.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ');
   const lines = normalized.split('\n');
   const chapters: { title: string; blocks: Block[] }[] = [];
-  let title = options.title ?? '';
+  // El título propio del documento (# Título) prevalece sobre el nombre del archivo.
+  let title = '';
   let chapter: { title: string; blocks: Block[] } | null = null;
   let paragraph: string[] = [];
   let pendingBreak = false;
@@ -157,7 +158,7 @@ export function parseManuscript(text: string, options: { title?: string } = {}):
   }
   endParagraph();
 
-  const result: ParsedManuscript = { title: title || 'Manuscrito sin título', chapters: [], beats: [], totalWords: 0 };
+  const result: ParsedManuscript = { title: title || options.title || 'Manuscrito sin título', chapters: [], beats: [], totalWords: 0 };
   chapters
     .filter((c) => c.blocks.length)
     .forEach((c, ci) => {

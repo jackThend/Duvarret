@@ -141,8 +141,8 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/studio/stores/{project.ts,studio.ts}`, `src/core/project/*.ts`
 - [x] **5.2 Layout tripartito 20/45/35 con panel izquierdo colapsable**
 - [x] **5.3 Panel izquierdo: árbol de beats, personajes, inventario, grafo constelación**
-- [ ] **5.4 Lienzo de escritura + Ghost Markers + alerta de continuidad**
-- [ ] **5.5 Pitch Cards + barra de entrada natural**
+- [x] **5.4 Lienzo de escritura + Ghost Markers + alerta de continuidad**
+- [x] **5.5 Pitch Cards + barra de entrada natural**
 - [ ] **5.6 Live Preview reactivo (< 200 ms)**
 - [ ] **5.7 Radar acústico 3D arrastrable**
 - [ ] **5.8 Temas “Tinta y Pergamino Nórdico” y “Cuaderno de Manuscrito”**
