@@ -128,7 +128,7 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/core/agent/orchestrator.ts`
 - [x] **4.4 Intérprete espacial en lenguaje natural (RF-11)**
   - Archivos: `src/core/agent/spatialLanguage.ts`
-- [ ] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf)**
+- [x] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf)**
   - Archivos: `src/core/ingest/{readers.ts,sceneParser.ts,toneAnalyzer.ts}`
   - Beats de 300–800 palabras respetando capítulos; tono e interacción candidata.
 - [ ] **4.6 Director local heurístico (offline, sin LLM)**
