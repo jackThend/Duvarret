@@ -94,7 +94,7 @@ e2e/           # Pruebas Playwright
 - [x] **2.7 Novela Visual**
   - Archivos: `src/runtime/modules/VisualNovelOverlay.vue`, `src/runtime/composables/useTypewriter.ts`
   - Avatares por estado de ánimo, máquina de escribir, backlog, placeholder estilizado si falta sprite.
-- [ ] **2.8 Minijuegos en sandbox**
+- [x] **2.8 Minijuegos en sandbox**
   - Archivos: `src/runtime/modules/{ModuleSandbox.vue,CrtTerminal.vue,CipherLock.vue,CircuitWiring.vue,FictionalDesktop.vue,terminalParser.ts}`
   - Emiten solo `success`/`failure`; errores capturados sin romper la historia (RNF-08).
 - [ ] **2.9 Reproductor integrado (`RuntimePlayer.vue`)**

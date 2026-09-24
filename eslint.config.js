@@ -31,6 +31,11 @@ export default tseslint.config(
       'vue/max-attributes-per-line': 'off',
       'vue/singleline-html-element-content-newline': 'off',
       'vue/html-self-closing': 'off',
+      'vue/multiline-html-element-content-newline': 'off',
     },
+  },
+  {
+    files: ['**/*.test.ts'],
+    rules: { 'vue/one-component-per-file': 'off', 'vue/require-prop-types': 'off' },
   },
 );
