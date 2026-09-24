@@ -7,7 +7,7 @@ import { describePosition, fromRadar, toRadar } from '@/runtime/audio/coordinate
  * Radar psicoacústico 3D: vista cenital con la cabeza del oyente en el centro (mirando hacia
  * arriba = delante). Las fuentes se arrastran con el ratón, el dedo o las flechas del teclado.
  */
-const props = withDefaults(defineProps<{ events: AcousticEvent[]; rangeM?: number; size?: number }>(), { rangeM: 10, size: 220 });
+const props = withDefaults(defineProps<{ events: AcousticEvent[]; rangeM?: number; size?: number }>(), { rangeM: undefined, size: 220 });
 const emit = defineEmits<{ move: [eventId: string, coordinates: Coordinates]; preview: [eventId: string, coordinates: Coordinates] }>();
 
 const svg = ref<SVGSVGElement | null>(null);
@@ -15,11 +15,17 @@ const dragging = ref<string | null>(null);
 const live = ref<Record<string, Coordinates>>({});
 const announcement = ref('');
 const r = computed(() => props.size / 2 - 12);
+/** Escala adaptativa: el anillo exterior abarca la fuente más lejana (mín. 3 m, máx. 20 m). */
+const range = computed(() => {
+  if (props.rangeM) return props.rangeM;
+  const far = Math.max(0, ...props.events.map((e) => Math.hypot(e.coordinates.x, e.coordinates.z)));
+  return Math.min(20, Math.max(3, Math.ceil(far * 1.25)));
+});
 
 const points = computed(() =>
   props.events.map((e) => {
     const coords = live.value[e.event_id] ?? e.coordinates;
-    const { rx, ry } = toRadar(coords, props.rangeM);
+    const { rx, ry } = toRadar(coords, range.value);
     return { event: e, coords, cx: props.size / 2 + rx * r.value, cy: props.size / 2 + ry * r.value };
   }),
 );
@@ -30,7 +36,7 @@ function toCoords(clientX: number, clientY: number, y: number): Coordinates {
   const px = (clientX - rect.left) * scale - props.size / 2;
   const py = (clientY - rect.top) * scale - props.size / 2;
   const clamp = (v: number) => Math.max(-1, Math.min(1, v));
-  return fromRadar(clamp(px / r.value), clamp(py / r.value), props.rangeM, y);
+  return fromRadar(clamp(px / r.value), clamp(py / r.value), range.value, y);
 }
 
 function onDown(event: PointerEvent, id: string) {
@@ -113,6 +119,7 @@ function onKey(event: KeyboardEvent, e: AcousticEvent) {
       </g>
     </svg>
     <p v-if="!events.length" class="text-xs text-dv-muted">Esta escena aún no tiene sonidos situados.</p>
+    <p v-else class="text-center text-[0.65rem] text-dv-muted" data-testid="radar-scale">Anillo exterior: {{ range }} m</p>
     <p class="sr-only" aria-live="polite">{{ announcement }}</p>
   </figure>
 </template>

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function openStudio(page: Page) {
   await page.addInitScript(() => localStorage.clear());
-  await page.goto('/');
+  await page.goto('/?obra=bienvenida');
   await expect(page.getByTestId('writing-canvas')).toBeVisible();
 }
 
@@ -98,7 +98,7 @@ test.describe('Duvarret Studio (E2E)', () => {
   });
 
   test('guarda la obra y la recupera al recargar', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?obra=bienvenida');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await expect(page.getByTestId('writing-canvas')).toBeVisible();
@@ -108,5 +108,35 @@ test.describe('Duvarret Studio (E2E)', () => {
     await expect(page.getByTestId('dirty')).toBeHidden();
     await page.reload();
     await expect(page.getByTestId('node-title')).toHaveValue('Los gigantes');
+  });
+});
+
+test.describe('Obra insignia: El Corazón Delator', () => {
+  test('abre por defecto con su lore, sus retratos y su foley', async ({ page }) => {
+    const failed: string[] = [];
+    page.on('response', (r) => r.status() >= 400 && failed.push(r.url()));
+    await page.addInitScript(() => localStorage.clear());
+    await page.goto('/');
+    await expect(page.getByTestId('work-title')).toHaveValue('El Corazón Delator');
+    await expect(page.getByTestId('left-panel')).toContainText('III. Siete medianoches');
+    await page.getByTestId('beat-el_latido').click();
+    await expect(page.getByTestId('live-preview').locator('.dv-heartbeat')).toBeVisible();
+    await expect(page.getByTestId('radar-corazon_viejo')).toBeVisible();
+    await page.getByTestId('open-graph').click();
+    await expect(page.getByTestId('graph-node-ojo_buitre')).toBeVisible();
+    await page.getByTestId('modal-close').click();
+    await page.getByTestId('beat-octava_noche').click();
+    await page.getByTestId('live-preview').getByTestId('skip-reading').click();
+    await expect(page.getByTestId('vn-avatar')).toHaveAttribute('src', /viejo_temeroso\.svg/);
+    expect(failed).toEqual([]);
+  });
+
+  test('la continuidad avisa si el viejo habla después de morir', async ({ page }) => {
+    await page.addInitScript(() => localStorage.clear());
+    await page.goto('/');
+    await page.getByTestId('beat-las_cuatro').click();
+    await page.getByTestId('prose').fill('Cuando terminé eran las cuatro. El viejo sonrió desde la puerta.');
+    await expect(page.getByTestId('continuity-notes')).toContainText('El anciano murió');
+    await expect(page.getByTestId('continuity-mark')).toHaveText('El viejo');
   });
 });

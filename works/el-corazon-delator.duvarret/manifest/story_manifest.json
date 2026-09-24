@@ -1,0 +1,947 @@
+{
+  "$schema": "https://duvarret.engine/schemas/v1/story-manifest.json",
+  "metadata": {
+    "title": "El Corazón Delator",
+    "author": "Edgar Allan Poe · adaptación de Duvarret",
+    "version": "1.0.0",
+    "language": "es-ES",
+    "genre": "Terror psicológico ergódico",
+    "description": "Obra insignia de Duvarret: el relato de Poe (1843) con tipografía que late, audio binaural y un careo con la policía.",
+    "license": "Texto original de dominio público (1843). Adaptación, sonido e ilustraciones: CC BY 4.0.",
+    "created_at": "2026-09-24T00:00:00Z",
+    "duvarret_runtime_target": ">=1.0.0"
+  },
+  "global_settings": {
+    "default_mode": "multimedia",
+    "allow_screenless_toggle": true,
+    "audio_engine": "resonance_3d",
+    "font_family_base": "Spectral, 'EB Garamond', Georgia, serif",
+    "theme_palette": {
+      "background": "#0b0a0c",
+      "foreground": "#e7e1d6",
+      "accent": "#c2410c"
+    },
+    "typewriter_speed_cps": 38
+  },
+  "character_registry": {
+    "narrador": {
+      "name": "El narrador",
+      "color_accent": "#c2410c",
+      "voice_profile": {
+        "tts_pitch": 0.85,
+        "tts_speed": 1.08
+      },
+      "sprites": {
+        "sereno": "assets/images/characters/narrador_sereno.svg",
+        "febril": "assets/images/characters/narrador_febril.svg"
+      },
+      "description": "Asegura estar cuerdo. Lo repite demasiado."
+    },
+    "viejo": {
+      "name": "El anciano",
+      "color_accent": "#94a3b8",
+      "voice_profile": {
+        "tts_pitch": 0.7,
+        "tts_speed": 0.85
+      },
+      "sprites": {
+        "temeroso": "assets/images/characters/viejo_temeroso.svg"
+      },
+      "description": "Nunca hizo daño a nadie. Tiene un ojo pálido, de buitre."
+    },
+    "agente": {
+      "name": "Los agentes",
+      "color_accent": "#60a5fa",
+      "voice_profile": {
+        "tts_pitch": 1.0,
+        "tts_speed": 0.95
+      },
+      "sprites": {
+        "cortes": "assets/images/characters/agente_cortes.svg",
+        "suspicaz": "assets/images/characters/agente_suspicaz.svg"
+      },
+      "description": "Tres oficiales de la ronda nocturna, corteses y pacientes."
+    }
+  },
+  "item_registry": {
+    "linterna_sorda": {
+      "name": "Linterna sorda",
+      "icon": "assets/images/items/linterna.svg",
+      "is_inspectable": true,
+      "description": "Una linterna de postigo: cerrada del todo, no deja escapar ni un hilo de luz.",
+      "inspect_content": "Si abres el postigo apenas, sale un solo rayo, fino como la hebra de una araña."
+    },
+    "reloj_bolsillo": {
+      "name": "Reloj de bolsillo",
+      "icon": "assets/images/items/reloj.svg",
+      "is_inspectable": true,
+      "description": "Su minutero avanza más deprisa que tu mano al abrir la puerta.",
+      "inspect_content": "Marca las cuatro. Todavía es de noche."
+    }
+  },
+  "acoustic_environment": {
+    "default_room_preset": "small_study",
+    "default_material": "wood",
+    "master_gain": 0.9,
+    "ambience_bed": "assets/audio/sfx/night.wav",
+    "listener_orientation_deg": 0
+  },
+  "initial_state": {
+    "start_node": "prologo",
+    "stats": {
+      "lucidez": 2,
+      "templanza": 1,
+      "sangre_fria": 3
+    },
+    "flags": [],
+    "inventory": [
+      "linterna_sorda",
+      "reloj_bolsillo"
+    ],
+    "rng_seed": 1843
+  },
+  "nodes": [
+    {
+      "node_id": "prologo",
+      "chapter_id": "cap_1_la_confesion",
+      "title": "I. ¡Nervioso, sí!",
+      "ambient_lighting": "candle",
+      "text_payload": "¡Es verdad! Nervioso, muy nervioso; lo he estado siempre y lo estoy ahora. Pero ¿por qué dirán que estoy loco? La enfermedad no me embotó los sentidos: los afiló. Por encima de todo, el oído. Oía todas las cosas del cielo y de la tierra, y bastantes del infierno.\n\n¿Cómo iba a estar loco, entonces? Escuche. Observe con qué calma, con qué cordura puedo contarle la historia entera.",
+      "typographic_engine": {
+        "layout_mode": "standard",
+        "heartbeat_sync": {
+          "enabled": true,
+          "bpm": 72,
+          "text_scale_amplitude": 0.008
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "reloj_pared",
+          "asset": "assets/audio/sfx/clock.wav",
+          "label": "reloj en la pared",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": -1.6,
+            "y": 0.6,
+            "z": 0.4
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.45,
+          "fade_in_ms": 1200
+        },
+        {
+          "event_id": "noche",
+          "asset": "assets/audio/sfx/night.wav",
+          "label": "noche",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0,
+            "y": 2,
+            "z": -6
+          },
+          "room_preset": "outdoor_field",
+          "acoustic_material": "wood",
+          "gain": 0.35,
+          "fade_in_ms": 2000
+        }
+      ],
+      "rpg_checks": [
+        {
+          "type": "passive",
+          "stat": "lucidez",
+          "difficulty": 8,
+          "on_pass_reveal_extra_text": "(Notas que repite «cordura» como quien se aferra a una baranda.)",
+          "on_fail_reveal_extra_text": "(Su voz es tan tranquila que casi le crees.)"
+        }
+      ],
+      "screenless_mode": {
+        "foley_bed": "assets/audio/sfx/night.wav"
+      },
+      "navigation": {
+        "default_next_node": "el_ojo"
+      }
+    },
+    {
+      "node_id": "el_ojo",
+      "chapter_id": "cap_1_la_confesion",
+      "title": "II. El ojo",
+      "illustration": {
+        "asset": "assets/images/ojo.svg",
+        "placement": "header",
+        "alt": "Un ojo pálido, velado por una membrana azulada."
+      },
+      "text_payload": "No sé decir cómo se me metió la idea en la cabeza, pero, una vez dentro, me rondó día y noche. No había motivo. No había pasión. Yo quería al viejo. Jamás me había hecho daño; jamás me había insultado. Su oro no me interesaba.\n\nCreo que fue su ojo. ¡Sí, eso era! Uno de sus ojos se parecía al de un buitre: azul pálido, cubierto por una tela. Cada vez que se posaba en mí se me helaba la sangre. Y así, poco a poco, muy gradualmente, decidí quitarle la vida al viejo para librarme de aquel ojo para siempre.",
+      "glossary": [
+        {
+          "term": "Ojo de buitre",
+          "definition": "Poe describe una catarata: una película lechosa sobre el iris."
+        }
+      ],
+      "typographic_engine": {
+        "layout_mode": "standard",
+        "flicker_effect": true
+      },
+      "acoustic_events": [
+        {
+          "event_id": "reloj_pared",
+          "asset": "assets/audio/sfx/clock.wav",
+          "label": "reloj en la pared",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": -1.6,
+            "y": 0.6,
+            "z": 0.4
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.4,
+          "fade_in_ms": 0
+        }
+      ],
+      "navigation": {
+        "default_next_node": "medianoche"
+      }
+    },
+    {
+      "node_id": "medianoche",
+      "chapter_id": "cap_2_siete_noches",
+      "title": "III. Siete medianoches",
+      "ambient_lighting": "night",
+      "text_payload": "Tendría usted que haberme visto. Nunca fui más amable con el viejo que durante la semana anterior. Cada noche, hacia las doce, giraba el pestillo de su puerta y la abría, ¡oh, con qué suavidad! Luego metía la linterna sorda, cerrada, sin un resquicio de luz, y después la cabeza.\n\nTardaba una hora en asomarla lo bastante para verlo dormido. ¿Haría eso un loco? Y entonces abría el postigo de la linterna, con cautela, lo justo para que un único rayo cayera sobre el ojo de buitre. Siete noches lo hice. Y siete noches el ojo estuvo cerrado.",
+      "typographic_engine": {
+        "layout_mode": "narrow_corridor",
+        "column_width_rem": 22,
+        "transition_speed_ms": 4000,
+        "flashlight_reveal": {
+          "enabled": true,
+          "radius_px": 150,
+          "darkness_opacity": 0.95
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "bisagra",
+          "asset": "assets/audio/sfx/creak.wav",
+          "label": "bisagra de la puerta",
+          "trigger": "on_text_reveal_percentage",
+          "loop": false,
+          "coordinates": {
+            "x": 1.2,
+            "y": 0.2,
+            "z": 1.5
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.7,
+          "fade_in_ms": 0,
+          "trigger_value": 25
+        },
+        {
+          "event_id": "tablones",
+          "asset": "assets/audio/sfx/floor.wav",
+          "label": "tablones",
+          "trigger": "on_text_reveal_percentage",
+          "loop": false,
+          "coordinates": {
+            "x": -0.6,
+            "y": -1.2,
+            "z": 0.8
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.6,
+          "fade_in_ms": 0,
+          "trigger_value": 70
+        }
+      ],
+      "grant_flags_on_enter": [
+        "siete_noches"
+      ],
+      "screenless_mode": {
+        "foley_bed": "assets/audio/sfx/night.wav",
+        "narration_text": "Cada medianoche abres la puerta del viejo con una lentitud infinita. Asomas la linterna cerrada, luego la cabeza. Un solo rayo de luz busca su ojo. Siete noches. Siete veces el ojo cerrado."
+      },
+      "navigation": {
+        "default_next_node": "octava_noche"
+      }
+    },
+    {
+      "node_id": "octava_noche",
+      "chapter_id": "cap_2_siete_noches",
+      "title": "IV. La octava noche",
+      "text_payload": "La octava noche fui aún más cauteloso. El minutero de un reloj se movía más deprisa que mi mano. Casi me reí al pensar que él ni soñaba con mis secretos intenciones; y quizá me oyó, porque se removió en la cama. Mi pulgar resbaló sobre el cierre metálico de la linterna.\n\nEl viejo se incorporó de un salto.",
+      "typographic_engine": {
+        "layout_mode": "narrow_corridor",
+        "column_width_rem": 20,
+        "flashlight_reveal": {
+          "enabled": true,
+          "radius_px": 120,
+          "darkness_opacity": 0.97
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "respiracion",
+          "asset": "assets/audio/sfx/breath.wav",
+          "label": "respiración del viejo",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0.4,
+            "y": 0,
+            "z": 2.6
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.55,
+          "fade_in_ms": 800
+        },
+        {
+          "event_id": "sobresalto",
+          "asset": "assets/audio/sfx/floor.wav",
+          "label": "sobresalto en la cama",
+          "trigger": "on_text_complete",
+          "loop": false,
+          "coordinates": {
+            "x": 0.8,
+            "y": -0.4,
+            "z": 2.8
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.9,
+          "fade_in_ms": 0
+        }
+      ],
+      "visual_novel_overlay": {
+        "enabled": true,
+        "trigger": "on_text_complete",
+        "active_speaker": "viejo",
+        "current_mood": "temeroso",
+        "dialogue_text": "¿Quién anda ahí?",
+        "avatar_position": "right",
+        "lines": [
+          {
+            "speaker": "viejo",
+            "mood": "temeroso",
+            "text": "¿Quién anda ahí?",
+            "position": "right"
+          },
+          {
+            "speaker": "narrador",
+            "mood": "sereno",
+            "text": "No moví un músculo en toda una hora. Tampoco le oí volver a acostarse.",
+            "position": "left"
+          },
+          {
+            "speaker": "viejo",
+            "mood": "temeroso",
+            "text": "…Es solo el viento en la chimenea. Solo un grillo. Solo eso.",
+            "position": "right"
+          }
+        ]
+      },
+      "navigation": {
+        "default_next_node": "el_latido"
+      }
+    },
+    {
+      "node_id": "el_latido",
+      "chapter_id": "cap_3_el_latido",
+      "title": "V. Un sonido sordo",
+      "ambient_lighting": "night",
+      "text_payload": "Entonces llegó a mis oídos un sonido bajo, sordo, rápido, como el de un reloj envuelto en algodón. Yo conocía ese sonido. Era el latido del corazón del viejo. Aumentó mi furia como el redoble de un tambor enardece al soldado.\n\nCada instante latía más fuerte, más fuerte. El terror del viejo tenía que ser extremo. ¡Más fuerte! Y un nuevo espanto me asaltó: aquel sonido lo oiría algún vecino.",
+      "typographic_engine": {
+        "layout_mode": "heartbeat_tremor",
+        "column_width_rem": 26,
+        "heartbeat_sync": {
+          "enabled": true,
+          "bpm": 112,
+          "text_scale_amplitude": 0.03
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "corazon_viejo",
+          "asset": "assets/audio/sfx/heartbeat.wav",
+          "label": "corazón del viejo",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0.3,
+            "y": -0.2,
+            "z": 2.2
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.9,
+          "fade_in_ms": 1500
+        },
+        {
+          "event_id": "respiracion",
+          "asset": "assets/audio/sfx/breath.wav",
+          "label": "respiración del viejo",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0.4,
+            "y": 0,
+            "z": 2.6
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.4,
+          "fade_in_ms": 0
+        }
+      ],
+      "rpg_checks": [
+        {
+          "type": "active",
+          "stat": "templanza",
+          "difficulty": 9,
+          "label": "Contener el impulso",
+          "on_pass_reveal_extra_text": "Por un instante, tu mano se detiene. El latido no.",
+          "on_fail_reveal_extra_text": "No puedes. El redoble lo llena todo.",
+          "on_pass_grant_flags": [
+            "dudo"
+          ]
+        }
+      ],
+      "screenless_mode": {
+        "foley_bed": "assets/audio/sfx/heartbeat.wav",
+        "voice_prompts": [
+          {
+            "spoken_prompt": "El latido crece. ¿Esperas en la oscuridad o te abalanzas?",
+            "voice_options": [
+              {
+                "phrase": "esperar",
+                "target_node": "la_retirada"
+              },
+              {
+                "phrase": "abalanzarse",
+                "target_node": "el_crimen"
+              }
+            ],
+            "keypad_shortcuts": {
+              "1": "la_retirada",
+              "2": "el_crimen"
+            }
+          }
+        ]
+      },
+      "navigation": {
+        "choices": [
+          {
+            "choice_text": "Esperar un poco más en la oscuridad",
+            "target_node": "la_retirada",
+            "condition": {
+              "forbidden_flag": "ya_espero"
+            }
+          },
+          {
+            "choice_text": "Abrir la linterna y abalanzarse",
+            "target_node": "el_crimen"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "la_retirada",
+      "chapter_id": "cap_3_el_latido",
+      "title": "V bis. La espera",
+      "text_payload": "Contuviste el aliento. Sostuviste la linterna inmóvil, intentando mantener el rayo fijo sobre el ojo. Pero el infernal redoble seguía creciendo, y comprendiste que esperar solo lo hacía más fuerte, más fuerte, más fuerte.",
+      "grant_flags_on_enter": [
+        "ya_espero"
+      ],
+      "typographic_engine": {
+        "layout_mode": "heartbeat_tremor",
+        "column_width_rem": 24,
+        "heartbeat_sync": {
+          "enabled": true,
+          "bpm": 128,
+          "text_scale_amplitude": 0.04
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "corazon_viejo",
+          "asset": "assets/audio/sfx/heartbeat.wav",
+          "label": "corazón del viejo",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0.3,
+            "y": -0.2,
+            "z": 1.6
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 1,
+          "fade_in_ms": 0
+        }
+      ],
+      "navigation": {
+        "default_next_node": "el_latido"
+      }
+    },
+    {
+      "node_id": "el_crimen",
+      "chapter_id": "cap_3_el_latido",
+      "title": "VI. La hora del viejo",
+      "text_payload": "¡Había llegado su hora! Con un grito abrí de golpe la linterna y salté dentro de la habitación. Él chilló una vez, solo una. En un instante lo arrojé al suelo y le eché encima la pesada cama. Durante muchos minutos el corazón siguió latiendo con un sonido ahogado.\n\nAl fin cesó. El viejo estaba muerto. Su ojo ya no volvería a molestarme.",
+      "grant_flags_on_enter": [
+        "crimen_cometido"
+      ],
+      "typographic_engine": {
+        "layout_mode": "melt_text",
+        "melt": {
+          "enabled": true,
+          "intensity": 0.55,
+          "direction": "down",
+          "duration_ms": 14000
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "grito",
+          "asset": "assets/audio/sfx/scream.wav",
+          "label": "grito del viejo",
+          "trigger": "on_node_enter",
+          "loop": false,
+          "coordinates": {
+            "x": 0.6,
+            "y": 0.3,
+            "z": 1.8
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 1,
+          "fade_in_ms": 0
+        },
+        {
+          "event_id": "corazon_ahogado",
+          "asset": "assets/audio/sfx/heartbeat.wav",
+          "label": "corazón ahogado",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0.2,
+            "y": -0.8,
+            "z": 1.2
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.35,
+          "fade_in_ms": 400
+        }
+      ],
+      "navigation": {
+        "default_next_node": "bajo_las_tablas"
+      }
+    },
+    {
+      "node_id": "bajo_las_tablas",
+      "chapter_id": "cap_4_las_tablas",
+      "title": "VII. Bajo las tablas",
+      "text_payload": "Si todavía me cree loco, dejará de creerlo cuando le describa las sabias precauciones que tomé. La noche avanzaba y trabajé deprisa, en silencio. Levanté tres tablones del suelo de la habitación y lo escondí todo entre las vigas. Después volví a colocar las tablas con tanta destreza que ningún ojo humano, ni siquiera el suyo, habría notado nada.",
+      "typographic_engine": {
+        "layout_mode": "standard",
+        "column_width_rem": 30
+      },
+      "acoustic_events": [
+        {
+          "event_id": "tablones",
+          "asset": "assets/audio/sfx/floor.wav",
+          "label": "tablones",
+          "trigger": "on_puzzle_solve",
+          "loop": false,
+          "coordinates": {
+            "x": 0,
+            "y": -1.4,
+            "z": 0.8
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.8,
+          "fade_in_ms": 0
+        }
+      ],
+      "gameplay_overlay": {
+        "type": "circuit_wiring",
+        "is_mandatory_to_advance": true,
+        "title": "Encaja cada tablón en su hueco",
+        "parameters": {
+          "colors": [
+            "naranja",
+            "amarillo",
+            "blanco"
+          ],
+          "seed": 1843,
+          "max_mistakes": 4
+        },
+        "on_success": {
+          "grant_flags": [
+            "tablas_perfectas"
+          ],
+          "play_sfx": "assets/audio/sfx/floor.wav"
+        },
+        "on_failure": {
+          "grant_flags": [
+            "tablas_torcidas"
+          ]
+        }
+      },
+      "navigation": {
+        "default_next_node": "las_cuatro"
+      }
+    },
+    {
+      "node_id": "las_cuatro",
+      "chapter_id": "cap_4_las_tablas",
+      "title": "VIII. Las cuatro",
+      "text_payload": "Cuando terminé eran las cuatro, todavía tan oscuro como a medianoche. Al dar la hora sonaron golpes en la puerta de la calle. Bajé a abrir con el corazón ligero: ¿qué podía temer ya? Entraron tres hombres que se presentaron, con perfecta cortesía, como oficiales de policía.",
+      "acoustic_events": [
+        {
+          "event_id": "campanadas",
+          "asset": "assets/audio/sfx/bell.wav",
+          "label": "campanadas",
+          "trigger": "on_node_enter",
+          "loop": false,
+          "coordinates": {
+            "x": -5,
+            "y": 6,
+            "z": -9
+          },
+          "room_preset": "cathedral_echo",
+          "acoustic_material": "stone",
+          "gain": 0.7,
+          "fade_in_ms": 0
+        },
+        {
+          "event_id": "golpes",
+          "asset": "assets/audio/sfx/knock.wav",
+          "label": "golpes en la puerta",
+          "trigger": "on_text_reveal_percentage",
+          "loop": false,
+          "coordinates": {
+            "x": 0,
+            "y": -0.2,
+            "z": -6
+          },
+          "room_preset": "narrow_concrete_corridor",
+          "acoustic_material": "wood",
+          "gain": 1,
+          "fade_in_ms": 0,
+          "trigger_value": 45
+        }
+      ],
+      "navigation": {
+        "default_next_node": "los_agentes"
+      }
+    },
+    {
+      "node_id": "los_agentes",
+      "chapter_id": "cap_5_la_visita",
+      "title": "IX. La visita",
+      "text_payload": "Un vecino había oído un grito durante la noche. Sonreí: ¿qué había de temer? Les di la bienvenida. El grito, dije, había sido mío, en un sueño. El anciano estaba fuera, en el campo. Les llevé por toda la casa y les invité a registrarla, a registrarla bien.",
+      "visual_novel_overlay": {
+        "enabled": true,
+        "trigger": "on_node_enter",
+        "active_speaker": "agente",
+        "current_mood": "cortes",
+        "dialogue_text": "Un vecino oyó un grito anoche, caballero.",
+        "avatar_position": "right",
+        "lines": [
+          {
+            "speaker": "agente",
+            "mood": "cortes",
+            "text": "Un vecino oyó un grito anoche, caballero. Es nuestro deber comprobarlo.",
+            "position": "right"
+          },
+          {
+            "speaker": "narrador",
+            "mood": "sereno",
+            "text": "Fui yo, en sueños. El anciano está en el campo. Registren cuanto gusten.",
+            "position": "left"
+          },
+          {
+            "speaker": "agente",
+            "mood": "cortes",
+            "text": "Muy amable. Todo parece en orden.",
+            "position": "right"
+          }
+        ]
+      },
+      "rpg_checks": [
+        {
+          "type": "passive",
+          "stat": "sangre_fria",
+          "difficulty": 7,
+          "on_pass_reveal_extra_text": "Tu voz no tiembla. Los oficiales asienten, satisfechos.",
+          "on_fail_reveal_extra_text": "Uno de ellos se fija en tus manos, que no están quietas.",
+          "on_fail_grant_flags": [
+            "sospecha"
+          ]
+        }
+      ],
+      "navigation": {
+        "choices": [
+          {
+            "choice_text": "Llevar sillas al cuarto del viejo e invitarles a descansar allí",
+            "target_node": "el_zumbido",
+            "grant_flags": [
+              "audacia"
+            ]
+          },
+          {
+            "choice_text": "Acompañarles hasta la puerta",
+            "target_node": "el_zumbido",
+            "condition": {
+              "forbidden_flag": "sospecha"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "el_zumbido",
+      "chapter_id": "cap_5_la_visita",
+      "title": "X. El zumbido",
+      "ambient_lighting": "candle",
+      "text_payload": "Coloqué mi propia silla justo encima del lugar donde yacía el cuerpo. Los oficiales charlaban. Pero al poco sentí que palidecía: me zumbaban los oídos. El zumbido se volvió más nítido. Era un sonido bajo, sordo, rápido… como un reloj envuelto en algodón.\n\nHablé más alto, con más fuerza. Ellos seguían charlando, sonrientes. ¿Era posible que no lo oyeran? ¡Más fuerte, más fuerte, más fuerte!",
+      "typographic_engine": {
+        "layout_mode": "heartbeat_tremor",
+        "flicker_effect": true,
+        "heartbeat_sync": {
+          "enabled": true,
+          "bpm": 150,
+          "text_scale_amplitude": 0.05
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "corazon_bajo_tablas",
+          "asset": "assets/audio/sfx/heartbeat.wav",
+          "label": "corazón bajo las tablas",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0,
+            "y": -1.5,
+            "z": 0.4
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.6,
+          "fade_in_ms": 6000
+        },
+        {
+          "event_id": "tablones",
+          "asset": "assets/audio/sfx/floor.wav",
+          "label": "tablones",
+          "trigger": "on_text_reveal_percentage",
+          "loop": false,
+          "coordinates": {
+            "x": 0.5,
+            "y": -1.3,
+            "z": 0.2
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.7,
+          "fade_in_ms": 0,
+          "trigger_value": 60
+        }
+      ],
+      "rpg_checks": [
+        {
+          "type": "passive",
+          "stat": "lucidez",
+          "difficulty": 14,
+          "on_pass_reveal_extra_text": "(Los agentes no oyen nada. El sonido no viene del suelo: viene de ti.)",
+          "on_fail_reveal_extra_text": "(Sonríen. Se están burlando. Lo saben. ¡Lo saben!)"
+        }
+      ],
+      "screenless_mode": {
+        "foley_bed": "assets/audio/sfx/heartbeat.wav"
+      },
+      "navigation": {
+        "default_next_node": "la_confesion"
+      }
+    },
+    {
+      "node_id": "la_confesion",
+      "chapter_id": "cap_5_la_visita",
+      "title": "XI. ¡Aquí, aquí!",
+      "text_payload": "—¡Miserables! —grité—. ¡No finjan más! ¡Confieso! ¡Levanten los tablones! ¡Aquí, aquí! ¡Es el latido de su horrible corazón!",
+      "typographic_engine": {
+        "layout_mode": "physics_fall",
+        "physics": {
+          "enabled": true,
+          "gravity": 12,
+          "bounce_factor": 0.45
+        },
+        "heartbeat_sync": {
+          "enabled": true,
+          "bpm": 170,
+          "text_scale_amplitude": 0.06
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "corazon_bajo_tablas",
+          "asset": "assets/audio/sfx/heartbeat.wav",
+          "label": "corazón bajo las tablas",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 0,
+            "y": -1.2,
+            "z": 0.2
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 1,
+          "fade_in_ms": 0
+        },
+        {
+          "event_id": "grito_confesion",
+          "asset": "assets/audio/sfx/scream.wav",
+          "label": "tu propio grito",
+          "trigger": "on_node_enter",
+          "loop": false,
+          "coordinates": {
+            "x": 0,
+            "y": 0.1,
+            "z": 0.3
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.8,
+          "fade_in_ms": 0
+        }
+      ],
+      "visual_novel_overlay": {
+        "enabled": true,
+        "trigger": "on_text_complete",
+        "active_speaker": "agente",
+        "current_mood": "suspicaz",
+        "dialogue_text": "Levantad los tablones.",
+        "avatar_position": "right",
+        "lines": [
+          {
+            "speaker": "agente",
+            "mood": "suspicaz",
+            "text": "…Levantad los tablones.",
+            "position": "right"
+          }
+        ]
+      },
+      "screenless_mode": {
+        "voice_prompts": [
+          {
+            "spoken_prompt": "La historia ha terminado. ¿Quieres leer el expediente policial?",
+            "voice_options": [
+              {
+                "phrase": "expediente",
+                "target_node": "expediente"
+              },
+              {
+                "phrase": "terminar",
+                "target_node": "fin"
+              }
+            ],
+            "keypad_shortcuts": {
+              "1": "expediente",
+              "2": "fin"
+            }
+          }
+        ]
+      },
+      "navigation": {
+        "choices": [
+          {
+            "choice_text": "Leer el expediente de la comisaría",
+            "target_node": "expediente"
+          },
+          {
+            "choice_text": "Cerrar el libro",
+            "target_node": "fin"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "expediente",
+      "chapter_id": "epilogo",
+      "title": "Epílogo. El telégrafo de la comisaría",
+      "text_payload": "Madrugada. En la comisaría, un telegrafista recibe el informe de la ronda nocturna. Consulta el expediente y transmite la resolución del caso a la jefatura.",
+      "gameplay_overlay": {
+        "type": "crt_terminal",
+        "is_mandatory_to_advance": true,
+        "title": "Telégrafo de la comisaría",
+        "parameters": {
+          "screen_type": "crt_amber",
+          "prompt": "»",
+          "boot_lines": [
+            "TELÉGRAFO DE LA RONDA NOCTURNA — LÍNEA 3",
+            "Órdenes: help, ls, cat <expediente>, connect jefatura, enviar informe"
+          ],
+          "files": {
+            "denuncia.txt": "Un vecino declara haber oído un grito a medianoche.\nHora aproximada: las doce.",
+            "declaracion.txt": "El inquilino afirma: «El grito fue mío, en un sueño».\nObservación del agente: excesivamente tranquilo.",
+            "hallazgo.txt": "Bajo tres tablones del dormitorio: el anciano.\nEl sospechoso insiste en que oye un latido."
+          },
+          "hosts": [
+            "jefatura"
+          ],
+          "success_command": "enviar informe"
+        },
+        "on_success": {
+          "grant_flags": [
+            "caso_cerrado"
+          ],
+          "transition_to_node": "fin"
+        },
+        "on_failure": {
+          "transition_to_node": "fin"
+        }
+      },
+      "navigation": {
+        "default_next_node": "fin"
+      }
+    },
+    {
+      "node_id": "fin",
+      "chapter_id": "epilogo",
+      "title": "Fin",
+      "text_payload": "«Tell-Tale Heart», publicado por Edgar Allan Poe en 1843. El corazón que delata no es el del viejo: es el de quien no puede dejar de escucharse.",
+      "acoustic_events": [
+        {
+          "event_id": "ultimo_latido",
+          "asset": "assets/audio/sfx/heartbeat.wav",
+          "label": "último latido",
+          "trigger": "on_node_enter",
+          "loop": false,
+          "coordinates": {
+            "x": 0,
+            "y": 0,
+            "z": 0.3
+          },
+          "room_preset": "small_study",
+          "acoustic_material": "wood",
+          "gain": 0.3,
+          "fade_in_ms": 0
+        }
+      ],
+      "navigation": {
+        "is_ending": true
+      }
+    }
+  ]
+}

@@ -74,12 +74,13 @@ function defaultStorage(): ProjectStorage {
 onMounted(async () => {
   if (props.autoload) {
     const storage = defaultStorage();
+    const saved = await storage.load().catch(() => null);
     const work = await defaultWork();
-    try {
-      await project.openFromStorage(storage, work.manifest);
-      if (!project.assetBase) project.assetBase = work.assetBase;
-    } catch {
-      await project.open({ manifest: work.manifest, storage, assetBase: work.assetBase });
+    if (saved?.manifest) {
+      await project.openFromStorage(storage);
+      project.assetBase = work.assetBase;
+    } else {
+      await project.open({ manifest: work.manifest, storage, assetBase: work.assetBase, lore: work.lore, assets: work.assets });
     }
   }
   ready.value = true;

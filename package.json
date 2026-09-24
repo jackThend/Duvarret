@@ -16,7 +16,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "tauri": "tauri",
-    "schema": "tsx scripts/generate-schema.ts"
+    "schema": "tsx scripts/generate-schema.ts",
+    "duvarret": "tsx scripts/duvarret.ts",
+    "foley": "tsx scripts/synthesize-foley.ts",
+    "flagship": "tsx scripts/build-flagship.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
