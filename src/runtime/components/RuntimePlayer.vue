@@ -161,15 +161,16 @@ defineExpose({ store, audio, announcer });
     <header v-if="started" class="dv-player-bar">
       <span class="dv-player-title">{{ store.manifest?.metadata.title }}</span>
       <div class="dv-player-tools">
-        <button type="button" class="dv-tool" :aria-pressed="showInventory" data-testid="toggle-inventory" @click="showInventory = !showInventory">🎒 Inventario</button>
+        <button type="button" class="dv-tool" :aria-pressed="showInventory" data-testid="toggle-inventory" aria-label="Inventario" @click="showInventory = !showInventory">🎒<span class="dv-tool-label"> Inventario</span></button>
         <button
           v-if="store.manifest?.global_settings.allow_screenless_toggle"
           type="button"
           class="dv-tool"
           :aria-pressed="store.mode === 'screenless'"
           data-testid="toggle-screenless"
+          :aria-label="MODE_LABELS.audio_drama_screenless"
           @click="toggleScreenless"
-        >🎧 {{ MODE_LABELS.audio_drama_screenless }}</button>
+        >🎧<span class="dv-tool-label"> {{ MODE_LABELS.audio_drama_screenless }}</span></button>
       </div>
     </header>
 

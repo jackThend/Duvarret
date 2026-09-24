@@ -143,11 +143,11 @@ e2e/           # Pruebas Playwright
 - [x] **5.3 Panel izquierdo: árbol de beats, personajes, inventario, grafo constelación**
 - [x] **5.4 Lienzo de escritura + Ghost Markers + alerta de continuidad**
 - [x] **5.5 Pitch Cards + barra de entrada natural**
-- [ ] **5.6 Live Preview reactivo (< 200 ms)**
-- [ ] **5.7 Radar acústico 3D arrastrable**
-- [ ] **5.8 Temas “Tinta y Pergamino Nórdico” y “Cuaderno de Manuscrito”**
-- [ ] **5.9 Atajos de teclado y ARIA**
-- [ ] **5.10 Pruebas E2E Playwright**
+- [x] **5.6 Live Preview reactivo (< 200 ms)**
+- [x] **5.7 Radar acústico 3D arrastrable**
+- [x] **5.8 Temas “Tinta y Pergamino Nórdico” y “Cuaderno de Manuscrito”**
+- [x] **5.9 Atajos de teclado y ARIA**
+- [x] **5.10 Pruebas E2E Playwright**
 
 ## OLEADA 6 — Compilador, Exportación y Obra Insignia
 

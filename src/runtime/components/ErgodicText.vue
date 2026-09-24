@@ -73,7 +73,7 @@ function meltDelay(index: number) {
           :key="i"
           class="dv-word"
           :style="frame.layers.physics ? wordStyle(i) : meltDelay(i)"
-        >{{ word }} </span>
+        >{{ `${word} ` }}</span>
       </p>
       <template v-else>
         <p v-for="(paragraph, i) in paragraphs" :key="i">{{ paragraph }}</p>

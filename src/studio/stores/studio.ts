@@ -135,7 +135,7 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   function refreshPitches(nodeId = project.selectedNodeId) {
     const node = project.nodes.find((n) => n.node_id === nodeId);
     if (!node) return [];
-    const suggestions = suggestForBeat(node.node_id, node.text_payload, { characters: project.characters.map((c) => c.id) });
+    const suggestions = suggestForBeat(node.node_id, node.text_payload, { characters: project.characters.map((c) => c.id), node });
     pitches.value = pitches.value.filter((p) => !(p.nodeId === node.node_id && p.source === 'proactive' && p.status === 'open'));
     const [first, ...rest] = suggestions;
     if (first) {

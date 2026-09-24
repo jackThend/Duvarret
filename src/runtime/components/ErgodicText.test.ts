@@ -29,6 +29,7 @@ describe('ErgodicText', () => {
     expect(wrapper.find('[data-testid="melt-canvas"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="ergodic-column"]').classes()).toContain('dv-melt-fallback');
     expect(wrapper.findAll('.dv-word')).toHaveLength(2);
+    expect(wrapper.get('.dv-words').element.textContent).toBe('calor sofocante ');
   });
 
   it('monta la linterna con sus parámetros', () => {

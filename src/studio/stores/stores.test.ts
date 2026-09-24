@@ -96,14 +96,15 @@ describe('useProjectStore', () => {
 describe('useStudioStore', () => {
   it('propone Pitch Cards proactivas y las aplica al instante', async () => {
     const project = await opened();
-    project.updateText('inicio', 'El pasillo angosto; las paredes aplastaban, no podía respirar, estrecho y encerrado.');
+    project.select('rejilla');
+    project.updateText('rejilla', 'El pasillo angosto; las paredes aplastaban, no podía respirar, estrecho y encerrado.');
     const studio = useStudioStore();
     studio.refreshPitches();
     const card = studio.openPitches[0]!;
     expect(card.title).toBe('Estrechar la página');
     studio.adjustPitch(card.id, 0, 'parameters.column_width_rem', 20);
     expect(await studio.applyPitch(card.id)).toBe(true);
-    expect(project.nodes[0]!.typographic_engine!.column_width_rem).toBe(20);
+    expect(project.nodes.find((n) => n.node_id === 'rejilla')!.typographic_engine!.column_width_rem).toBe(20);
     expect(studio.lastPulse).toBe(card.id);
     expect(studio.openPitches).toHaveLength(0);
   });
@@ -124,7 +125,8 @@ describe('useStudioStore', () => {
   it('rota alternativas y descarta', async () => {
     await opened();
     const project = useProjectStore();
-    project.updateText('inicio', 'El pasillo angosto y estrecho, encerrado. Oscuridad, sombra, tinieblas, penumbra y noche negra.');
+    project.select('rejilla');
+    project.updateText('rejilla', 'El pasillo angosto y estrecho, encerrado. Oscuridad, sombra, tinieblas, penumbra y noche negra.');
     const studio = useStudioStore();
     studio.refreshPitches();
     const card = studio.openPitches[0]!;

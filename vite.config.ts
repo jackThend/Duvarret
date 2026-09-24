@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
       outDir: isPlayer ? 'dist-player' : 'dist',
       emptyOutDir: true,
       target: 'es2022',
+      chunkSizeWarningLimit: 900,
       rollupOptions: {
         input: isPlayer
           ? fileURLToPath(new URL('./player.html', import.meta.url))

@@ -1,0 +1,128 @@
+/* Duvarret Studio — lenguaje visual editorial (doc 04 §4). Los colores salen de los tokens del tema. */
+@reference "../styles/main.css";
+
+.dv-icon-btn {
+  @apply grid h-8 w-8 place-items-center rounded-md text-dv-muted transition-colors;
+}
+.dv-icon-btn:hover { color: var(--dv-text); background: var(--dv-panel-2); }
+
+.dv-btn-ghost {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-dv-border px-3 py-1 text-sm text-dv-text transition-colors;
+  background: transparent;
+}
+.dv-btn-ghost:hover { border-color: var(--dv-accent); }
+.dv-btn-ghost[aria-pressed="true"] { border-color: var(--dv-accent); color: var(--dv-accent-2); }
+
+.dv-btn-accent {
+  @apply inline-flex items-center gap-1.5 rounded-full px-4 py-1 text-sm font-semibold transition-opacity;
+  background: var(--dv-accent);
+  color: #111;
+}
+.dv-btn-accent:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.dv-select, .dv-input {
+  @apply rounded-md border border-dv-border px-2 py-1 text-sm text-dv-text;
+  background: var(--dv-panel-2);
+}
+
+.dv-section-title {
+  @apply text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-dv-muted;
+}
+
+.dv-tree-item {
+  @apply flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-dv-text;
+  background: transparent;
+}
+.dv-tree-item:hover { background: var(--dv-panel-2); }
+.dv-tree-item.is-active { background: color-mix(in srgb, var(--dv-accent) 16%, transparent); color: var(--dv-accent-2); }
+
+/* Lienzo de escritura: textarea transparente sobre un fondo que dibuja los subrayados. */
+.dv-editor { position: relative; flex: 1; }
+.dv-editor-backdrop, .dv-editor-input {
+  font-family: var(--dv-font-prose);
+  font-size: 1.2rem;
+  line-height: 1.8;
+  letter-spacing: 0.005em;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  width: 100%;
+}
+.dv-editor-backdrop { position: absolute; inset: 0; color: transparent; pointer-events: none; }
+.dv-editor-input {
+  position: relative;
+  min-height: 12rem;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--dv-text);
+  caret-color: var(--dv-accent-2);
+  outline: none;
+}
+.dv-continuity-mark {
+  color: transparent;
+  background: transparent;
+  text-decoration: underline wavy var(--dv-accent-2);
+  text-underline-offset: 5px;
+}
+.dv-ghost-markers { list-style: none; margin: 0; padding: 0.35rem 0 0; display: flex; flex-direction: column; gap: 0.5rem; width: 1.4rem; }
+.dv-ghost-marker { font-size: 0.8rem; opacity: 0.8; cursor: help; filter: sepia(1) saturate(3) hue-rotate(-10deg); }
+.dv-margin-note {
+  @apply rounded-md p-3 text-sm;
+  border-left: 3px solid var(--dv-accent-2);
+  background: color-mix(in srgb, var(--dv-accent) 8%, transparent);
+  font-family: var(--dv-font-prose);
+  font-style: italic;
+}
+
+.dv-pitch {
+  @apply rounded-xl border p-4;
+  border-color: color-mix(in srgb, var(--dv-accent) 35%, var(--dv-border));
+  background: var(--dv-panel);
+}
+.dv-pulse { animation: dv-pulse 900ms ease-out; }
+@keyframes dv-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dv-accent-2) 70%, transparent); }
+  100% { box-shadow: 0 0 0 18px transparent; }
+}
+
+.dv-chat { @apply text-sm leading-relaxed; }
+.dv-chat-director { color: var(--dv-text); }
+.dv-chat-author { color: var(--dv-muted); }
+
+.dv-preview-frame {
+  height: 26rem;
+  border: 1px solid var(--dv-border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: width 300ms ease;
+  width: 100%;
+  margin: 0 auto;
+}
+.dv-preview-frame.is-mobile { width: 390px; max-width: 100%; height: 34rem; border-radius: 1.6rem; border-width: 6px; }
+.dv-preview-frame .dv-player-main { padding: 1.2rem 1rem 2.5rem; }
+.dv-preview-frame .dv-column { font-size: 1rem; }
+
+.dv-radar svg { display: block; margin: 0.5rem auto 0; touch-action: none; }
+.dv-radar-ring { fill: none; stroke: var(--dv-border); }
+.dv-radar-axis { stroke: var(--dv-border); stroke-dasharray: 2 4; }
+.dv-radar-label { fill: var(--dv-muted); font-size: 9px; }
+.dv-radar-listener { fill: var(--dv-text); }
+.dv-radar-source { cursor: grab; }
+.dv-radar-source circle { fill: var(--dv-accent-2); stroke: var(--dv-bg); stroke-width: 2; }
+.dv-radar-source.is-dragging { cursor: grabbing; }
+.dv-radar-source:focus-visible circle { stroke: var(--dv-mystic); stroke-width: 3; }
+.dv-radar-name { fill: var(--dv-text); font-size: 10px; }
+
+.dv-graph-edge { stroke: var(--dv-muted); }
+.dv-graph-label { fill: var(--dv-text); font-size: 10px; }
+
+.dv-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); padding: 1rem; }
+.dv-modal {
+  @apply max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-dv-border p-6;
+  background: var(--dv-panel);
+  outline: none;
+}
+.dv-modal.is-wide { max-width: 56rem; }

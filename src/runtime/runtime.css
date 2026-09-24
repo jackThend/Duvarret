@@ -260,3 +260,5 @@
   .dv-player-main { flex-direction: column; padding: 1.2rem 1rem 3rem; }
   .dv-inventory { width: auto; border-left: 0; padding-left: 0; }
 }
+.dv-embedded .dv-tool-label { display: none; }
+.dv-embedded .dv-player-bar { padding: 0.4rem 0.8rem; }
