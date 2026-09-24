@@ -87,7 +87,7 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/runtime/audio/{SpatialAudioEngine.ts,rooms.ts,materials.ts,coordinates.ts,impulse.ts}`
   - HRTF `PannerNode`, reverberación convolutiva sintetizada por sala, filtros por material, atenuación por distancia, disparadores (`on_node_enter`, `on_text_reveal_percentage`, `on_choice_hover`, `on_puzzle_solve`), tono de prueba si falta el asset, degradación a estéreo.
   - Verificación: `npm test -- audio` con Web Audio API simulada.
-- [ ] **2.6 Modo Sin Pantalla (accesibilidad ciega)**
+- [x] **2.6 Modo Sin Pantalla (accesibilidad ciega)**
   - Archivos: `src/runtime/screenless/{ScreenlessController.ts,announcer.ts}`, `src/runtime/components/ScreenlessStage.vue`
   - Teclado numérico, atajos universales, ARIA live, síntesis de voz, foley.
   - Verificación: tests de atajos y anuncios.
