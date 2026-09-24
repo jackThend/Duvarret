@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Duvarret Player",
+  "identifier": "engine.duvarret.player",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build:player",
+    "frontendDist": "../dist-player"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Duvarret",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 640,
+        "minHeight": 480
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  }
+}

@@ -41,7 +41,7 @@ e2e/           # Pruebas Playwright
   - Archivos: `eslint.config.js`, `vitest` en `vite.config.ts`, `playwright.config.ts`, `src/test/setup.ts`
   - Verificación: `npm run lint && npm test`
   - Éxito: suite vacía/sonda pasa; linter en verde.
-- [ ] **1.3 Shell Tauri v2 (Rust)**
+- [x] **1.3 Shell Tauri v2 (Rust)**
   - Archivos: `src-tauri/{Cargo.toml,build.rs,tauri.conf.json,src/main.rs,src/lib.rs,capabilities/default.json,icons/*}`
   - Verificación: `cd src-tauri && cargo check && cargo test`
   - Éxito: crate compila; comandos Rust con tests.
