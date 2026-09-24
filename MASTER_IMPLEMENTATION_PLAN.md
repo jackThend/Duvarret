@@ -50,7 +50,7 @@ e2e/           # Pruebas Playwright
   - Cubre: metadata, global_settings, character_registry, item_registry, acoustic_environment, nodes (typographic_engine, acoustic_events, visual_novel_overlay, gameplay_overlay, rpg_checks, screenless_mode, navigation).
   - Verificación: `npm test -- manifest`
   - Éxito: el ejemplo exhaustivo del doc 03 valida sin pérdidas.
-- [ ] **1.5 Validador tolerante con fallbacks (RNF-09)**
+- [x] **1.5 Validador tolerante con fallbacks (RNF-09)**
   - Archivos: `src/core/manifest/validator.ts`, `src/core/manifest/defaults.ts`
   - Reglas: `z` ausente → `0.0`; directivas desconocidas → valores seguros + aviso; nodos corruptos aislados; JSON ilegible → manifiesto vacío seguro con diagnóstico.
   - Verificación: `npm test -- validator`
