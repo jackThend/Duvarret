@@ -83,7 +83,7 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/runtime/components/FlashlightMask.vue`
   - Ratón + táctil + teclado (accesible), gradiente radial.
   - Verificación: tests DOM de posición y opacidad.
-- [ ] **2.5 Motor de audio espacial 3D**
+- [x] **2.5 Motor de audio espacial 3D**
   - Archivos: `src/runtime/audio/{SpatialAudioEngine.ts,rooms.ts,materials.ts,coordinates.ts,impulse.ts}`
   - HRTF `PannerNode`, reverberación convolutiva sintetizada por sala, filtros por material, atenuación por distancia, disparadores (`on_node_enter`, `on_text_reveal_percentage`, `on_choice_hover`, `on_puzzle_solve`), tono de prueba si falta el asset, degradación a estéreo.
   - Verificación: `npm test -- audio` con Web Audio API simulada.

@@ -29,9 +29,10 @@ export interface CheckResult {
 }
 
 export interface RuntimeEvent {
-  type: AcousticTrigger | 'node_exit';
+  type: AcousticTrigger | 'node_exit' | 'play_sfx';
   nodeId: string;
   value?: number;
+  asset?: string;
 }
 
 export interface StorySnapshot {
@@ -257,6 +258,7 @@ export const useStoryStore = defineStore('duvarret-story', () => {
     const outcome = success ? overlay.on_success : overlay.on_failure;
     setState(applyOutcome(gameState.value, outcome));
     if (success) emit({ type: 'on_puzzle_solve', nodeId: node.node_id });
+    if (outcome.play_sfx) emit({ type: 'play_sfx', nodeId: node.node_id, asset: outcome.play_sfx });
     if (outcome.transition_to_node) goTo(outcome.transition_to_node);
   }
 
