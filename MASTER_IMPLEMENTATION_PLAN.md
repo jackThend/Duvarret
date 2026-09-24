@@ -97,7 +97,7 @@ e2e/           # Pruebas Playwright
 - [x] **2.8 Minijuegos en sandbox**
   - Archivos: `src/runtime/modules/{ModuleSandbox.vue,CrtTerminal.vue,CipherLock.vue,CircuitWiring.vue,FictionalDesktop.vue,terminalParser.ts}`
   - Emiten solo `success`/`failure`; errores capturados sin romper la historia (RNF-08).
-- [ ] **2.9 Reproductor integrado (`RuntimePlayer.vue`)**
+- [x] **2.9 Reproductor integrado (`RuntimePlayer.vue`)**
   - Archivos: `src/runtime/components/{RuntimePlayer.vue,NodeView.vue,ChoiceList.vue,InventoryPanel.vue}`
   - Verificación: test de integración recorriendo un manifiesto completo.
 

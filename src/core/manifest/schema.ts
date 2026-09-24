@@ -25,19 +25,21 @@ import {
 const HEX_COLOR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 function build(tolerant: boolean) {
+  // Los ayudantes se tipan siempre con la variante estricta: la tolerante produce la misma salida.
   /** Campo con valor por defecto; en modo tolerante un valor inválido también cae al defecto. */
   const d = <T extends z.ZodType>(schema: T, value: z.output<T>) =>
-    tolerant ? schema.default(value as never).catch(value as never) : schema.default(value as never);
+    (tolerant ? schema.default(value as never).catch(value as never) : schema.default(value as never)) as unknown as z.ZodDefault<T>;
   /** Campo obligatorio; en modo tolerante se sustituye por `fallback`. */
   const r = <T extends z.ZodType>(schema: T, fallback: z.output<T>) =>
-    tolerant ? schema.catch(fallback as never) : schema;
+    (tolerant ? schema.catch(fallback as never) : schema) as unknown as T;
   /** Campo opcional; en modo tolerante un valor inválido se descarta. */
   const o = <T extends z.ZodType>(schema: T) =>
-    tolerant ? schema.optional().catch(undefined) : schema.optional();
-  const obj = <S extends z.ZodRawShape>(shape: S) => (tolerant ? z.object(shape) : z.strictObject(shape));
+    (tolerant ? schema.optional().catch(undefined) : schema.optional()) as unknown as z.ZodOptional<T>;
+  const obj = <S extends z.ZodRawShape>(shape: S) =>
+    (tolerant ? z.object(shape) : z.strictObject(shape)) as unknown as ReturnType<typeof z.strictObject<S>>;
   /** Listas: en modo tolerante se descartan los elementos irrecuperables. */
   const list = <T extends z.ZodType>(item: T) =>
-    tolerant
+    (tolerant
       ? z
           .array(z.unknown())
           .catch([])
@@ -48,9 +50,9 @@ function build(tolerant: boolean) {
             }),
           )
           .default([])
-      : z.array(item).default([]);
+      : z.array(item).default([])) as unknown as z.ZodDefault<z.ZodArray<T>>;
   const dict = <T extends z.ZodType>(item: T) =>
-    tolerant
+    (tolerant
       ? z
           .record(z.string(), z.unknown())
           .catch({})
@@ -63,7 +65,7 @@ function build(tolerant: boolean) {
             return out;
           })
           .default({})
-      : z.record(z.string(), item).default({});
+      : z.record(z.string(), item).default({})) as unknown as z.ZodDefault<z.ZodRecord<z.ZodString, T>>;
 
   const color = (fallback: string) => d(z.string().regex(HEX_COLOR), fallback);
   const flag = z.string().min(1);
@@ -302,15 +304,13 @@ function build(tolerant: boolean) {
 
   const manifest = obj({
     $schema: d(z.string(), MANIFEST_SCHEMA_URL),
-    metadata: tolerant
-      ? d(metadata, metadata.parse({}))
-      : metadata,
+    metadata: tolerant ? d(metadata, metadata.parse({})) : metadata,
     global_settings: d(globalSettings, globalSettings.parse({})),
     character_registry: dict(character),
     item_registry: dict(item),
     acoustic_environment: d(acousticEnvironment, acousticEnvironment.parse({})),
     initial_state: d(initialState, initialState.parse({})),
-    nodes: tolerant ? list(node) : z.array(node),
+    nodes: (tolerant ? list(node) : z.array(node)) as z.ZodArray<typeof node>,
   });
 
   return {
