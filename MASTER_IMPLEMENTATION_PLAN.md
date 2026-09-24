@@ -60,7 +60,7 @@ e2e/           # Pruebas Playwright
   - Detecta: `transition_to_node`/`target_node`/`default_next_node`/atajos de teclado hacia nodos inexistentes, speakers/items no registrados, IDs duplicados.
   - Verificación: `npm test -- integrity`
   - Éxito: diagnósticos con severidad `error` bloquean la exportación.
-- [ ] **1.7 Carga de manifiestos y JSON Schema exportable**
+- [x] **1.7 Carga de manifiestos y JSON Schema exportable**
   - Archivos: `src/core/manifest/loader.ts`, `schemas/story-manifest.schema.json`, `scripts/generate-schema.ts`
   - Verificación: `npm test -- loader && npm run schema`
   - Éxito: carga desde string/objeto/URL; JSON Schema generado y versionado.
