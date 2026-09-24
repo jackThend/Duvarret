@@ -105,10 +105,10 @@ e2e/           # Pruebas Playwright
 
 - [x] **3.1 Capa de drivers SQL (sql.js WASM / Tauri SQL)**
   - Archivos: `src/core/lore/driver.ts`, `src/core/lore/sqljsDriver.ts`, `src/core/lore/tauriDriver.ts`
-- [ ] **3.2 Esquema del grafo (`lore_graph.db`)**
+- [x] **3.2 Esquema del grafo (`lore_graph.db`)**
   - Archivos: `src/core/lore/schema.sql.ts`, `src/core/lore/LoreGraph.ts`
   - Tablas `nodes`, `edges` (ponderadas, timeline), `flags`, `events` (causalidad temporal), FTS5, claves foráneas.
-- [ ] **3.3 Consultas del grafo**
+- [x] **3.3 Consultas del grafo**
   - Vecinos, búsqueda FTS, estado temporal de entidades, subgrafo para visualización.
 - [ ] **3.4 Supervisor de continuidad**
   - Archivos: `src/core/lore/continuity.ts`
