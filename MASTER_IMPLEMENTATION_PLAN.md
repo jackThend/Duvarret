@@ -72,14 +72,14 @@ e2e/           # Pruebas Playwright
   - Navegación, flags, inventario, historial/backlog, stats RPG, chequeos pasivos deterministas (RNG con semilla), progreso de lectura, save/load.
   - Verificación: `npm test -- story`
   - Éxito: transiciones, condiciones y determinismo probados.
-- [ ] **2.2 Motor tipográfico ergódico (estilos)**
+- [x] **2.2 Motor tipográfico ergódico (estilos)**
   - Archivos: `src/runtime/typography/effects.ts`, `src/runtime/components/ErgodicText.vue`
   - `narrow_corridor`, `heartbeat_tremor` (onda senoidal por BPM), `flicker`, `mirror_inverted`, `physics_fall`, respeto a `prefers-reduced-motion`.
   - Verificación: `npm test -- typography`
-- [ ] **2.3 Shader de licuado (`melt_text`) WebGL + fallback CSS**
+- [x] **2.3 Shader de licuado (`melt_text`) WebGL + fallback CSS**
   - Archivos: `src/runtime/typography/meltShader.ts`, `src/runtime/components/MeltCanvas.vue`
   - Verificación: tests con contexto WebGL simulado (compilación de shaders, uniforms) y ruta de fallback.
-- [ ] **2.4 Máscara de linterna (`flashlight_reveal`)**
+- [x] **2.4 Máscara de linterna (`flashlight_reveal`)**
   - Archivos: `src/runtime/components/FlashlightMask.vue`
   - Ratón + táctil + teclado (accesible), gradiente radial.
   - Verificación: tests DOM de posición y opacidad.
