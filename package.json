@@ -41,8 +41,10 @@
     "vue-tsc": "3.3.11"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.128.0",
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-sql": "2.4.1",
+    "pdfjs-dist": "6.3.289",
     "pinia": "4.0.3",
     "resonance-audio": "1.0.0",
     "sql.js": "1.14.2",
