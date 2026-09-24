@@ -131,9 +131,9 @@ e2e/           # Pruebas Playwright
 - [x] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf)**
   - Archivos: `src/core/ingest/{readers.ts,sceneParser.ts,toneAnalyzer.ts}`
   - Beats de 300–800 palabras respetando capítulos; tono e interacción candidata.
-- [ ] **4.6 Director local heurístico (offline, sin LLM)**
+- [x] **4.6 Director local heurístico (offline, sin LLM)**
   - Archivos: `src/core/agent/localDirector.ts` — genera Pitch Cards y llamadas a herramientas deterministas.
-- [ ] **4.7 Tests de integración del pipeline con mocks**
+- [x] **4.7 Tests de integración del pipeline con mocks**
 
 ## OLEADA 5 — Duvarret Studio
 
