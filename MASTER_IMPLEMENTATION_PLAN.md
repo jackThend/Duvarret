@@ -55,7 +55,7 @@ e2e/           # Pruebas Playwright
   - Reglas: `z` ausente → `0.0`; directivas desconocidas → valores seguros + aviso; nodos corruptos aislados; JSON ilegible → manifiesto vacío seguro con diagnóstico.
   - Verificación: `npm test -- validator`
   - Éxito: nunca lanza; devuelve `{ manifest, issues[] }`.
-- [ ] **1.6 Integridad referencial de nodos (compilación)**
+- [x] **1.6 Integridad referencial de nodos (compilación)**
   - Archivos: `src/core/manifest/integrity.ts`
   - Detecta: `transition_to_node`/`target_node`/`default_next_node`/atajos de teclado hacia nodos inexistentes, speakers/items no registrados, IDs duplicados.
   - Verificación: `npm test -- integrity`
