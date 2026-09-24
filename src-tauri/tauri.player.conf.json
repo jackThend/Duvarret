@@ -18,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
+      "csp": "default-src 'self' obra: http://obra.localhost; img-src 'self' obra: http://obra.localhost data: blob:; media-src 'self' obra: http://obra.localhost data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost obra: http://obra.localhost; script-src 'self' 'wasm-unsafe-eval'"
     }
   }
 }

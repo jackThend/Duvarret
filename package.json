@@ -44,6 +44,7 @@
     "@anthropic-ai/sdk": "0.128.0",
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-sql": "2.4.1",
+    "fflate": "0.8.3",
     "pdfjs-dist": "6.3.289",
     "pinia": "4.0.3",
     "resonance-audio": "1.0.0",

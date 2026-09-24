@@ -1,5 +1,6 @@
 //! Shell nativo de Duvarret (Tauri v2): comandos de proyecto local y base de lore SQLite.
 
+pub mod player;
 pub mod project;
 
 use std::path::PathBuf;
@@ -47,6 +48,18 @@ fn project_list_assets(root: String) -> Result<Vec<String>, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .register_uri_scheme_protocol("obra", |_ctx, request| {
+            let (status, mime, body) = match player::obra_root() {
+                Some(root) => player::serve(&root, request.uri().path()),
+                None => (404, "text/plain", Vec::new()),
+            };
+            tauri::http::Response::builder()
+                .status(status)
+                .header("Content-Type", mime)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(body)
+                .expect("respuesta del protocolo obra")
+        })
         .invoke_handler(tauri::generate_handler![
             project_create,
             project_read,
