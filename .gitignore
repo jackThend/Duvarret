@@ -29,3 +29,9 @@ Thumbs.db
 # Duvarret project exports / builds
 export/
 *.duvarret/export/
+
+# Builds adicionales y pruebas
+dist-player
+playwright-report
+test-results
+src-tauri/gen/schemas

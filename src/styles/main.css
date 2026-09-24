@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* Tokens editoriales de Duvarret (doc 04 §4). Tema por defecto: Tinta y Pergamino Nórdico. */
+:root,
+[data-theme="nordic"] {
+  --dv-bg: #0c0e12;
+  --dv-panel: #15181e;
+  --dv-panel-2: #1c2028;
+  --dv-border: #262b34;
+  --dv-text: #e3e5e8;
+  --dv-muted: #9aa1ab;
+  --dv-accent: #d97706;
+  --dv-accent-2: #f59e0b;
+  --dv-mystic: #06b6d4;
+  --dv-danger: #ef4444;
+  --dv-font-prose: "Spectral", "EB Garamond", Georgia, serif;
+  --dv-font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+[data-theme="sepia"] {
+  --dv-bg: #f4eee1;
+  --dv-panel: #ebe3d1;
+  --dv-panel-2: #e2d8c2;
+  --dv-border: #d3c7ad;
+  --dv-text: #2c2523;
+  --dv-muted: #6b5d55;
+  --dv-accent: #b45309;
+  --dv-accent-2: #92400e;
+  --dv-mystic: #0e7490;
+  --dv-danger: #b91c1c;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-dv-bg: var(--dv-bg);
+  --color-dv-panel: var(--dv-panel);
+  --color-dv-panel-2: var(--dv-panel-2);
+  --color-dv-border: var(--dv-border);
+  --color-dv-text: var(--dv-text);
+  --color-dv-muted: var(--dv-muted);
+  --color-dv-accent: var(--dv-accent);
+  --color-dv-accent-2: var(--dv-accent-2);
+  --color-dv-mystic: var(--dv-mystic);
+  --color-dv-danger: var(--dv-danger);
+  --font-prose: var(--dv-font-prose);
+  --font-ui: var(--dv-font-ui);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--dv-bg);
+  color: var(--dv-text);
+  font-family: var(--dv-font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--dv-accent-2);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

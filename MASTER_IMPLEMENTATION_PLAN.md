@@ -33,11 +33,11 @@ e2e/           # Pruebas Playwright
 
 ## OLEADA 1 — Andamiaje y Contrato de Datos
 
-- [ ] **1.1 Andamiaje Vite + Vue 3 + TS + Pinia + Tailwind**
+- [x] **1.1 Andamiaje Vite + Vue 3 + TS + Pinia + Tailwind**
   - Archivos: `package.json`, `vite.config.ts`, `tsconfig*.json`, `index.html`, `src/main.ts`, `src/App.vue`, `src/styles/main.css`
   - Verificación: `npm run typecheck && npm run build`
   - Éxito: build web generado en `dist/` sin errores.
-- [ ] **1.2 Tooling de calidad (ESLint, Vitest, Playwright)**
+- [x] **1.2 Tooling de calidad (ESLint, Vitest, Playwright)**
   - Archivos: `eslint.config.js`, `vitest` en `vite.config.ts`, `playwright.config.ts`, `src/test/setup.ts`
   - Verificación: `npm run lint && npm test`
   - Éxito: suite vacía/sonda pasa; linter en verde.
