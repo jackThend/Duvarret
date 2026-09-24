@@ -67,7 +67,7 @@ e2e/           # Pruebas Playwright
 
 ## OLEADA 2 — Runtime Declarativo Universal
 
-- [ ] **2.1 Máquina de estados Pinia (`useStoryStore`)**
+- [x] **2.1 Máquina de estados Pinia (`useStoryStore`)**
   - Archivos: `src/runtime/stores/story.ts`, `src/runtime/engine/conditions.ts`, `src/runtime/engine/rng.ts`
   - Navegación, flags, inventario, historial/backlog, stats RPG, chequeos pasivos deterministas (RNG con semilla), progreso de lectura, save/load.
   - Verificación: `npm test -- story`
