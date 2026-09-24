@@ -124,9 +124,9 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/core/agent/tools/*.ts`
   - `queryLoreGraph`, `updateLoreEntity`, `validateContinuity`, `setTypographicEffect`, `setVisualNovelSegment`, `placeSpatialAudio`, `mountSimulatedModule`, `requestAssetSynthesis`.
   - Todas mutan el manifiesto solo a través del validador (sin `eval`).
-- [ ] **4.3 Orquestador (bucle de tool calling)**
+- [x] **4.3 Orquestador (bucle de tool calling)**
   - Archivos: `src/core/agent/orchestrator.ts`
-- [ ] **4.4 Intérprete espacial en lenguaje natural (RF-11)**
+- [x] **4.4 Intérprete espacial en lenguaje natural (RF-11)**
   - Archivos: `src/core/agent/spatialLanguage.ts`
 - [ ] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf)**
   - Archivos: `src/core/ingest/{readers.ts,sceneParser.ts,toneAnalyzer.ts}`
