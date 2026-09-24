@@ -137,7 +137,7 @@ e2e/           # Pruebas Playwright
 
 ## OLEADA 5 — Duvarret Studio
 
-- [ ] **5.1 Store del proyecto y persistencia `.duvarret`**
+- [x] **5.1 Store del proyecto y persistencia `.duvarret`**
   - Archivos: `src/studio/stores/{project.ts,studio.ts}`, `src/core/project/*.ts`
 - [ ] **5.2 Layout tripartito 20/45/35 con panel izquierdo colapsable**
 - [ ] **5.3 Panel izquierdo: árbol de beats, personajes, inventario, grafo constelación**

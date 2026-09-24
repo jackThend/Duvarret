@@ -108,6 +108,23 @@ pub fn write_text(root: &Path, relative: &str, contents: &str) -> Result<(), Pro
     Ok(())
 }
 
+/// Escribe datos binarios (p. ej. `knowledge/lore_graph.db`) de forma atómica.
+pub fn write_bytes(root: &Path, relative: &str, contents: &[u8]) -> Result<(), ProjectError> {
+    let target = resolve_inside(root, relative)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let tmp = target.with_extension("tmp-duvarret");
+    fs::write(&tmp, contents)?;
+    fs::rename(&tmp, &target)?;
+    Ok(())
+}
+
+pub fn read_bytes(root: &Path, relative: &str) -> Result<Vec<u8>, ProjectError> {
+    let target = resolve_inside(root, relative)?;
+    Ok(fs::read(target)?)
+}
+
 pub fn read_text(root: &Path, relative: &str) -> Result<String, ProjectError> {
     let target = resolve_inside(root, relative)?;
     Ok(fs::read_to_string(target)?)
@@ -173,6 +190,10 @@ mod tests {
         let bundle = read_project(&root).unwrap();
         assert_eq!(bundle.manifest_json.as_deref(), Some(r#"{"nodes":[]}"#));
         assert_eq!(read_text(&root, MANIFEST_FILE).unwrap(), r#"{"nodes":[]}"#);
+
+        write_bytes(&root, "knowledge/lore_graph.db", &[0x53, 0x51, 0x4c]).unwrap();
+        assert_eq!(read_bytes(&root, "knowledge/lore_graph.db").unwrap(), vec![0x53, 0x51, 0x4c]);
+        assert!(write_bytes(&root, "../fuera.db", &[1]).is_err());
 
         write_text(&root, "assets/audio/registry.json", "{}").unwrap();
         assert_eq!(list_assets(&root).unwrap(), vec!["assets/audio/registry.json"]);

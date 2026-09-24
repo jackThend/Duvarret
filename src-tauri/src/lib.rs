@@ -29,6 +29,16 @@ fn project_read_text(root: String, relative: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn project_write_bytes(root: String, relative: String, contents: Vec<u8>) -> Result<(), String> {
+    project::write_bytes(&PathBuf::from(root), &relative, &contents).map_err(to_msg)
+}
+
+#[tauri::command]
+fn project_read_bytes(root: String, relative: String) -> Result<Vec<u8>, String> {
+    project::read_bytes(&PathBuf::from(root), &relative).map_err(to_msg)
+}
+
+#[tauri::command]
 fn project_list_assets(root: String) -> Result<Vec<String>, String> {
     project::list_assets(&PathBuf::from(root)).map_err(to_msg)
 }
@@ -42,6 +52,8 @@ pub fn run() {
             project_read,
             project_write_text,
             project_read_text,
+            project_write_bytes,
+            project_read_bytes,
             project_list_assets
         ])
         .run(tauri::generate_context!())

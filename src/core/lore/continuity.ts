@@ -194,7 +194,7 @@ export class ContinuitySupervisor {
 // ── Utilidades de análisis de texto ─────────────────────────────────────────
 
 const USE_VERBS =
-  /\b(extrajo|extrae|saco|saca|uso|usa|utilizo|utiliza|empuno|empuna|blandio|blande|disparo|dispara|abrio con|abre con|bebio|bebe|comio|come|leyo|lee|mostro|muestra|entrego|entrega|tomo|toma|agarro|agarra|sostuvo|sostiene|guardo|guarda|encendio|enciende|giro la|introdujo|introduce)\b/;
+  /\b(extrajo|extrae|saco|saca|uso|usa|utilizo|utiliza|empuno|empuna|blandio|blande|disparo|dispara|abrio|abre|rompio|rompe|bebio|bebe|comio|come|leyo|lee|mostro|muestra|entrego|entrega|tomo|toma|agarro|agarra|sostuvo|sostiene|guardo|guarda|encendio|enciende|giro la|introdujo|introduce)\b/;
 const ACTION_VERBS =
   /\b(dijo|dice|hablo|habla|camino|camina|corrio|corre|miro|mira|sonrio|sonrie|grito|grita|entro|entra|salio|sale|abrio|abre|tomo|toma|respondio|responde|pregunto|pregunta|llego|llega|susurro|susurra|golpeo|golpea|levanto|levanta)\b/;
 const MEMORY_WORDS = /\b(recuerdo|recordaba|recordo|memoria|fantasma|espectro|tumba|cadaver|difunto|sueno|sonaba|retrato|fotografia|grabacion)\b/;
