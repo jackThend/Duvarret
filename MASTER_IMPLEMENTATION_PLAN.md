@@ -91,7 +91,7 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/runtime/screenless/{ScreenlessController.ts,announcer.ts}`, `src/runtime/components/ScreenlessStage.vue`
   - Teclado numérico, atajos universales, ARIA live, síntesis de voz, foley.
   - Verificación: tests de atajos y anuncios.
-- [ ] **2.7 Novela Visual**
+- [x] **2.7 Novela Visual**
   - Archivos: `src/runtime/modules/VisualNovelOverlay.vue`, `src/runtime/composables/useTypewriter.ts`
   - Avatares por estado de ánimo, máquina de escribir, backlog, placeholder estilizado si falta sprite.
 - [ ] **2.8 Minijuegos en sandbox**
