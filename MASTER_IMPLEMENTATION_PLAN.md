@@ -120,7 +120,7 @@ e2e/           # Pruebas Playwright
 
 - [x] **4.1 Contrato agnóstico de LLM (OpenAI tool schema)**
   - Archivos: `src/core/agent/types.ts`, `src/core/agent/providers/{openai,anthropic,gemini,ollama,index}.ts`
-- [ ] **4.2 Registro de herramientas**
+- [x] **4.2 Registro de herramientas**
   - Archivos: `src/core/agent/tools/*.ts`
   - `queryLoreGraph`, `updateLoreEntity`, `validateContinuity`, `setTypographicEffect`, `setVisualNovelSegment`, `placeSpatialAudio`, `mountSimulatedModule`, `requestAssetSynthesis`.
   - Todas mutan el manifiesto solo a través del validador (sin `eval`).
