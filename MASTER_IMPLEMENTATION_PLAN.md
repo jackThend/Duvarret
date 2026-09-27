@@ -163,6 +163,16 @@ e2e/           # Pruebas Playwright
 - [x] **6.6 CI multiplataforma (GitHub Actions)**
 - [x] **6.7 Verificación final de builds**
 
+## OLEADA 7 — Autoría autónoma (sin depender del agente ni del JSON)
+
+- [x] **7.1 Obras: abrir, crear y recordar**
+  - Archivos: `src/core/project/workLibrary.ts`, `src/studio/services/{desktop.ts,workManager.ts}`, `src/studio/composables/useWorks.ts`, `src/studio/components/WorksDialog.vue`, `src-tauri/src/{lib.rs,project.rs}`
+  - Escritorio: diálogo nativo de carpetas, creación de `<Título>.duvarret` sin sobrescribir nunca otra obra, recursos servidos solo desde la carpeta abierta.
+  - Navegador: varias obras en el dispositivo; obras recientes; se guarda la obra actual antes de cambiar; importar un manuscrito crea una obra nueva.
+  - Verificación: `npm test -- workLibrary workManager useWorks`, E2E «Obras», `cargo test`.
+- [ ] **7.2 Recursos propios: arrastrar y soltar sonidos e imágenes**
+- [ ] **7.3 Editor visual de bifurcaciones**
+
 ---
 
 ## Registro de verificación final

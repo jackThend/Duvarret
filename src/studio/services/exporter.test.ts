@@ -24,7 +24,7 @@ describe('exportador del Studio', () => {
 
   it('compila con los assets del proyecto y descarga un zip', async () => {
     const manifest = validateManifest(welcomeManifest()).manifest;
-    const result = await compileFromStudio({ manifest, assetBase: 'obra/', target: 'web', fetcher });
+    const result = await compileFromStudio({ manifest, resolveAsset: (p) => `obra/${p}`, target: 'web', fetcher });
     expect(result.ok).toBe(true);
     expect(result.files.has('assets/audio/sfx/wind.ogg')).toBe(true);
     const clicks: string[] = [];

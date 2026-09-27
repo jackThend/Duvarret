@@ -17,7 +17,7 @@ import {
 import { ManifestEditor } from '@/core/agent/manifestEditor';
 import { AssetRegistry } from '@/core/assets/registry';
 import { ContinuitySupervisor, LoreGraph, seedFromManifest, type ContinuityIssue } from '@/core/lore';
-import { createMeta, manifestFromManuscript, MemoryStorage, ProjectMetaSchema, type ProjectMeta, type ProjectStorage } from '@/core/project';
+import { createMeta, manifestFromManuscript, MemoryStorage, ProjectMetaSchema, WorkLibrary, type ProjectMeta, type ProjectStorage } from '@/core/project';
 import type { ParsedManuscript } from '@/core/ingest/sceneParser';
 import { openLoreDriver } from '../services/lore';
 
@@ -60,6 +60,10 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   const loadIssues = ref<ManifestIssue[]>([]);
   const continuity = ref<Record<string, ContinuityIssue[]>>({});
   const assetBase = ref('');
+  /** Resolución de rutas de recursos propia del almacenamiento (p. ej. archivos en disco en el escritorio). */
+  const assetResolver = shallowRef<((path: string) => string) | null>(null);
+  /** URLs temporales de recursos aportados en esta sesión (tienen prioridad). */
+  const assetOverrides = shallowRef<Map<string, string>>(new Map());
   /** Marca de tiempo del último cambio (para medir la latencia de la vista previa). */
   const changedAt = ref(0);
   const undoStack: StoryManifest[] = [];
@@ -85,6 +89,26 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     }
     return out;
   });
+
+  /** URL de un recurso de la obra para la vista previa y el audio. */
+  function resolveAsset(path: string): string {
+    if (!path || /^(https?:|data:|blob:|asset:)/.test(path)) return path;
+    const clean = path.replace(/^\.?\//, '');
+    const override = assetOverrides.value.get(clean);
+    if (override) return override;
+    if (assetResolver.value) return assetResolver.value(clean);
+    return assetBase.value ? `${assetBase.value.replace(/\/$/, '')}/${clean}` : clean;
+  }
+
+  function setAssetOverride(path: string, url: string | null) {
+    const next = new Map(assetOverrides.value);
+    const clean = path.replace(/^\.?\//, '');
+    const previous = next.get(clean);
+    if (previous?.startsWith('blob:') && previous !== url) URL.revokeObjectURL?.(previous);
+    if (url) next.set(clean, url);
+    else next.delete(clean);
+    assetOverrides.value = next;
+  }
 
   function chapterTitle(id: string, first: StoryNode) {
     const pretty = id.replace(/^cap_?\d*_?/, '').replace(/_/g, ' ').trim();
@@ -134,6 +158,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     assets?: AssetRegistry;
     lore?: Uint8Array | null;
     assetBase?: string;
+    assetResolver?: ((path: string) => string) | null;
     withLore?: boolean;
   }) {
     const result = typeof options.manifest === 'string' ? validateManifestText(options.manifest) : validateManifest(options.manifest);
@@ -143,6 +168,9 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     if (options.storage) storage.value = options.storage;
     assets.value = options.assets ?? new AssetRegistry();
     assetBase.value = options.assetBase ?? '';
+    assetResolver.value = options.assetResolver ?? null;
+    for (const url of assetOverrides.value.values()) if (url.startsWith('blob:')) URL.revokeObjectURL?.(url);
+    assetOverrides.value = new Map();
     selectedNodeId.value = result.manifest.initial_state.start_node ?? result.manifest.nodes[0]?.node_id ?? null;
     undoStack.length = 0;
     redoStack.length = 0;
@@ -153,16 +181,37 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     if (options.withLore !== false) await initLore(options.lore ?? null);
   }
 
-  async function openFromStorage(target: ProjectStorage, fallback?: unknown) {
+  async function openFromStorage(target: ProjectStorage, options: { fallback?: unknown; assetResolver?: ((path: string) => string) | null; assetBase?: string } = {}) {
     const files = await target.load();
-    if (!files.manifest && fallback === undefined) throw new Error('No se encontró la obra.');
+    if (!files.manifest && options.fallback === undefined) throw new Error('No se encontró la obra.');
     await open({
-      manifest: files.manifest ?? fallback,
+      manifest: files.manifest ?? options.fallback,
       ...(files.meta ? { meta: ProjectMetaSchema.parse(JSON.parse(files.meta)) } : {}),
       storage: target,
       assets: files.assets ? AssetRegistry.fromJson(files.assets) : new AssetRegistry(),
       lore: files.lore,
+      ...(options.assetResolver ? { assetResolver: options.assetResolver } : {}),
+      ...(options.assetBase ? { assetBase: options.assetBase } : {}),
     });
+    rememberWork();
+  }
+
+  /** Registra la obra abierta en «Obras recientes» (solo las que tienen un lugar propio). */
+  function rememberWork() {
+    const kind = storage.value.kind;
+    if (kind !== 'browser' && kind !== 'tauri') return;
+    new WorkLibrary().touch({ kind, location: storage.value.location, title: manifest.value.metadata.title, author: manifest.value.metadata.author });
+  }
+
+  /** Crea y guarda de inmediato una obra nueva en el almacenamiento indicado. */
+  async function createWork(options: { storage: ProjectStorage; manifest: unknown; meta?: Partial<ProjectMeta>; assetResolver?: ((path: string) => string) | null }) {
+    await open({
+      manifest: options.manifest,
+      storage: options.storage,
+      ...(options.meta ? { meta: options.meta } : {}),
+      ...(options.assetResolver ? { assetResolver: options.assetResolver } : {}),
+    });
+    await save();
   }
 
   async function save() {
@@ -175,15 +224,18 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     });
     dirty.value = false;
     lastSavedAt.value = new Date().toISOString();
+    rememberWork();
   }
 
-  async function importManuscript(parsed: ParsedManuscript, options: { title?: string; author?: string } = {}) {
-    await open({
-      manifest: manifestFromManuscript(parsed, { title: options.title ?? parsed.title, author: options.author ?? meta.value.author }),
-      meta: { mode: 'exegesis', ...(options.title ? { title: options.title } : {}) },
-      storage: storage.value,
+  /** Crea una obra nueva a partir de un manuscrito segmentado (nunca reemplaza la obra abierta). */
+  async function importManuscript(parsed: ParsedManuscript, options: { title?: string; author?: string; storage: ProjectStorage; assetResolver?: ((path: string) => string) | null }) {
+    const title = options.title ?? parsed.title;
+    await createWork({
+      storage: options.storage,
+      manifest: manifestFromManuscript(parsed, { title, author: options.author ?? '' }),
+      meta: { mode: 'exegesis', title, ...(options.author ? { author: options.author } : {}) },
+      ...(options.assetResolver ? { assetResolver: options.assetResolver } : {}),
     });
-    dirty.value = true;
   }
 
   function select(nodeId: string) {
@@ -308,7 +360,12 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     loadIssues,
     continuity,
     assetBase,
+    assetResolver,
+    assetOverrides,
     changedAt,
+    resolveAsset,
+    setAssetOverride,
+    createWork,
     open,
     openFromStorage,
     save,

@@ -3,13 +3,11 @@ import { ref } from 'vue';
 import { MANUSCRIPT_EXTENSIONS, readManuscript } from '@/core/ingest/readers';
 import { parseManuscript, type ParsedManuscript } from '@/core/ingest/sceneParser';
 import { TONE_LABELS } from '@/core/ingest/toneAnalyzer';
-import { useProjectStore } from '../stores/project';
-import { useStudioStore } from '../stores/studio';
+import { useWorks } from '../composables/useWorks';
 import Modal from './Modal.vue';
 
 const emit = defineEmits<{ close: [] }>();
-const project = useProjectStore();
-const studio = useStudioStore();
+const works = useWorks();
 const parsed = ref<ParsedManuscript | null>(null);
 const error = ref('');
 const reading = ref(false);
@@ -35,10 +33,7 @@ async function onFile(event: Event) {
 
 async function confirm() {
   if (!parsed.value) return;
-  await project.importManuscript(parsed.value, { title: title.value });
-  studio.reset();
-  studio.refreshPitches();
-  emit('close');
+  if (await works.createFromManuscript(parsed.value, { title: title.value.trim() || parsed.value.title })) emit('close');
 }
 </script>
 
@@ -60,7 +55,9 @@ async function confirm() {
             </span>
           </li>
         </ol>
-        <button type="button" class="dv-btn-accent" data-testid="import-confirm" @click="confirm">Crear la obra</button>
+        <p class="text-xs text-dv-muted">Se creará una obra nueva; la que tienes abierta se guarda y queda en «Obras».</p>
+        <button type="button" class="dv-btn-accent" :disabled="works.busy.value" data-testid="import-confirm" @click="confirm">Crear la obra</button>
+        <p v-if="works.error.value" role="alert" class="text-dv-danger">{{ works.error.value }}</p>
       </template>
     </div>
   </Modal>

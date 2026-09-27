@@ -19,6 +19,19 @@ fn project_read(root: String) -> Result<project::ProjectBundle, String> {
     project::read_project(&PathBuf::from(root)).map_err(to_msg)
 }
 
+/// Autoriza a la vista previa a leer los recursos de una obra (solo esa carpeta).
+#[tauri::command]
+fn project_allow_assets(app: tauri::AppHandle, root: String) -> Result<(), String> {
+    use tauri::Manager;
+    let path = PathBuf::from(&root);
+    if !path.join(project::PROJECT_FILE).is_file() {
+        return Err(project::ProjectError::NotAProject(root).to_string());
+    }
+    app.asset_protocol_scope()
+        .allow_directory(&path, true)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn project_write_text(root: String, relative: String, contents: String) -> Result<(), String> {
     project::write_text(&PathBuf::from(root), &relative, &contents).map_err(to_msg)
@@ -79,6 +92,7 @@ fn export_player_binary(app: tauri::AppHandle, root: String, relative_dir: Strin
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol("obra", |_ctx, request| {
             let (status, mime, body) = match player::obra_root() {
                 Some(root) => player::serve(&root, request.uri().path()),
@@ -94,6 +108,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             project_create,
             project_read,
+            project_allow_assets,
             project_write_text,
             project_read_text,
             project_write_bytes,

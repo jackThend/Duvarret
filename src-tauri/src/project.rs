@@ -33,6 +33,7 @@ pub enum ProjectError {
     InvalidPath(String),
     Io(std::io::Error),
     NotAProject(String),
+    AlreadyExists(String),
 }
 
 impl std::fmt::Display for ProjectError {
@@ -41,6 +42,7 @@ impl std::fmt::Display for ProjectError {
             ProjectError::InvalidPath(p) => write!(f, "ruta no permitida: {p}"),
             ProjectError::Io(e) => write!(f, "error de disco: {e}"),
             ProjectError::NotAProject(p) => write!(f, "no es un proyecto Duvarret: {p}"),
+            ProjectError::AlreadyExists(p) => write!(f, "ya existe una obra en {p}"),
         }
     }
 }
@@ -70,6 +72,10 @@ pub fn resolve_inside(root: &Path, relative: &str) -> Result<PathBuf, ProjectErr
 pub fn create_project(root: &Path, project_json: &str) -> Result<(), ProjectError> {
     serde_json::from_str::<serde_json::Value>(project_json)
         .map_err(|e| ProjectError::InvalidPath(format!("metadatos inválidos: {e}")))?;
+    // Nunca se sobrescribe una obra existente.
+    if root.join(PROJECT_FILE).exists() {
+        return Err(ProjectError::AlreadyExists(root.display().to_string()));
+    }
     for dir in PROJECT_LAYOUT {
         fs::create_dir_all(root.join(dir))?;
     }
@@ -197,6 +203,15 @@ mod tests {
 
         write_text(&root, "assets/audio/registry.json", "{}").unwrap();
         assert_eq!(list_assets(&root).unwrap(), vec!["assets/audio/registry.json"]);
+    }
+
+    #[test]
+    fn never_overwrites_an_existing_project() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("Obra.duvarret");
+        create_project(&root, r#"{"title":"Original"}"#).unwrap();
+        assert!(matches!(create_project(&root, r#"{"title":"Otra"}"#), Err(ProjectError::AlreadyExists(_))));
+        assert_eq!(read_project(&root).unwrap().project_json, r#"{"title":"Original"}"#);
     }
 
     #[test]

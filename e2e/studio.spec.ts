@@ -166,3 +166,50 @@ test.describe('Exportación a un clic', () => {
     await expect(page.getByTestId('export-message')).toContainText('el-corazon-delator-web.zip');
   });
 });
+
+test.describe('Obras: crear, cambiar y recordar', () => {
+  test('crea una obra en blanco, cambia a otra y vuelve sin perder nada', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('iniciado')) {
+        localStorage.clear();
+        sessionStorage.setItem('iniciado', '1');
+      }
+    });
+    await page.goto('/');
+    await expect(page.getByTestId('work-title')).toHaveValue('El Corazón Delator');
+    // Un cambio sin guardar en la obra de ejemplo…
+    await page.getByTestId('node-title').fill('I. Nervioso, siempre');
+    await page.getByTestId('node-title').blur();
+
+    await page.getByTestId('open-works').click();
+    await page.getByTestId('new-work-title').fill('Cuaderno de la Mancha');
+    await page.getByTestId('new-work-author').fill('Elena');
+    await page.getByTestId('create-work').click();
+    await expect(page.getByTestId('work-title')).toHaveValue('Cuaderno de la Mancha');
+    await expect(page.getByTestId('left-panel')).toContainText('Primera escena');
+    await page.getByTestId('prose').fill('Amanecía sobre la llanura.');
+    await page.getByTestId('save').click();
+
+    // …se guardó al cambiar: la obra de ejemplo sigue en «Obras recientes» con el cambio.
+    await page.getByTestId('open-works').click();
+    const recents = page.getByTestId('recent-works');
+    await expect(recents).toContainText('El Corazón Delator');
+    await recents.locator('li', { hasText: 'El Corazón Delator' }).getByTestId('open-recent').click();
+    await expect(page.getByTestId('work-title')).toHaveValue('El Corazón Delator');
+    await expect(page.getByTestId('node-title')).toHaveValue('I. Nervioso, siempre');
+
+    // Al recargar se abre la última obra usada.
+    await page.getByTestId('open-works').click();
+    await page.getByTestId('recent-works').locator('li', { hasText: 'Cuaderno de la Mancha' }).getByTestId('open-recent').click();
+    await page.reload();
+    await expect(page.getByTestId('work-title')).toHaveValue('Cuaderno de la Mancha');
+    await expect(page.getByTestId('prose')).toHaveValue('Amanecía sobre la llanura.');
+
+    // Eliminar del dispositivo pide confirmación.
+    await page.getByTestId('open-works').click();
+    const example = page.getByTestId('recent-works').locator('li', { hasText: 'El Corazón Delator' });
+    await example.getByTestId('delete-recent').click();
+    await example.getByTestId('confirm-delete').click();
+    await expect(page.getByTestId('recent-works')).not.toContainText('El Corazón Delator');
+  });
+});

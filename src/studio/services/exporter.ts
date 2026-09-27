@@ -20,17 +20,23 @@ export async function loadPlayerRuntime(fetcher: Fetcher = fetch, base = './play
   return runtime;
 }
 
-export async function compileFromStudio(options: { manifest: StoryManifest; assetBase: string; target: ExportTarget; fetcher?: Fetcher; runtime?: FileMap }): Promise<CompileResult> {
+export async function compileFromStudio(options: {
+  manifest: StoryManifest;
+  /** URL de cada recurso de la obra (la misma que usa la vista previa). */
+  resolveAsset: (path: string) => string;
+  target: ExportTarget;
+  fetcher?: Fetcher;
+  runtime?: FileMap;
+}): Promise<CompileResult> {
   const fetcher = options.fetcher ?? fetch;
   const runtime = options.runtime ?? (await loadPlayerRuntime(fetcher));
-  const base = options.assetBase.replace(/\/$/, '');
   return compileBundle(
     {
       manifest: options.manifest,
       runtime,
       readAsset: async (path) => {
         try {
-          const response = await fetcher(base ? `${base}/${path}` : path);
+          const response = await fetcher(options.resolveAsset(path));
           return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
         } catch {
           return null;

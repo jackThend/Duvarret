@@ -20,6 +20,8 @@ const props = withDefaults(
     manifest: StoryManifest | Record<string, unknown>;
     /** Prefijo para resolver las rutas de assets del proyecto. */
     assetBase?: string;
+    /** Resolución de rutas propia (tiene prioridad sobre `assetBase`). */
+    assetResolver?: (path: string) => string;
     /** `undefined` crea un motor propio; `null` desactiva el audio. */
     audioEngine?: SpatialAudioEngine | null;
     /** Modo embebido del Studio: sin portada ni guardado. */
@@ -28,13 +30,14 @@ const props = withDefaults(
     readingSpeed?: number;
     persistKey?: string;
   }>(),
-  { assetBase: '', audioEngine: undefined, embedded: false, startNode: undefined, readingSpeed: 1, persistKey: undefined },
+  { assetBase: '', assetResolver: undefined, audioEngine: undefined, embedded: false, startNode: undefined, readingSpeed: 1, persistKey: undefined },
 );
 
 const emit = defineEmits<{ node: [nodeId: string]; warning: [message: string] }>();
 const store = useStoryStore();
 
 const resolveAsset = (path: string) => {
+  if (props.assetResolver) return props.assetResolver(path);
   if (!path || /^(https?:|data:|blob:|asset:)/.test(path) || !props.assetBase) return path;
   return `${props.assetBase.replace(/\/$/, '')}/${path.replace(/^\.?\//, '')}`;
 };
