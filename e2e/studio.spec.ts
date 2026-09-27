@@ -216,6 +216,58 @@ test.describe('Obras: crear, cambiar y recordar', () => {
   });
 });
 
+test.describe('Caminos', () => {
+  test('crea una elección con condición y marca, la vista previa la respeta y el mapa la dibuja', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openStudio(page);
+
+    // En «El careo», arremeter solo es posible con valor.
+    await page.getByTestId('beat-careo').click();
+    const attack = page.getByTestId('choice-editor-0');
+    await attack.getByTestId('condition-add').click();
+    await attack.getByTestId('condition-flag').fill('Valor');
+    await attack.getByTestId('condition-confirm').click();
+    await expect(attack.getByTestId('condition-chip')).toContainText('si ya ocurrió «valor»');
+    const preview = page.getByTestId('live-preview');
+    await expect(preview.getByTestId('choices')).not.toContainText('Arremeter contra los gigantes');
+    await expect(preview.getByTestId('choices')).toContainText('Escuchar a Sancho');
+
+    // En la llanura, una elección nueva da ese valor.
+    await page.getByTestId('beat-molinos').click();
+    await page.getByTestId('choice-add').click();
+    const courage = page.getByTestId('choice-editor-0');
+    await courage.getByTestId('choice-text').fill('Armarse de valor');
+    await courage.getByTestId('choice-text').blur();
+    await courage.getByTestId('choice-target').selectOption('careo');
+    await courage.getByTestId('mark-input').fill('valor');
+    await courage.getByTestId('mark-input').press('Enter');
+    await expect(courage.getByTestId('mark-chip')).toContainText('valor');
+
+    await page.getByTestId('play-from-here').click();
+    await preview.getByTestId('choices').getByText('Armarse de valor').click();
+    await expect(preview.getByTestId('choices')).toContainText('Arremeter contra los gigantes');
+
+    // Una escena nueva creada desde el destino queda sin salida hasta escribirla.
+    await page.getByTestId('beat-prudencia').click();
+    await page.getByTestId('paths-ending').uncheck();
+    await page.getByTestId('paths-next').selectOption('__nueva__');
+    await expect(page.getByTestId('left-panel')).toContainText('Nueva escena');
+
+    await page.getByTestId('open-paths-map').click();
+    const map = page.getByTestId('paths-map');
+    await expect(map.getByTestId('flow-node-molinos')).toBeVisible();
+    await expect(map.getByTestId('flow-edge')).toHaveCount(5);
+    await expect(page.getByTestId('paths-ok')).toBeVisible();
+    await map.getByTestId('flow-node-embestida').click();
+    await expect(page.getByTestId('paths-map')).toHaveCount(0);
+    await expect(page.getByTestId('node-title')).toHaveValue('La embestida');
+    await page.keyboard.press('Control+m');
+    await expect(page.getByTestId('paths-map')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('Recursos propios', () => {
   const wav = (seconds = 0.2) => {
     const rate = 8000;

@@ -176,7 +176,12 @@ e2e/           # Pruebas Playwright
   - Recursos que faltan (se aportan en su lugar exacto), colocación sin JSON (retrato, ilustración, icono, sonido de escena, narración, ambiente) y retirada con aviso.
   - El ambiente de fondo de la obra (`ambience_bed`) ahora suena en el runtime; el motor recarga sonidos aportados sin reiniciar.
   - Verificación: `npm test -- usages assetStore assets`, E2E «Recursos propios» (incluye exportación), `cargo test`.
-- [ ] **7.3 Editor visual de bifurcaciones**
+- [x] **7.3 Editor visual de bifurcaciones**
+  - Archivos: `src/core/manifest/navigation.ts`, `src/studio/components/PathsEditor.vue`, `src/studio/components/PathsMap.vue`, `src/studio/stores/project.ts`
+  - «Caminos de la escena» bajo el lienzo: continuación natural, final, elecciones (texto, destino, orden), condiciones en lenguaje llano (acontecimiento ocurrido o no, objeto, atributo mínimo) y marcas que deja cada elección; «＋ Escena nueva» como destino directo.
+  - «Mapa de caminos» (`Ctrl/⌘+M`): escenas por distancia al inicio, continuaciones, elecciones, desenlaces de enigma y atajos sin pantalla; avisa de escenas sin camino de llegada y de caminos rotos; pulsar una escena la abre.
+  - Todo cambio es deshacible y se refleja al momento en la vista previa.
+  - Verificación: `npm test -- navigation paths`, E2E «Caminos».
 
 ---
 

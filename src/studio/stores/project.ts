@@ -9,6 +9,7 @@ import {
   hasBlockingIssues,
   validateManifest,
   validateManifestText,
+  type Choice,
   type Coordinates,
   type ManifestIssue,
   type StoryManifest,
@@ -390,29 +391,56 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     patchNode(nodeId, { acoustic_events: events }, { undoable: true });
   }
 
-  function addNode(afterId?: string) {
+  /**
+   * Crea una escena. Por defecto queda enlazada como continuación de la escena de referencia;
+   * con `link: false` solo se crea (p. ej. como destino de una elección nueva).
+   */
+  function addNode(afterId?: string, options: { title?: string; link?: boolean; select?: boolean } = {}) {
     const ed = editor();
     let n = nodes.value.length + 1;
     while (nodes.value.some((x) => x.node_id === `escena_${String(n).padStart(3, '0')}`)) n++;
     const id = `escena_${String(n).padStart(3, '0')}`;
     const anchor = nodes.value.find((x) => x.node_id === (afterId ?? selectedNodeId.value));
+    const link = options.link !== false;
     ed.patchNode(id, {
-      title: 'Nueva escena',
+      title: options.title?.trim() || 'Nueva escena',
       text_payload: '',
       ...(anchor?.chapter_id ? { chapter_id: anchor.chapter_id } : {}),
-      navigation: anchor?.navigation.default_next_node ? { default_next_node: anchor.navigation.default_next_node } : { is_ending: true },
+      navigation: link && anchor?.navigation.default_next_node ? { default_next_node: anchor.navigation.default_next_node } : { is_ending: true },
     });
     const next = ed.current;
     const created = next.nodes.pop()!;
     const at = anchor ? next.nodes.findIndex((x) => x.node_id === anchor.node_id) + 1 : next.nodes.length;
     next.nodes.splice(at, 0, created);
-    if (anchor) {
+    if (anchor && link) {
       const a = next.nodes.find((x) => x.node_id === anchor.node_id)!;
       a.navigation = { ...a.navigation, default_next_node: id, is_ending: false };
     }
     commit(next);
-    selectedNodeId.value = id;
+    if (options.select !== false) selectedNodeId.value = id;
     return id;
+  }
+
+  /** Sustituye por completo los caminos de una escena (continuación, elecciones y final). */
+  function updateNavigation(nodeId: string, navigation: { default_next_node?: string | undefined; choices: Choice[]; is_ending: boolean }) {
+    const next = structuredClone(manifest.value);
+    const node = next.nodes.find((n) => n.node_id === nodeId);
+    if (!node) return;
+    const choices = navigation.choices.map((c) => {
+      const condition = Object.fromEntries(Object.entries(c.condition ?? {}).filter(([, v]) => v !== undefined && v !== ''));
+      return {
+        choice_text: c.choice_text.trim() || 'Continuar',
+        target_node: c.target_node,
+        grant_flags: [...new Set(c.grant_flags.filter(Boolean))],
+        ...(Object.keys(condition).length ? { condition } : {}),
+      };
+    });
+    node.navigation = {
+      ...(navigation.default_next_node ? { default_next_node: navigation.default_next_node } : {}),
+      choices,
+      is_ending: navigation.is_ending,
+    } as typeof node.navigation;
+    commit(validateManifest(next).manifest);
   }
 
   function removeNode(nodeId: string) {
@@ -489,6 +517,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     applyDraft,
     moveAcousticEvent,
     addNode,
+    updateNavigation,
     removeNode,
     analyzeContinuity,
     initLore,

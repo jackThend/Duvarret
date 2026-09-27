@@ -12,6 +12,8 @@ import { defaultWork } from './services/works';
 import { LEGACY_SLOT, forgetWork, targetFor } from './services/workManager';
 import WorksDialog from './components/WorksDialog.vue';
 import AssetsDialog from './components/AssetsDialog.vue';
+import PathsEditor from './components/PathsEditor.vue';
+import PathsMap from './components/PathsMap.vue';
 import TopBar from './components/TopBar.vue';
 import LeftPanel from './components/LeftPanel.vue';
 import WritingCanvas from './components/WritingCanvas.vue';
@@ -45,6 +47,7 @@ provide(STUDIO_AUDIO, audio);
 const shortcuts: Shortcut[] = [
   { keys: 'mod+s', label: 'Guardar', run: () => void save() },
   { keys: 'mod+o', label: 'Obras', run: () => (studio.worksOpen = true) },
+  { keys: 'mod+m', label: 'Mapa de caminos', run: () => (studio.pathsMapOpen = true) },
   { keys: 'alt+arrowdown', label: 'Siguiente escena', run: () => project.selectRelative(1) },
   { keys: 'alt+arrowup', label: 'Escena anterior', run: () => project.selectRelative(-1) },
   { keys: 'mod+enter', label: 'Aplicar la propuesta', run: () => studio.openPitches[0] && void studio.applyPitch(studio.openPitches[0].id) },
@@ -129,6 +132,7 @@ const columns = computed(() => (studio.leftCollapsed ? 'minmax(0,0fr) minmax(0,5
       <main class="min-h-0 overflow-y-auto">
         <div class="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
           <WritingCanvas v-if="ready" />
+          <PathsEditor v-if="ready" />
           <PitchCards />
           <AgentChat ref="chatRef" />
           <details class="text-xs text-dv-muted">
@@ -149,6 +153,7 @@ const columns = computed(() => (studio.leftCollapsed ? 'minmax(0,0fr) minmax(0,5
     <ImportDialog v-if="studio.importOpen" @close="studio.importOpen = false" />
     <WorksDialog v-if="studio.worksOpen" @close="studio.worksOpen = false" />
     <AssetsDialog v-if="studio.assetsOpen" @close="studio.assetsOpen = false" />
+    <PathsMap v-if="studio.pathsMapOpen" @close="studio.pathsMapOpen = false" />
     <ExportPanel v-if="studio.exportOpen" @close="studio.exportOpen = false" />
   </div>
 </template>
