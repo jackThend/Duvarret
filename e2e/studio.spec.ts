@@ -87,6 +87,19 @@ test.describe('Duvarret Studio (E2E)', () => {
     await expect(page.getByTestId('live-preview')).toContainText('La noche caía sobre el molino');
   });
 
+  test('importa un manuscrito de Word (.docx) y un libro electrónico (.epub)', async ({ page }) => {
+    await openStudio(page);
+    for (const file of ['la-llanura.docx', 'la-llanura.epub']) {
+      await page.getByTestId('open-import').click();
+      await page.getByTestId('import-file').setInputFiles(`src/core/ingest/__fixtures__/${file}`);
+      await expect(page.getByTestId('import-beats').locator('li')).toHaveCount(2);
+      await page.getByTestId('import-confirm').click();
+      await expect(page.getByTestId('work-title')).toHaveValue('La Llanura');
+      await expect(page.getByTestId('left-panel')).toContainText('Capítulo segundo');
+      await expect(page.getByTestId('live-preview')).toContainText('El viento soplaba sobre la llanura');
+    }
+  });
+
   test('modo sin pantalla accesible por teclado', async ({ page }) => {
     await openStudio(page);
     await page.keyboard.press('Control+Shift+A');

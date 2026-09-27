@@ -74,7 +74,7 @@ describe('readers', () => {
   it('detecta formatos', () => {
     expect(detectFormat('obra.MD')).toBe('md');
     expect(detectFormat('obra.pdf')).toBe('pdf');
-    expect(detectFormat('obra.docx')).toBeNull();
+    expect(detectFormat('obra.odt')).toBeNull();
   });
 
   it('limpia Markdown conservando encabezados', () => {
@@ -83,7 +83,7 @@ describe('readers', () => {
 
   it('lee texto plano y rechaza formatos desconocidos', async () => {
     expect(await readManuscript('a.txt', new TextEncoder().encode('Hola'))).toBe('Hola');
-    await expect(readManuscript('a.docx', 'x')).rejects.toThrow('Formato no admitido');
+    await expect(readManuscript('a.odt', 'x')).rejects.toThrow('Formato no admitido');
   });
 
   it('extrae el texto de un PDF real', async () => {

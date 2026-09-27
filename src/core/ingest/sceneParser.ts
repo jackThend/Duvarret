@@ -31,6 +31,7 @@ export interface ParsedManuscript {
 }
 
 const CHAPTER_RE = /^(?:#{1,2}\s+.+|(?:cap[ií]tulo|chapter|parte|libro)\s+[\wivxlcdm]+.*|[IVXLCDM]{1,7}\.?)$/i;
+const CHAPTER_WORD_RE = /^(?:(?:cap[ií]tulo|chapter|parte|part|libro|book|pr[oó]logo|ep[ií]logo)(?![\p{L}\p{N}])|[IVXLCDM]{1,7}\.?$|\d+\.?$)/iu;
 const SCENE_BREAK_RE = /^(?:\*\s*\*\s*\*|#{3,}\s*|~+|—{3,}|-{3,}|⁂|§)\s*$/;
 
 const wordCount = (t: string) => t.split(/\s+/).filter(Boolean).length;
@@ -143,6 +144,13 @@ export function parseManuscript(text: string, options: { title?: string } = {}):
     }
     if (CHAPTER_RE.test(line) && line.length < 90) {
       endParagraph();
+      // Un primer encabezado sin texto seguido de otro encabezado es el título de la obra
+      // (p. ej. Word con «Título 1» para el título y «Título 2» para los capítulos).
+      const first = chapters[0];
+      if (!title && chapters.length === 1 && first && !first.blocks.length && !CHAPTER_WORD_RE.test(first.title)) {
+        title = first.title;
+        chapters.pop();
+      }
       chapter = { title: line.replace(/^#+\s*/, ''), blocks: [] };
       chapters.push(chapter);
       continue;

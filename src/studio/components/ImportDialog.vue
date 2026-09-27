@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { readManuscript } from '@/core/ingest/readers';
+import { MANUSCRIPT_EXTENSIONS, readManuscript } from '@/core/ingest/readers';
 import { parseManuscript, type ParsedManuscript } from '@/core/ingest/sceneParser';
 import { TONE_LABELS } from '@/core/ingest/toneAnalyzer';
 import { useProjectStore } from '../stores/project';
@@ -45,8 +45,8 @@ async function confirm() {
 <template>
   <Modal title="Importar manuscrito" wide @close="emit('close')">
     <div class="space-y-4 text-sm" data-testid="import-dialog">
-      <p class="text-dv-muted">Sube tu obra en .txt, .md o .pdf. La dividiremos en escenas de 300 a 800 palabras respetando sus capítulos.</p>
-      <input type="file" accept=".txt,.md,.markdown,.pdf" aria-label="Archivo del manuscrito" data-testid="import-file" @change="onFile" />
+      <p class="text-dv-muted">Sube tu obra en Word (.docx), libro electrónico (.epub), PDF, .md o .txt. La dividiremos en escenas de 300 a 800 palabras respetando sus capítulos.</p>
+      <input type="file" :accept="MANUSCRIPT_EXTENSIONS.join(',')" aria-label="Archivo del manuscrito" data-testid="import-file" @change="onFile" />
       <p v-if="reading" class="text-dv-muted">Leyendo…</p>
       <p v-if="error" role="alert" class="text-dv-danger">{{ error }}</p>
       <template v-if="parsed">

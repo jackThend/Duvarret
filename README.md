@@ -61,7 +61,7 @@ npm run duvarret -- export   works/el-corazon-delator.duvarret --target web --zi
 npm run duvarret -- export   works/el-corazon-delator.duvarret --target audio --zip    # audio-drama accesible
 npm run duvarret -- export   works/el-corazon-delator.duvarret --target native         # binario nativo (LTO, < 20 MB)
 npm run duvarret -- export   works/el-corazon-delator.duvarret --target portable       # reproductor + carpeta obra/
-npm run duvarret -- ingest   mi-novela.pdf --out Mi_Novela.duvarret                    # manuscrito → escenas de 300–800 palabras
+npm run duvarret -- ingest   mi-novela.docx --out Mi_Novela.duvarret                   # .docx/.epub/.pdf/.md/.txt → escenas de 300–800 palabras
 ```
 
 ### Calidad

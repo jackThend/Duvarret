@@ -128,8 +128,10 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/core/agent/orchestrator.ts`
 - [x] **4.4 Intérprete espacial en lenguaje natural (RF-11)**
   - Archivos: `src/core/agent/spatialLanguage.ts`
-- [x] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf)**
-  - Archivos: `src/core/ingest/{readers.ts,sceneParser.ts,toneAnalyzer.ts}`
+- [x] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf/.docx/.epub)**
+  - Archivos: `src/core/ingest/{readers.ts,office.ts,sceneParser.ts,toneAnalyzer.ts}`
+  - .docx: estilos de título/encabezado de Word (en cualquier idioma), tabuladores, saltos y control de cambios.
+  - .epub: orden del índice (spine), títulos `<h1>`–`<h3>` o maquetados con CSS, entidades HTML.
   - Beats de 300–800 palabras respetando capítulos; tono e interacción candidata.
 - [x] **4.6 Director local heurístico (offline, sin LLM)**
   - Archivos: `src/core/agent/localDirector.ts` — genera Pitch Cards y llamadas a herramientas deterministas.
@@ -181,4 +183,3 @@ Pendiente / limitaciones conocidas:
 - El `.exe` de Windows y el `.app` de macOS solo se compilan en CI; en este entorno solo se verificó el binario Linux.
 - La RAM < 150 MB no se midió de forma representativa (Xvfb con renderizado por software).
 - La transcodificación a Ogg/WebP depende de que `ffmpeg` esté instalado; sin él, los assets se empaquetan tal cual.
-- Ingesta: .txt, .md y .pdf (el PRD menciona también .docx y .epub, aún no soportados).
