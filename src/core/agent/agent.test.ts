@@ -230,6 +230,14 @@ describe('herramientas del director', () => {
     expect((await registry.execute('rm_rf', {}, { editor })).error).toBe('unknown_tool');
   });
 
+  it('no inventa escenas cuando el modelo alucina un identificador', async () => {
+    const before = editor.current.nodes.length;
+    const out = await registry.execute('placeSpatialAudio', { node_id: 'sotano', asset_path: 'assets/audio/gota.wav' }, { editor });
+    expect(out.error).toBe('unknown_node');
+    expect(JSON.stringify(out.result)).toContain('Escenas válidas: inicio, consola, rejilla, final');
+    expect(editor.current.nodes).toHaveLength(before);
+  });
+
   it('repara parámetros fuera de rango con valores seguros', async () => {
     const out = await registry.execute('setTypographicEffect', { node_id: 'rejilla', effect_type: 'narrow_corridor', parameters: { column_width_rem: 5000 } }, { editor });
     expect(out.issues?.length).toBeGreaterThan(0);

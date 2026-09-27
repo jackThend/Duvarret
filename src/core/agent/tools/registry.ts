@@ -75,6 +75,14 @@ export class ToolRegistry {
       const detail = parsed.error.issues.map((i) => `${i.path.join('.') || '(raíz)'}: ${i.message}`).join('; ');
       return { result: { error: `Argumentos inválidos: ${detail}` }, summary: '', mutates: false, error: 'invalid_arguments' };
     }
+    // Un identificador de escena inventado crearía una escena vacía al parchearla: se rechaza y se
+    // ofrecen los válidos para que el modelo corrija en el siguiente paso.
+    const target = (parsed.data as { node_id?: unknown }).node_id;
+    if (typeof target === 'string' && !ctx.editor.node(target)) {
+      const known = ctx.editor.current.nodes.map((n) => n.node_id);
+      const list = known.slice(0, 40).join(', ') + (known.length > 40 ? '…' : '');
+      return { result: { error: `La escena «${target}» no existe. Escenas válidas: ${list}` }, summary: '', mutates: false, error: 'unknown_node' };
+    }
     try {
       return await tool.run(parsed.data, ctx);
     } catch (error) {
