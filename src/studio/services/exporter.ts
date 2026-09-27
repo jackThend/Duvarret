@@ -37,7 +37,9 @@ export async function compileFromStudio(options: {
       readAsset: async (path) => {
         try {
           const response = await fetcher(options.resolveAsset(path));
-          return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+          // Un servidor que responde con su página principal (HTML) no tiene el archivo.
+          if (!response.ok || (response.headers.get('content-type') ?? '').includes('text/html')) return null;
+          return new Uint8Array(await response.arrayBuffer());
         } catch {
           return null;
         }

@@ -22,6 +22,16 @@ describe('exportador del Studio', () => {
     await expect(loadPlayerRuntime(async () => new Response('', { status: 404 }))).rejects.toThrow('no incluye el reproductor');
   });
 
+  it('no empaqueta la página HTML de un servidor como si fuera un recurso', async () => {
+    const manifest = validateManifest(welcomeManifest()).manifest;
+    const spa = vi.fn(async (url: string) =>
+      url in files && !url.startsWith('obra/') ? new Response(files[url]) : new Response('<html>app</html>', { status: 200, headers: { 'content-type': 'text/html' } }),
+    );
+    const result = await compileFromStudio({ manifest, resolveAsset: (p) => `obra/${p}`, target: 'web', fetcher: spa });
+    expect(result.files.has('assets/audio/sfx/wind.ogg')).toBe(false);
+    expect(result.missingAssets).toEqual(['assets/audio/sfx/wind.ogg']);
+  });
+
   it('compila con los assets del proyecto y descarga un zip', async () => {
     const manifest = validateManifest(welcomeManifest()).manifest;
     const result = await compileFromStudio({ manifest, resolveAsset: (p) => `obra/${p}`, target: 'web', fetcher });

@@ -131,6 +131,20 @@ pub fn read_bytes(root: &Path, relative: &str) -> Result<Vec<u8>, ProjectError> 
     Ok(fs::read(target)?)
 }
 
+/// Retira un recurso aportado por la autora. Solo se permite dentro de `assets/`
+/// y nunca sobre el catálogo de procedencia.
+pub fn delete_asset(root: &Path, relative: &str) -> Result<(), ProjectError> {
+    let normalized = relative.replace('\\', "/");
+    if !normalized.starts_with("assets/") || normalized == "assets/registry.json" {
+        return Err(ProjectError::InvalidPath(relative.to_string()));
+    }
+    let target = resolve_inside(root, relative)?;
+    if target.is_file() {
+        fs::remove_file(target)?;
+    }
+    Ok(())
+}
+
 pub fn read_text(root: &Path, relative: &str) -> Result<String, ProjectError> {
     let target = resolve_inside(root, relative)?;
     Ok(fs::read_to_string(target)?)
@@ -203,6 +217,22 @@ mod tests {
 
         write_text(&root, "assets/audio/registry.json", "{}").unwrap();
         assert_eq!(list_assets(&root).unwrap(), vec!["assets/audio/registry.json"]);
+    }
+
+    #[test]
+    fn deletes_only_assets() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("Obra.duvarret");
+        create_project(&root, "{}").unwrap();
+        write_bytes(&root, "assets/audio/gotera.wav", b"RIFF").unwrap();
+        write_text(&root, "assets/registry.json", "{}").unwrap();
+        delete_asset(&root, "assets/audio/gotera.wav").unwrap();
+        assert!(!root.join("assets/audio/gotera.wav").exists());
+        assert!(delete_asset(&root, "assets/audio/ya-no-existe.wav").is_ok());
+        assert!(delete_asset(&root, "assets/registry.json").is_err());
+        assert!(delete_asset(&root, "project.duvarret.json").is_err());
+        assert!(delete_asset(&root, "assets/../project.duvarret.json").is_err());
+        assert!(root.join(PROJECT_FILE).exists());
     }
 
     #[test]

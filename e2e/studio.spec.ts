@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { unzipSync } from 'fflate';
 
 async function openStudio(page: Page) {
   await page.addInitScript(() => localStorage.clear());
@@ -211,5 +213,68 @@ test.describe('Obras: crear, cambiar y recordar', () => {
     await example.getByTestId('delete-recent').click();
     await example.getByTestId('confirm-delete').click();
     await expect(page.getByTestId('recent-works')).not.toContainText('El Corazón Delator');
+  });
+});
+
+test.describe('Recursos propios', () => {
+  const wav = (seconds = 0.2) => {
+    const rate = 8000;
+    const n = Math.round(rate * seconds);
+    const b = Buffer.alloc(44 + n * 2);
+    b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+    b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+    for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin(i / 4) * 8000), 44 + i * 2);
+    return b;
+  };
+
+  test('aporta el sonido que faltaba, suelta uno nuevo, lo coloca y persiste al recargar', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('iniciado')) {
+        localStorage.clear();
+        indexedDB.deleteDatabase('duvarret-recursos');
+        sessionStorage.setItem('iniciado', '1');
+      }
+    });
+    await page.goto('/?obra=bienvenida');
+    await expect(page.getByTestId('writing-canvas')).toBeVisible();
+    await page.getByTestId('open-assets').click();
+
+    // El viento de la obra de bienvenida no existe todavía: se aporta el archivo.
+    const missing = page.getByTestId('missing-wind.ogg');
+    await expect(missing).toContainText('Sonido «viento»');
+    await missing.getByTestId('provide-input').setInputFiles({ name: 'viento-real.wav', mimeType: 'audio/wav', buffer: wav() });
+    await expect(page.getByTestId('asset-wind.wav')).toContainText('tuyo');
+    await expect(page.getByTestId('missing-wind.ogg')).toHaveCount(0);
+
+    // Arrastrar y soltar un archivo nuevo abre el formulario para colocarlo.
+    const transfer = await page.evaluateHandle((bytes) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([new Uint8Array(bytes)], 'Campanas lejanas.wav', { type: 'audio/wav' }));
+      return dt;
+    }, [...wav()]);
+    await page.getByTestId('asset-dropzone').dispatchEvent('drop', { dataTransfer: transfer });
+    await expect(page.getByTestId('assign-form')).toBeVisible();
+    await page.getByTestId('assign-node').selectOption('prudencia');
+    await page.getByTestId('assign-confirm').click();
+    await expect(page.getByTestId('assets-message')).toContainText('radar');
+    await page.getByTestId('modal-close').click();
+
+    await expect(page.getByTestId('beat-prudencia')).toContainText('🎧');
+    await expect(page.getByTestId('radar-campanas_lejanas')).toBeVisible();
+    await page.getByTestId('save').click();
+
+    await page.reload();
+    await page.getByTestId('open-assets').click();
+    await expect(page.getByTestId('asset-campanas_lejanas.wav')).toContainText('Sonido «campanas lejanas» en La prudencia');
+    await expect(page.getByTestId('asset-wind.wav')).toBeVisible();
+    await page.getByTestId('modal-close').click();
+
+    // La exportación incluye los archivos aportados por la autora.
+    await page.getByTestId('open-export').click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-web').click()]);
+    const zip = unzipSync(new Uint8Array(readFileSync((await download.path())!)));
+    const files = Object.keys(zip);
+    expect(files).toContain('el-laberinto-de-la-mancha/assets/audio/campanas_lejanas.wav');
+    expect(files).toContain('el-laberinto-de-la-mancha/assets/audio/sfx/wind.wav');
   });
 });

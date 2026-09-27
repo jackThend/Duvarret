@@ -126,3 +126,13 @@
   outline: none;
 }
 .dv-modal.is-wide { max-width: 56rem; }
+
+.dv-dropzone {
+  @apply flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed p-6 text-center;
+  border-color: var(--dv-border);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.dv-dropzone:hover, .dv-dropzone.is-dragging, .dv-dropzone:focus-within {
+  border-color: var(--dv-accent);
+  background: color-mix(in srgb, var(--dv-accent) 8%, transparent);
+}

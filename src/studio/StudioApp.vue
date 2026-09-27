@@ -11,6 +11,7 @@ import { STUDIO_AUDIO } from './services/audio';
 import { defaultWork } from './services/works';
 import { LEGACY_SLOT, forgetWork, targetFor } from './services/workManager';
 import WorksDialog from './components/WorksDialog.vue';
+import AssetsDialog from './components/AssetsDialog.vue';
 import TopBar from './components/TopBar.vue';
 import LeftPanel from './components/LeftPanel.vue';
 import WritingCanvas from './components/WritingCanvas.vue';
@@ -147,6 +148,7 @@ const columns = computed(() => (studio.leftCollapsed ? 'minmax(0,0fr) minmax(0,5
     <SettingsDialog v-if="studio.settingsOpen" @close="studio.settingsOpen = false" />
     <ImportDialog v-if="studio.importOpen" @close="studio.importOpen = false" />
     <WorksDialog v-if="studio.worksOpen" @close="studio.worksOpen = false" />
+    <AssetsDialog v-if="studio.assetsOpen" @close="studio.assetsOpen = false" />
     <ExportPanel v-if="studio.exportOpen" @close="studio.exportOpen = false" />
   </div>
 </template>

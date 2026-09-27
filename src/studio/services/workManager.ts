@@ -7,6 +7,7 @@ import { BrowserStorage, TauriStorage, WorkLibrary, newBrowserLocation, type Pro
 import type { StoryManifestInput } from '@/core/manifest';
 import { allowWorkAssets, createWorkFolder, fileUrlResolver, isTauri, pickFolder } from './desktop';
 import { FLAGSHIP_BASE } from './works';
+import { BrowserAssetStore } from './assetStore';
 
 export interface WorkTarget {
   storage: ProjectStorage;
@@ -79,5 +80,6 @@ export function forgetWork(entry: Pick<WorkEntry, 'kind' | 'location'>) {
 /** Borra del dispositivo una obra del navegador (las carpetas del disco nunca se borran desde aquí). */
 export async function deleteBrowserWork(location: string) {
   await new BrowserStorage(location).remove();
+  await new BrowserAssetStore(location).clear().catch(() => undefined);
   forgetWork({ kind: 'browser', location });
 }

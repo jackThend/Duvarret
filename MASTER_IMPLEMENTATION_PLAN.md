@@ -170,7 +170,12 @@ e2e/           # Pruebas Playwright
   - Escritorio: diálogo nativo de carpetas, creación de `<Título>.duvarret` sin sobrescribir nunca otra obra, recursos servidos solo desde la carpeta abierta.
   - Navegador: varias obras en el dispositivo; obras recientes; se guarda la obra actual antes de cambiar; importar un manuscrito crea una obra nueva.
   - Verificación: `npm test -- workLibrary workManager useWorks`, E2E «Obras», `cargo test`.
-- [ ] **7.2 Recursos propios: arrastrar y soltar sonidos e imágenes**
+- [x] **7.2 Recursos propios: arrastrar y soltar sonidos e imágenes**
+  - Archivos: `src/core/assets/usages.ts`, `src/studio/services/assetStore.ts`, `src/studio/components/AssetsDialog.vue`, `src/studio/stores/project.ts`, `src-tauri/src/project.rs`
+  - Almacenes: carpeta `assets/` en el escritorio, IndexedDB en el navegador; catálogo de procedencia «obra de la autora».
+  - Recursos que faltan (se aportan en su lugar exacto), colocación sin JSON (retrato, ilustración, icono, sonido de escena, narración, ambiente) y retirada con aviso.
+  - El ambiente de fondo de la obra (`ambience_bed`) ahora suena en el runtime; el motor recarga sonidos aportados sin reiniciar.
+  - Verificación: `npm test -- usages assetStore assets`, E2E «Recursos propios» (incluye exportación), `cargo test`.
 - [ ] **7.3 Editor visual de bifurcaciones**
 
 ---

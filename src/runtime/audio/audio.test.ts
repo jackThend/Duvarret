@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { TolerantSchemas } from '@/core/manifest';
 import { FakeAudioContext, fakeContextFactory } from '@/test/fakeAudio';
-import { SpatialAudioEngine } from './SpatialAudioEngine';
+import { AMBIENCE_ID, SpatialAudioEngine } from './SpatialAudioEngine';
 import { azimuthDeg, describePosition, fromRadar, sanitizeCoordinates, toRadar, toWebAudio } from './coordinates';
 import { synthesizeImpulse } from './impulse';
 import { ROOM_MODELS } from './rooms';
@@ -233,5 +233,47 @@ describe('integración con la máquina de estados', () => {
     e.bind(store);
     store.start();
     expect(e.currentRoom).toEqual({ preset: 'cathedral_echo', material: 'stone' });
+  });
+});
+
+describe('ambiente de fondo y recarga de sonidos', () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  it('el ambiente de la obra suena en bucle y sobrevive a los cambios de escena', async () => {
+    const store = useStoryStore();
+    const manifest = sampleManifest();
+    manifest.acoustic_environment = { ambience_bed: 'assets/audio/night.wav' };
+    store.load(manifest);
+    const { e } = engine();
+    e.bind(store);
+    store.start();
+    await flush();
+    const ambience = e.active.find((v) => v.id === AMBIENCE_ID);
+    expect(ambience).toMatchObject({ asset: 'assets/audio/night.wav', loop: true });
+    store.advance();
+    await flush();
+    expect(e.active.map((v) => v.id)).toContain(AMBIENCE_ID);
+    expect(e.active.map((v) => v.id)).not.toContain('inicio::gotera');
+  });
+
+  it('sin ambiente declarado no suena nada extra', async () => {
+    const store = useStoryStore();
+    store.load(sampleManifest());
+    const { e } = engine();
+    e.bind(store);
+    store.start();
+    await flush();
+    expect(e.active.map((v) => v.id)).not.toContain(AMBIENCE_ID);
+  });
+
+  it('invalidate vuelve a cargar un sonido que antes faltaba', async () => {
+    let available = false;
+    const ctx = new FakeAudioContext();
+    const e = new SpatialAudioEngine({ preferred: 'stereo_simple', contextFactory: fakeContextFactory(ctx).factory, loadAsset: async () => (available ? new ArrayBuffer(8) : null) });
+    expect((await e.play('assets/audio/nuevo.wav'))?.placeholder).toBe(true);
+    available = true;
+    expect((await e.play('assets/audio/nuevo.wav'))?.placeholder).toBe(true); // sigue en caché
+    e.invalidate('assets/audio/nuevo.wav');
+    expect((await e.play('assets/audio/nuevo.wav'))?.placeholder).toBe(false);
   });
 });

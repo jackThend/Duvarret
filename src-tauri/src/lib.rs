@@ -53,6 +53,11 @@ fn project_read_bytes(root: String, relative: String) -> Result<Vec<u8>, String>
 }
 
 #[tauri::command]
+fn project_delete_asset(root: String, relative: String) -> Result<(), String> {
+    project::delete_asset(&PathBuf::from(root), &relative).map_err(to_msg)
+}
+
+#[tauri::command]
 fn project_list_assets(root: String) -> Result<Vec<String>, String> {
     project::list_assets(&PathBuf::from(root)).map_err(to_msg)
 }
@@ -114,6 +119,7 @@ pub fn run() {
             project_write_bytes,
             project_read_bytes,
             project_list_assets,
+            project_delete_asset,
             export_player_binary
         ])
         .run(tauri::generate_context!())
