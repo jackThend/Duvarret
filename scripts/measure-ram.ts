@@ -1,25 +1,54 @@
 /**
  * Mide la memoria real de un ejecutable de Duvarret (RNF-02: el reproductor debe operar con
- * menos de 150 MB). Suma la PSS de todo el árbol de procesos —el shell de Rust y los procesos de
- * WebKit— para no contar dos veces las bibliotecas compartidas. Solo Linux (/proc).
+ * menos de 150 MB). Suma todos los procesos de la ventana —el shell de Rust y los del motor web—
+ * con la métrica que cada sistema considera «memoria del programa»:
  *
- *   npm run medir-ram -- <ejecutable> [--segundos 30] [--limite 150] [--captura ventana.png] [--clic 640,456@8 …]
+ *   - Linux: PSS (reparte las bibliotecas compartidas) y memoria privada (USS), desde /proc.
+ *   - Windows: conjunto de trabajo privado (la columna «Memoria» del Administrador de tareas).
+ *   - macOS: `footprint` (lo que muestra el Monitor de Actividad).
  *
- * Sin pantalla, arranca un Xvfb propio. Usa un HOME temporal para no depender de datos previos.
- * `--clic x,y@s` pulsa en esas coordenadas a los s segundos (xdotool) para medir mientras se juega.
- * Además de la PSS se informa la memoria privada (USS): lo que el programa ocupa en exclusiva.
+ *   npm run medir-ram -- <ejecutable> [--segundos 30] [--limite 150] [--solo-medir] [--nombre texto]
+ *                        [--informe salida.json] [--captura ventana.png] [--clic 640,456@8 …]
+ *
+ * En Linux sin pantalla arranca un Xvfb propio; `--clic x,y@s` (xdotool) y `--captura` (ImageMagick)
+ * solo funcionan allí. `--solo-medir` informa sin fallar por el límite. Si existe
+ * `GITHUB_STEP_SUMMARY`, añade una tabla al resumen de la ejecución del CI.
  */
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
+
+interface ProcInfo {
+  pid: number;
+  ppid: number;
+  name: string;
+}
+
+interface ProcMemory {
+  pid: number;
+  name: string;
+  /** Métrica principal del sistema, en KB. */
+  mainKb: number;
+  /** Métrica secundaria (USS, conjunto de trabajo total o RSS), en KB. */
+  otherKb: number;
+}
 
 interface Sample {
   at: number;
-  pssKb: number;
-  ussKb: number;
-  rssKb: number;
-  processes: { pid: number; name: string; pssKb: number; ussKb: number }[];
+  mainKb: number;
+  otherKb: number;
+  processes: ProcMemory[];
+}
+
+interface Platform {
+  main: string;
+  other: string;
+  /** Procesos auxiliares del motor web que no cuelgan del ejecutable (XPC de WebKit en macOS). */
+  helpers?: RegExp;
+  list(): ProcInfo[];
+  memory(procs: ProcInfo[]): ProcMemory[];
+  kill(pid: number): void;
 }
 
 function parseArgs(argv: string[]) {
@@ -28,7 +57,7 @@ function parseArgs(argv: string[]) {
     const i = rest.indexOf(`--${name}`);
     return i >= 0 ? rest[i + 1] : undefined;
   };
-  if (!binary) throw new Error('Uso: npm run medir-ram -- <ejecutable> [--segundos 30] [--limite 150] [--captura ventana.png] [--clic x,y@s …]');
+  if (!binary) throw new Error('Uso: npm run medir-ram -- <ejecutable> [--segundos 30] [--limite 150] [--solo-medir] [--nombre texto] [--informe salida.json] [--captura ventana.png] [--clic x,y@s …]');
   const clicks = rest.flatMap((arg, i) => (rest[i - 1] === '--clic' ? [arg] : [])).map((spec) => {
     const m = spec.match(/^(\d+),(\d+)@(\d+(?:\.\d+)?)$/);
     if (!m) throw new Error(`Clic no válido: «${spec}» (formato x,y@segundos)`);
@@ -38,10 +67,19 @@ function parseArgs(argv: string[]) {
     binary: resolve(binary),
     seconds: Number(flag('segundos') ?? 30),
     limitMb: Number(flag('limite') ?? 150),
+    measureOnly: rest.includes('--solo-medir'),
+    label: flag('nombre') ?? basename(binary),
+    report: flag('informe'),
     screenshot: flag('captura'),
     clicks,
   };
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const mb = (kb: number) => (kb / 1024).toFixed(1);
+const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
+
+// ── Linux ──────────────────────────────────────────────────────────────────────────────────────
 
 const readField = (path: string, field: string): number => {
   try {
@@ -52,51 +90,142 @@ const readField = (path: string, field: string): number => {
   }
 };
 
-/** Todos los descendientes de `root` (incluido), leyendo el padre de cada proceso en /proc. */
-function processTree(root: number): number[] {
-  const parents = new Map<number, number>();
-  for (const entry of readdirSync('/proc')) {
-    if (!/^\d+$/.test(entry)) continue;
+const linux: Platform = {
+  main: 'PSS',
+  other: 'Privada (USS)',
+  list() {
+    const procs: ProcInfo[] = [];
+    for (const entry of readdirSync('/proc')) {
+      if (!/^\d+$/.test(entry)) continue;
+      try {
+        const stat = readFileSync(`/proc/${entry}/stat`, 'utf8');
+        // El nombre va entre paréntesis y puede contener espacios: se parte tras el último «)».
+        const ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
+        procs.push({ pid: Number(entry), ppid, name: stat.slice(stat.indexOf('(') + 1, stat.lastIndexOf(')')) });
+      } catch {
+        /* proceso efímero */
+      }
+    }
+    return procs;
+  },
+  memory(procs) {
+    return procs.map(({ pid, name }) => {
+      const rollup = `/proc/${pid}/smaps_rollup`;
+      return { pid, name, mainKb: readField(rollup, 'Pss'), otherKb: readField(rollup, 'Private_Clean') + readField(rollup, 'Private_Dirty') };
+    });
+  },
+  kill(pid) {
     try {
-      const stat = readFileSync(`/proc/${entry}/stat`, 'utf8');
-      // El nombre va entre paréntesis y puede contener espacios: se parte tras el último «)».
-      const ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
-      parents.set(Number(entry), ppid);
+      process.kill(pid, 'SIGKILL');
     } catch {
-      /* proceso efímero */
+      /* ya terminó */
+    }
+  },
+};
+
+// ── Windows ────────────────────────────────────────────────────────────────────────────────────
+
+const powershell = (script: string) => execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+
+const windows: Platform = {
+  main: 'Privada (conjunto de trabajo)',
+  other: 'Conjunto de trabajo',
+  helpers: /^msedgewebview2/i,
+  list() {
+    const json = powershell('ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | ForEach-Object { @{ i = [int]$_.ProcessId; p = [int]$_.ParentProcessId; n = [string]$_.Name } })');
+    return (JSON.parse(json) as { i: number; p: number; n: string }[]).map((r) => ({ pid: r.i, ppid: r.p, name: r.n }));
+  },
+  memory(procs) {
+    if (!procs.length) return [];
+    const filter = procs.map((p) => `IDProcess=${p.pid}`).join(' OR ');
+    const json = powershell(`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -Filter "${filter}" | ForEach-Object { @{ i = [int]$_.IDProcess; pr = [int64]$_.WorkingSetPrivate; ws = [int64]$_.WorkingSet } })`);
+    const rows = new Map((JSON.parse(json || '[]') as { i: number; pr: number; ws: number }[]).map((r) => [r.i, r]));
+    return procs.flatMap(({ pid, name }) => {
+      const row = rows.get(pid);
+      return row ? [{ pid, name, mainKb: row.pr / 1024, otherKb: row.ws / 1024 }] : [];
+    });
+  },
+  kill(pid) {
+    try {
+      execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {
+      /* ya terminó */
+    }
+  },
+};
+
+// ── macOS ──────────────────────────────────────────────────────────────────────────────────────
+
+const UNITS: Record<string, number> = { B: 1 / 1024, KB: 1, MB: 1024, GB: 1024 * 1024 };
+let footprintWarned = false;
+
+/** `footprint` informa por proceso «nombre [pid]: … Footprint: 45 MB». */
+function footprints(pids: number[]): Map<number, number> {
+  const found = new Map<number, number>();
+  for (const cmd of [['footprint'], ['sudo', '-n', 'footprint']]) {
+    let out: string;
+    try {
+      out = execFileSync(cmd[0]!, [...cmd.slice(1), ...pids.map(String)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (error) {
+      out = String((error as { stdout?: string }).stdout ?? '');
+    }
+    for (const m of out.matchAll(/\[(\d+)\][^\n]*?Footprint:\s*([\d.,]+)\s*(B|KB|MB|GB)/g)) found.set(Number(m[1]), Number(m[2]!.replace(',', '.')) * UNITS[m[3]!]!);
+    if (found.size) return found;
+    if (!footprintWarned) {
+      footprintWarned = true;
+      console.warn(`(footprint no devolvió datos con «${cmd.join(' ')}»; salida: ${out.slice(0, 300).replace(/\n/g, ' ⏎ ')})`);
     }
   }
-  const tree = [root];
-  for (let i = 0; i < tree.length; i++) for (const [pid, ppid] of parents) if (ppid === tree[i]) tree.push(pid);
-  return tree.filter((pid) => existsSync(`/proc/${pid}`));
+  return found;
 }
 
-function sample(root: number, startedAt: number): Sample {
-  const processes = processTree(root).map((pid) => {
-    let name = String(pid);
-    try {
-      name = readFileSync(`/proc/${pid}/comm`, 'utf8').trim();
-    } catch {
-      /* ya no existe */
+const macos: Platform = {
+  main: 'Footprint',
+  other: 'RSS',
+  helpers: /com\.apple\.WebKit\./,
+  list() {
+    const out = execFileSync('ps', ['-axo', 'pid=,ppid=,comm='], { encoding: 'utf8' });
+    return out.split('\n').flatMap((line) => {
+      const m = line.match(/^\s*(\d+)\s+(\d+)\s+(.*)$/);
+      return m ? [{ pid: Number(m[1]), ppid: Number(m[2]), name: basename(m[3]!.trim()) }] : [];
+    });
+  },
+  memory(procs) {
+    if (!procs.length) return [];
+    const rss = new Map(
+      execFileSync('ps', ['-o', 'pid=,rss=', '-p', procs.map((p) => p.pid).join(',')], { encoding: 'utf8' })
+        .split('\n')
+        .flatMap((line) => {
+          const m = line.match(/^\s*(\d+)\s+(\d+)/);
+          return m ? [[Number(m[1]), Number(m[2])] as const] : [];
+        }),
+    );
+    const fp = footprints(procs.map((p) => p.pid));
+    return procs.flatMap(({ pid, name }) => (rss.has(pid) ? [{ pid, name, mainKb: fp.get(pid) ?? rss.get(pid)!, otherKb: rss.get(pid)! }] : []));
+  },
+  kill: linux.kill,
+};
+
+// ── Medición ───────────────────────────────────────────────────────────────────────────────────
+
+/** El ejecutable, sus descendientes y los auxiliares del motor web aparecidos tras arrancarlo. */
+function windowProcesses(platform: Platform, root: number, preexisting: Set<number>): ProcInfo[] {
+  const procs = platform.list();
+  const tree = new Set([root]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const p of procs) {
+      if (tree.has(p.pid) || !tree.has(p.ppid)) continue;
+      tree.add(p.pid);
+      grew = true;
     }
-    const rollup = `/proc/${pid}/smaps_rollup`;
-    return { pid, name, pssKb: readField(rollup, 'Pss'), ussKb: readField(rollup, 'Private_Clean') + readField(rollup, 'Private_Dirty'), rssKb: readField(`/proc/${pid}/status`, 'VmRSS') };
-  });
-  return {
-    at: (Date.now() - startedAt) / 1000,
-    pssKb: processes.reduce((s, p) => s + p.pssKb, 0),
-    ussKb: processes.reduce((s, p) => s + p.ussKb, 0),
-    rssKb: processes.reduce((s, p) => s + p.rssKb, 0),
-    processes: processes.map(({ pid, name, pssKb, ussKb }) => ({ pid, name, pssKb, ussKb })),
-  };
+  }
+  return procs.filter((p) => tree.has(p.pid) || (platform.helpers?.test(p.name) && !preexisting.has(p.pid)));
 }
 
-const mb = (kb: number) => (kb / 1024).toFixed(1);
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
-
-async function startDisplay(): Promise<{ display: string; server: ChildProcess | null }> {
-  if (process.env.DISPLAY) return { display: process.env.DISPLAY, server: null };
+async function startDisplay(): Promise<{ display: string | undefined; server: ChildProcess | null }> {
+  if (process.platform !== 'linux' || process.env.DISPLAY) return { display: process.env.DISPLAY, server: null };
   for (let n = 99; n < 120; n++) {
     if (existsSync(`/tmp/.X11-unix/X${n}`)) continue;
     const server = spawn('Xvfb', [`:${n}`, '-screen', '0', '1440x900x24', '-nolisten', 'tcp'], { stdio: 'ignore' });
@@ -107,56 +236,77 @@ async function startDisplay(): Promise<{ display: string; server: ChildProcess |
 }
 
 async function main() {
-  if (process.platform !== 'linux') throw new Error('La medición usa /proc y solo funciona en Linux.');
-  const { binary, seconds, limitMb, screenshot, clicks } = parseArgs(process.argv.slice(2));
+  const platform = { linux, win32: windows, darwin: macos }[process.platform as string];
+  if (!platform) throw new Error(`Sistema no compatible: ${process.platform}`);
+  const { binary, seconds, limitMb, measureOnly, label, report, screenshot, clicks } = parseArgs(process.argv.slice(2));
   if (!existsSync(binary)) throw new Error(`No existe ${binary}`);
+  if (process.platform !== 'linux' && (clicks.length || screenshot)) throw new Error('--clic y --captura solo funcionan en Linux.');
 
   const { display, server } = await startDisplay();
   const home = mkdtempSync(join(tmpdir(), 'duvarret-ram-'));
-  const app = spawn(binary, [], { env: { ...process.env, DISPLAY: display, HOME: home, XDG_CONFIG_HOME: join(home, '.config'), XDG_DATA_HOME: join(home, '.local/share') }, stdio: 'ignore' });
+  // HOME temporal para no depender de datos previos (en Windows, WebView2 usa %LOCALAPPDATA%).
+  const env = process.platform === 'win32' ? process.env : { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config'), XDG_DATA_HOME: join(home, '.local/share'), ...(display ? { DISPLAY: display } : {}) };
+  const preexisting = new Set(platform.helpers ? platform.list().filter((p) => platform.helpers!.test(p.name)).map((p) => p.pid) : []);
+  const app = spawn(binary, [], { env, stdio: 'ignore' });
   const startedAt = Date.now();
   const samples: Sample[] = [];
   try {
     while ((Date.now() - startedAt) / 1000 < seconds) {
       await sleep(1000);
       if (app.exitCode !== null) throw new Error(`El ejecutable terminó antes de tiempo (código ${app.exitCode}).`);
-      samples.push(sample(app.pid!, startedAt));
+      const processes = platform.memory(windowProcesses(platform, app.pid!, preexisting));
+      samples.push({ at: (Date.now() - startedAt) / 1000, mainKb: processes.reduce((s, p) => s + p.mainKb, 0), otherKb: processes.reduce((s, p) => s + p.otherKb, 0), processes });
       const elapsed = (Date.now() - startedAt) / 1000;
       for (const click of clicks.filter((c) => c.at <= elapsed && c.at > elapsed - 1)) {
         execFileSync('xdotool', ['mousemove', click.x, click.y, 'click', '1'], { env: { ...process.env, DISPLAY: display } });
       }
     }
-    if (screenshot) execFileSync('import', ['-display', display, '-window', 'root', resolve(screenshot)]);
+    if (screenshot) execFileSync('import', ['-display', display!, '-window', 'root', resolve(screenshot)]);
   } finally {
-    app.kill('SIGTERM');
+    const leftovers = app.pid ? windowProcesses(platform, app.pid, preexisting) : [];
+    app.kill();
     await sleep(500);
-    for (const pid of app.pid ? processTree(app.pid) : []) {
-      try {
-        process.kill(pid, 'SIGKILL');
-      } catch {
-        /* ya terminó */
-      }
-    }
+    for (const p of leftovers) platform.kill(p.pid);
     server?.kill('SIGTERM');
     rmSync(home, { recursive: true, force: true });
   }
+  if (!samples.length) throw new Error('No se tomó ninguna muestra (aumenta --segundos).');
 
   // Régimen estable: la mediana de la segunda mitad (tras la carga inicial).
   const tail = samples.slice(Math.floor(samples.length / 2));
-  const steady = median(tail.map((s) => s.pssKb));
-  const steadyUss = median(tail.map((s) => s.ussKb));
-  const peak = Math.max(...samples.map((s) => s.pssKb));
+  const steady = median(tail.map((s) => s.mainKb));
+  const steadyOther = median(tail.map((s) => s.otherKb));
+  const peak = Math.max(...samples.map((s) => s.mainKb));
   const last = samples.at(-1)!;
-  console.log(`\nMemoria de ${binary} durante ${seconds} s (${samples.length} muestras)`);
-  console.log(`  ${'Proceso'.padEnd(18)} ${'PSS'.padStart(10)} ${'Privada'.padStart(10)}`);
-  for (const p of last.processes) console.log(`  ${p.name.padEnd(18)} ${mb(p.pssKb).padStart(7)} MB ${mb(p.ussKb).padStart(7)} MB`);
-  console.log(`  ${'Total estable'.padEnd(18)} ${mb(steady).padStart(7)} MB (PSS)`);
-  console.log(`  ${'Pico'.padEnd(18)} ${mb(peak).padStart(7)} MB (PSS)`);
-  console.log(`  ${'Privada estable'.padEnd(18)} ${mb(steadyUss).padStart(7)} MB (USS: sin bibliotecas compartidas)`);
-  console.log(`  ${'RSS sumada'.padEnd(18)} ${mb(last.rssKb).padStart(7)} MB (cuenta varias veces lo compartido)`);
+  console.log(`\nMemoria de ${label} en ${process.platform} durante ${seconds} s (${samples.length} muestras)`);
+  console.log(`  ${'Proceso'.padEnd(34)} ${platform.main.padStart(30)} ${platform.other.padStart(22)}`);
+  for (const p of last.processes) console.log(`  ${p.name.slice(0, 34).padEnd(34)} ${`${mb(p.mainKb)} MB`.padStart(30)} ${`${mb(p.otherKb)} MB`.padStart(22)}`);
+  console.log(`  ${'Total estable'.padEnd(34)} ${`${mb(steady)} MB`.padStart(30)} ${`${mb(steadyOther)} MB`.padStart(22)}`);
+  console.log(`  ${'Pico'.padEnd(34)} ${`${mb(peak)} MB`.padStart(30)}`);
   const ok = steady / 1024 < limitMb;
   console.log(ok ? `✓ Por debajo de ${limitMb} MB` : `✗ Supera ${limitMb} MB`);
-  process.exitCode = ok ? 0 : 1;
+
+  const result = {
+    label,
+    platform: process.platform,
+    seconds,
+    samples: samples.length,
+    metric: platform.main,
+    steadyMb: +(steady / 1024).toFixed(1),
+    peakMb: +(peak / 1024).toFixed(1),
+    otherMetric: platform.other,
+    otherSteadyMb: +(steadyOther / 1024).toFixed(1),
+    processes: last.processes.map((p) => ({ name: p.name, mainMb: +(p.mainKb / 1024).toFixed(1), otherMb: +(p.otherKb / 1024).toFixed(1) })),
+  };
+  if (report) writeFileSync(resolve(report), JSON.stringify(result, null, 2));
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const rows = result.processes.map((p) => `| ${p.name} | ${p.mainMb} | ${p.otherMb} |`).join('\n');
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      `\n### Memoria · ${label} (${process.platform})\n\n| Proceso | ${platform.main} (MB) | ${platform.other} (MB) |\n| :--- | ---: | ---: |\n${rows}\n| **Total estable** | **${result.steadyMb}** | **${result.otherSteadyMb}** |\n\nPico: ${result.peakMb} MB · ${samples.length} muestras en ${seconds} s\n`,
+    );
+  }
+  process.exitCode = ok || measureOnly ? 0 : 1;
 }
 
 main().catch((error: unknown) => {

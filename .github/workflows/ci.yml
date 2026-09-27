@@ -72,7 +72,7 @@ jobs:
         with:
           workspaces: src-tauri
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev xvfb
       - run: npm ci
       - run: npm run duvarret -- export works/el-corazon-delator.duvarret --target native --out export-ci
       - name: Comprobar tamaño (< 20 MB)
@@ -82,7 +82,25 @@ jobs:
           size=$(wc -c < "$f")
           echo "Tamaño: $size bytes"
           test "$size" -lt 20971520
+      # RNF-02: memoria de la obra y, como referencia, del mismo shell con una página en blanco
+      # (la base del motor web de cada sistema). Se informa en el resumen de la ejecución.
+      - name: Memoria de la obra insignia
+        shell: bash
+        run: npm run medir-ram -- "$(ls export-ci/native/*)" --segundos 40 --solo-medir --nombre "Obra insignia" --informe export-ci/memoria-obra.json
+      - name: Memoria de una página en blanco (base del motor web)
+        shell: bash
+        run: |
+          mkdir -p export-ci/blanco
+          echo '<!doctype html><meta charset="utf-8"><title>Blanco</title>' > export-ci/blanco/index.html
+          CFG=$(node -p "JSON.stringify({productName:'Blanco',identifier:'engine.duvarret.blanco',build:{frontendDist:require('path').resolve('export-ci/blanco'),beforeBuildCommand:'',beforeDevCommand:''},bundle:{active:false}})")
+          npx tauri build --no-bundle --config src-tauri/tauri.player.conf.json --config "$CFG"
+          exe=src-tauri/target/release/duvarret; [ -f "$exe.exe" ] && exe="$exe.exe"
+          npm run medir-ram -- "$exe" --segundos 40 --solo-medir --nombre "Página en blanco" --informe export-ci/memoria-blanco.json
       - uses: actions/upload-artifact@v4
         with:
           name: el-corazon-delator-${{ runner.os }}
           path: export-ci/native/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: memoria-${{ runner.os }}
+          path: export-ci/memoria-*.json

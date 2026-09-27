@@ -70,7 +70,7 @@ npm run duvarret -- ingest   mi-novela.docx --out Mi_Novela.duvarret            
 ANTHROPIC_API_KEY=… npm run duvarret -- probar-ia works/el-corazon-delator.duvarret --proveedor anthropic
 npm run duvarret -- probar-ia works/el-corazon-delator.duvarret --proveedor ollama --modelo qwen2.5
 npm run build:desktop                                                    # Studio de escritorio con el reproductor incluido
-npm run medir-ram -- ruta/al/ejecutable --segundos 30 --clic 640,456@6   # memoria real (Linux)
+npm run medir-ram -- ruta/al/ejecutable --segundos 30   # memoria real (Linux, Windows, macOS; también en CI)
 ```
 
 `probar-ia` (también en ⚙ Preferencias → Probar conexión) hace una vuelta real del co-director sobre una copia de la obra. Resultados y método: [`docs/06_VALIDACION.md`](docs/06_VALIDACION.md).
