@@ -7,6 +7,19 @@ import type { FileMap } from '../../src/core/compiler';
 
 export const REPO_ROOT = resolve(import.meta.dirname, '../..');
 
+const LOCAL_CLIS = {
+  vite: 'node_modules/vite/bin/vite.js',
+  tauri: 'node_modules/@tauri-apps/cli/tauri.js',
+} as const;
+
+/**
+ * Ejecuta una CLI local con el propio Node, sin `npx` ni shell: funciona igual en Windows
+ * (donde `npx` es un `.cmd`) y no rompe los argumentos JSON de `--config`.
+ */
+export function runLocalCli(tool: keyof typeof LOCAL_CLIS, args: string[]) {
+  execFileSync(process.execPath, [join(REPO_ROOT, LOCAL_CLIS[tool]), ...args], { cwd: REPO_ROOT, stdio: 'inherit' });
+}
+
 export function readTree(dir: string): FileMap {
   const files: FileMap = new Map();
   const walk = (current: string) => {
@@ -57,7 +70,7 @@ export function loadProject(root: string): ProjectOnDisk {
 export function ensurePlayerRuntime(): FileMap {
   const dist = join(REPO_ROOT, 'dist-player');
   if (!existsSync(join(dist, 'index.html'))) {
-    execFileSync('npx', ['vite', 'build', '--mode', 'player'], { cwd: REPO_ROOT, stdio: 'inherit' });
+    runLocalCli('vite', ['build', '--mode', 'player']);
   }
   return readTree(dist);
 }

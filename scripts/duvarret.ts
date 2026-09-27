@@ -6,7 +6,6 @@
  *   npm run duvarret -- export <proyecto> --target web|audio|native|portable|all [--out <dir>] [--zip] [--player <binario>]
  *   npm run duvarret -- ingest <manuscrito.txt|md|pdf> --out <proyecto> [--title "Título"]
  */
-import { execFileSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -15,7 +14,7 @@ import { checkIntegrity, validateManifestText } from '../src/core/manifest';
 import { readManuscript } from '../src/core/ingest/readers';
 import { parseManuscript } from '../src/core/ingest/sceneParser';
 import { createMeta, manifestFromManuscript, PROJECT_PATHS } from '../src/core/project';
-import { ensurePlayerRuntime, ffmpegOptimizer, loadProject, REPO_ROOT, writeTree } from './lib/projectFs';
+import { ensurePlayerRuntime, ffmpegOptimizer, loadProject, REPO_ROOT, runLocalCli, writeTree } from './lib/projectFs';
 
 const MB = 1024 * 1024;
 const fmt = (bytes: number) => (bytes >= MB ? `${(bytes / MB).toFixed(2)} MB` : `${(bytes / 1024).toFixed(1)} KB`);
@@ -48,7 +47,7 @@ function tauriBuild(frontendDist: string, productName: string, identifier: strin
     build: { frontendDist, beforeBuildCommand: '', beforeDevCommand: '' },
     bundle: { active: false },
   });
-  execFileSync('npx', ['tauri', 'build', '--no-bundle', '--config', 'src-tauri/tauri.player.conf.json', '--config', override], { cwd: REPO_ROOT, stdio: 'inherit' });
+  runLocalCli('tauri', ['build', '--no-bundle', '--config', 'src-tauri/tauri.player.conf.json', '--config', override]);
   const exe = join(REPO_ROOT, 'src-tauri/target/release', process.platform === 'win32' ? 'duvarret.exe' : 'duvarret');
   if (!existsSync(exe)) throw new Error('No se generó el binario nativo.');
   return exe;
