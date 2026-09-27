@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calidad:
+    name: Tipos, lint, pruebas y E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run schema && git diff --exit-code schemas/
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          CI: 'true'
+      - run: npm run duvarret -- validate works/el-corazon-delator.duvarret
+      - run: npm run duvarret -- export works/el-corazon-delator.duvarret --target web --zip --out export-ci
+      - run: npm run duvarret -- export works/el-corazon-delator.duvarret --target audio --zip --out export-ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obra-insignia-web-y-audio
+          path: export-ci/*.zip
+
+  rust:
+    name: Shell nativo (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+      - run: mkdir -p dist && cargo clippy --all-targets -- -D warnings
+        working-directory: src-tauri
+      - run: cargo test
+        working-directory: src-tauri
+
+  nativo:
+    name: Ejecutable de la obra insignia (${{ matrix.os }})
+    needs: [calidad, rust]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+      - run: npm ci
+      - run: npm run duvarret -- export works/el-corazon-delator.duvarret --target native --out export-ci
+      - name: Comprobar tamaño (< 20 MB)
+        shell: bash
+        run: |
+          f=$(ls export-ci/native/*)
+          size=$(wc -c < "$f")
+          echo "Tamaño: $size bytes"
+          test "$size" -lt 20971520
+      - uses: actions/upload-artifact@v4
+        with:
+          name: el-corazon-delator-${{ runner.os }}
+          path: export-ci/native/*

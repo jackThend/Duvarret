@@ -1,0 +1,1082 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "default": "https://duvarret.engine/schemas/v1/story-manifest.json",
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "default": "Obra sin título",
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "default": "Autoría desconocida",
+          "type": "string"
+        },
+        "version": {
+          "default": "1.0.0",
+          "type": "string"
+        },
+        "language": {
+          "default": "es-ES",
+          "type": "string"
+        },
+        "genre": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "duvarret_runtime_target": {
+          "default": ">=1.0.0",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "global_settings": {
+      "default": {
+        "default_mode": "multimedia",
+        "allow_screenless_toggle": true,
+        "audio_engine": "resonance_3d",
+        "font_family_base": "Spectral, serif",
+        "theme_palette": {
+          "background": "#0d0f12",
+          "foreground": "#e6e8eb",
+          "accent": "#d97706"
+        },
+        "typewriter_speed_cps": 45
+      },
+      "type": "object",
+      "properties": {
+        "default_mode": {
+          "default": "multimedia",
+          "type": "string",
+          "enum": [
+            "contemplative_book",
+            "multimedia",
+            "audio_drama_screenless"
+          ]
+        },
+        "allow_screenless_toggle": {
+          "default": true,
+          "type": "boolean"
+        },
+        "audio_engine": {
+          "default": "resonance_3d",
+          "type": "string",
+          "enum": [
+            "resonance_3d",
+            "steam_audio_wasm",
+            "stereo_simple"
+          ]
+        },
+        "font_family_base": {
+          "default": "Spectral, serif",
+          "type": "string",
+          "minLength": 1
+        },
+        "theme_palette": {
+          "default": {
+            "background": "#0d0f12",
+            "foreground": "#e6e8eb",
+            "accent": "#d97706"
+          },
+          "type": "object",
+          "properties": {
+            "background": {
+              "default": "#0d0f12",
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            },
+            "foreground": {
+              "default": "#e6e8eb",
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            },
+            "accent": {
+              "default": "#d97706",
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "typewriter_speed_cps": {
+          "default": 45,
+          "type": "number",
+          "minimum": 5,
+          "maximum": 400
+        }
+      },
+      "additionalProperties": false
+    },
+    "character_registry": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "color_accent": {
+            "default": "#94a3b8",
+            "type": "string",
+            "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+          },
+          "voice_profile": {
+            "type": "object",
+            "properties": {
+              "tts_pitch": {
+                "default": 1,
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 2
+              },
+              "tts_speed": {
+                "default": 1,
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 3
+              },
+              "locution_sample": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "sprites": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "item_registry": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "is_inspectable": {
+            "default": false,
+            "type": "boolean"
+          },
+          "inspect_content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "acoustic_environment": {
+      "default": {
+        "default_room_preset": "small_study",
+        "default_material": "wood",
+        "master_gain": 0.9,
+        "listener_orientation_deg": 0
+      },
+      "type": "object",
+      "properties": {
+        "default_room_preset": {
+          "default": "small_study",
+          "type": "string",
+          "enum": [
+            "small_study",
+            "narrow_concrete_corridor",
+            "wooden_cabin",
+            "cathedral_echo",
+            "outdoor_field"
+          ]
+        },
+        "default_material": {
+          "default": "wood",
+          "type": "string",
+          "enum": [
+            "wood",
+            "concrete",
+            "metal",
+            "curtains",
+            "glass",
+            "stone"
+          ]
+        },
+        "master_gain": {
+          "default": 0.9,
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "ambience_bed": {
+          "type": "string"
+        },
+        "listener_orientation_deg": {
+          "default": 0,
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        }
+      },
+      "additionalProperties": false
+    },
+    "initial_state": {
+      "default": {
+        "stats": {},
+        "flags": [],
+        "inventory": [],
+        "rng_seed": 1
+      },
+      "type": "object",
+      "properties": {
+        "start_node": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stats": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "flags": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "inventory": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rng_seed": {
+          "default": 1,
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "chapter_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text_payload": {
+            "default": "",
+            "type": "string"
+          },
+          "illustration": {
+            "type": "object",
+            "properties": {
+              "asset": {
+                "type": "string"
+              },
+              "placement": {
+                "default": "header",
+                "type": "string",
+                "enum": [
+                  "fullscreen",
+                  "header",
+                  "margin"
+                ]
+              },
+              "alt": {
+                "default": "",
+                "type": "string"
+              }
+            },
+            "required": [
+              "asset"
+            ],
+            "additionalProperties": false
+          },
+          "ambient_lighting": {
+            "type": "string",
+            "enum": [
+              "day",
+              "dusk",
+              "night",
+              "candle"
+            ]
+          },
+          "glossary": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "term": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "definition": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "term",
+                "definition"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "grant_flags_on_enter": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "grant_items_on_enter": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "typographic_engine": {
+            "type": "object",
+            "properties": {
+              "layout_mode": {
+                "default": "standard",
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "narrow_corridor",
+                  "melt_text",
+                  "heartbeat_tremor",
+                  "flashlight_mask",
+                  "physics_fall",
+                  "mirror_inverted"
+                ]
+              },
+              "column_width_rem": {
+                "type": "number",
+                "minimum": 10,
+                "maximum": 80
+              },
+              "transition_speed_ms": {
+                "default": 1200,
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "flicker_effect": {
+                "default": false,
+                "type": "boolean"
+              },
+              "heartbeat_sync": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "bpm": {
+                    "default": 72,
+                    "type": "number",
+                    "minimum": 20,
+                    "maximum": 240
+                  },
+                  "text_scale_amplitude": {
+                    "default": 0.02,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 0.2
+                  }
+                },
+                "additionalProperties": false
+              },
+              "flashlight_reveal": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "radius_px": {
+                    "default": 180,
+                    "type": "number",
+                    "minimum": 20,
+                    "maximum": 1200
+                  },
+                  "darkness_opacity": {
+                    "default": 0.92,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "melt": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "intensity": {
+                    "default": 0.5,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "direction": {
+                    "default": "down",
+                    "type": "string",
+                    "enum": [
+                      "down",
+                      "up"
+                    ]
+                  },
+                  "duration_ms": {
+                    "default": 6000,
+                    "type": "number",
+                    "minimum": 100,
+                    "maximum": 60000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "physics": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "gravity": {
+                    "default": 9.8,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 50
+                  },
+                  "bounce_factor": {
+                    "default": 0.4,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "mirror": {
+                "type": "object",
+                "properties": {
+                  "axis": {
+                    "default": "x",
+                    "type": "string",
+                    "enum": [
+                      "x",
+                      "y"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "acoustic_events": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "asset": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "trigger": {
+                  "default": "on_node_enter",
+                  "type": "string",
+                  "enum": [
+                    "on_node_enter",
+                    "on_text_reveal_percentage",
+                    "on_text_complete",
+                    "on_choice_hover",
+                    "on_puzzle_solve"
+                  ]
+                },
+                "trigger_value": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "loop": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "coordinates": {
+                  "default": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "z": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "z"
+                  ],
+                  "additionalProperties": false
+                },
+                "room_preset": {
+                  "type": "string",
+                  "enum": [
+                    "small_study",
+                    "narrow_concrete_corridor",
+                    "wooden_cabin",
+                    "cathedral_echo",
+                    "outdoor_field"
+                  ]
+                },
+                "acoustic_material": {
+                  "type": "string",
+                  "enum": [
+                    "wood",
+                    "concrete",
+                    "metal",
+                    "curtains",
+                    "glass",
+                    "stone"
+                  ]
+                },
+                "gain": {
+                  "default": 1,
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "fade_in_ms": {
+                  "default": 0,
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 30000
+                }
+              },
+              "required": [
+                "event_id",
+                "asset"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "visual_novel_overlay": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "default": true,
+                "type": "boolean"
+              },
+              "trigger": {
+                "default": "on_text_complete",
+                "type": "string",
+                "enum": [
+                  "on_node_enter",
+                  "on_text_complete"
+                ]
+              },
+              "active_speaker": {
+                "type": "string",
+                "minLength": 1
+              },
+              "current_mood": {
+                "default": "neutral",
+                "type": "string"
+              },
+              "dialogue_text": {
+                "default": "",
+                "type": "string"
+              },
+              "avatar_position": {
+                "default": "left",
+                "type": "string",
+                "enum": [
+                  "left",
+                  "center",
+                  "right"
+                ]
+              },
+              "lines": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "speaker": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "mood": {
+                      "default": "neutral",
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "default": "left",
+                      "type": "string",
+                      "enum": [
+                        "left",
+                        "center",
+                        "right"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "speaker",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "active_speaker"
+            ],
+            "additionalProperties": false
+          },
+          "gameplay_overlay": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "crt_terminal",
+                  "fictional_desktop",
+                  "cipher_lock",
+                  "circuit_wiring"
+                ]
+              },
+              "is_mandatory_to_advance": {
+                "default": false,
+                "type": "boolean"
+              },
+              "title": {
+                "default": "",
+                "type": "string"
+              },
+              "parameters": {
+                "default": {},
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "on_success": {
+                "default": {
+                  "grant_flags": [],
+                  "revoke_flags": [],
+                  "grant_items": [],
+                  "consume_items": []
+                },
+                "type": "object",
+                "properties": {
+                  "grant_flags": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "revoke_flags": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "grant_items": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "consume_items": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "play_sfx": {
+                    "type": "string"
+                  },
+                  "transition_to_node": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "on_failure": {
+                "default": {
+                  "grant_flags": [],
+                  "revoke_flags": [],
+                  "grant_items": [],
+                  "consume_items": []
+                },
+                "type": "object",
+                "properties": {
+                  "grant_flags": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "revoke_flags": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "grant_items": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "consume_items": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "play_sfx": {
+                    "type": "string"
+                  },
+                  "transition_to_node": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "rpg_checks": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "default": "passive",
+                  "type": "string",
+                  "enum": [
+                    "passive",
+                    "active"
+                  ]
+                },
+                "stat": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "difficulty": {
+                  "default": 10,
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 30
+                },
+                "label": {
+                  "type": "string"
+                },
+                "on_pass_reveal_extra_text": {
+                  "type": "string"
+                },
+                "on_fail_reveal_extra_text": {
+                  "type": "string"
+                },
+                "on_pass_grant_flags": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "on_fail_grant_flags": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "stat"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "screenless_mode": {
+            "type": "object",
+            "properties": {
+              "voice_over_asset": {
+                "type": "string"
+              },
+              "foley_bed": {
+                "type": "string"
+              },
+              "narration_text": {
+                "type": "string"
+              },
+              "voice_prompts": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "spoken_prompt": {
+                      "type": "string"
+                    },
+                    "voice_options": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "phrase": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "target_node": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "phrase",
+                          "target_node"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "keypad_shortcuts": {
+                      "default": {},
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "spoken_prompt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "navigation": {
+            "default": {
+              "choices": [],
+              "is_ending": false
+            },
+            "type": "object",
+            "properties": {
+              "default_next_node": {
+                "type": "string",
+                "minLength": 1
+              },
+              "choices": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "choice_text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "target_node": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "condition": {
+                      "type": "object",
+                      "properties": {
+                        "required_flag": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "forbidden_flag": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "required_item": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "min_stat": {
+                          "type": "object",
+                          "properties": {
+                            "stat": {
+                              "type": "string"
+                            },
+                            "value": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "stat",
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "grant_flags": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "choice_text",
+                    "target_node"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "is_ending": {
+                "default": false,
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "metadata",
+    "nodes"
+  ],
+  "additionalProperties": false,
+  "$id": "https://duvarret.engine/schemas/v1/story-manifest.json",
+  "title": "Duvarret story_manifest.json",
+  "description": "Contrato declarativo del Duvarret Runtime v1.0.0"
+}

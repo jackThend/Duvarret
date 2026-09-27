@@ -1,0 +1,191 @@
+{
+  "$schema": "https://duvarret.engine/schemas/v1/story-manifest.json",
+  "metadata": {
+    "title": "La Sombra del Molino",
+    "author": "Elena M. & Co-Director Agéntico",
+    "version": "1.0.0",
+    "language": "es-ES",
+    "genre": "Misterio Ergódico / Ciberpunk Histórico",
+    "created_at": "2026-09-24T02:00:00Z",
+    "duvarret_runtime_target": ">=1.0.0"
+  },
+  "global_settings": {
+    "default_mode": "multimedia",
+    "allow_screenless_toggle": true,
+    "audio_engine": "resonance_3d",
+    "font_family_base": "Spectral, serif",
+    "theme_palette": {
+      "background": "#0d0f12",
+      "foreground": "#e6e8eb",
+      "accent": "#d97706"
+    }
+  },
+  "character_registry": {
+    "sancho": {
+      "name": "Sancho Panza",
+      "color_accent": "#10b981",
+      "voice_profile": {
+        "tts_pitch": 0.9,
+        "tts_speed": 1.05,
+        "locution_sample": "assets/audio/voices/sancho_sample.ogg"
+      },
+      "sprites": {
+        "neutral": "assets/images/characters/sancho_neutral.webp",
+        "alarmed": "assets/images/characters/sancho_alarmed.webp",
+        "skeptical": "assets/images/characters/sancho_skeptical.webp"
+      }
+    },
+    "narrador": {
+      "name": "Voz Omnisciente",
+      "color_accent": "#94a3b8"
+    }
+  },
+  "item_registry": {
+    "sobre_lacrado": {
+      "name": "Sobre con Lacre Negro",
+      "description": "Un documento confiscado en el laboratorio subterráneo. El sello aún está intacto.",
+      "icon": "assets/images/items/sealed_envelope.webp",
+      "is_inspectable": true,
+      "inspect_content": "Al trasluz se distingue una cifra: '7391'."
+    }
+  },
+  "acoustic_environment": {
+    "default_room_preset": "narrow_concrete_corridor",
+    "default_material": "concrete",
+    "master_gain": 0.9
+  },
+  "nodes": [
+    {
+      "node_id": "nodo_023_camara_subterranea",
+      "chapter_id": "capitulo_2",
+      "title": "La Infiltración en el Búnker",
+      "text_payload": "El eco de las gotas de condensación rebotaba contra las láminas de acero. El pasadizo se volvió tan angosto que apenas podía respirar sin raspar los codos contra los muros. Al final del túnel, una consola fosforescente parpadeaba en la penumbra.",
+      "typographic_engine": {
+        "layout_mode": "narrow_corridor",
+        "column_width_rem": 24.0,
+        "flicker_effect": true,
+        "heartbeat_sync": {
+          "enabled": true,
+          "bpm": 95,
+          "text_scale_amplitude": 0.02
+        },
+        "flashlight_reveal": {
+          "enabled": true,
+          "radius_px": 180,
+          "darkness_opacity": 0.92
+        }
+      },
+      "acoustic_events": [
+        {
+          "event_id": "gotera_posicional",
+          "asset": "assets/audio/sfx/drip_echo.ogg",
+          "trigger": "on_node_enter",
+          "loop": true,
+          "coordinates": {
+            "x": 3.5,
+            "y": 1.2,
+            "z": -4.0
+          },
+          "room_preset": "narrow_concrete_corridor",
+          "acoustic_material": "concrete",
+          "gain": 0.75
+        },
+        {
+          "event_id": "pasos_enemigo",
+          "asset": "assets/audio/sfx/heavy_footsteps.ogg",
+          "trigger": "on_text_reveal_percentage",
+          "trigger_value": 60,
+          "loop": false,
+          "coordinates": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": -12.0
+          },
+          "room_preset": "narrow_concrete_corridor"
+        }
+      ],
+      "visual_novel_overlay": {
+        "enabled": true,
+        "trigger": "on_text_complete",
+        "active_speaker": "sancho",
+        "current_mood": "alarmed",
+        "dialogue_text": "¡Por favor, señor! ¿No oye esos pasos a nuestras espaldas? ¡Esa consola es una trampa!",
+        "avatar_position": "left"
+      },
+      "gameplay_overlay": {
+        "type": "cipher_lock",
+        "is_mandatory_to_advance": true,
+        "title": "Consola del Sistema Central",
+        "parameters": {
+          "screen_type": "crt_green_phosphor",
+          "prompt_text": "INTRODUZCA CÓDIGO DE ANULACIÓN DE ALARMA:",
+          "target_code": "7391",
+          "max_attempts": 3,
+          "clue_reference_item": "sobre_lacrado"
+        },
+        "on_success": {
+          "grant_flags": [
+            "alarma_desactivada",
+            "puerta_bunker_abierta"
+          ],
+          "play_sfx": "assets/audio/sfx/door_hydraulic_open.ogg",
+          "transition_to_node": "nodo_024_sala_servidores"
+        },
+        "on_failure": {
+          "grant_flags": [
+            "alarma_disparada"
+          ],
+          "play_sfx": "assets/audio/sfx/alarm_siren_3d.ogg",
+          "transition_to_node": "nodo_024_emboscada_seguridad"
+        }
+      },
+      "rpg_checks": [
+        {
+          "type": "passive",
+          "stat": "percepcion",
+          "difficulty": 12,
+          "on_pass_reveal_extra_text": "Percibes una leve brisa tibia proveniente de la rejilla a tu izquierda; hay otra salida."
+        }
+      ],
+      "screenless_mode": {
+        "voice_over_asset": "assets/audio/narration/nodo_023_locucion.ogg",
+        "foley_bed": "assets/audio/ambience/underground_ambience_binaural.ogg",
+        "voice_prompts": [
+          {
+            "spoken_prompt": "¿Deseas intentar hackear la consola o buscar otra salida en la oscuridad?",
+            "voice_options": [
+              {
+                "phrase": "hackear consola",
+                "target_node": "nodo_023_puzzle_audio"
+              },
+              {
+                "phrase": "buscar salida",
+                "target_node": "nodo_023_rejilla"
+              }
+            ],
+            "keypad_shortcuts": {
+              "1": "nodo_023_puzzle_audio",
+              "2": "nodo_023_rejilla"
+            }
+          }
+        ]
+      },
+      "navigation": {
+        "default_next_node": "nodo_024_sala_servidores",
+        "choices": [
+          {
+            "choice_text": "Inspeccionar los cables expuestos bajo la consola",
+            "target_node": "nodo_023_cables_minijuego",
+            "condition": {
+              "required_flag": "alarma_desactivada"
+            }
+          },
+          {
+            "choice_text": "Volver sobre tus pasos hacia la entrada",
+            "target_node": "nodo_022_retroceso"
+          }
+        ]
+      }
+    }
+  ]
+}

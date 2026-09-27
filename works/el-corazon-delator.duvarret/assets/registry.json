@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "path": "assets/audio/sfx/bell.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «bell» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/breath.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «breath» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/clock.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «clock» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/creak.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «creak» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/floor.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «floor» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/heartbeat.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «heartbeat» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/knock.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «knock» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/night.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «night» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/audio/sfx/scream.wav",
+      "kind": "audio",
+      "origin": "synthetic",
+      "status": "ready",
+      "license": "CC BY 4.0",
+      "provider": "duvarret-foley (síntesis procedimental determinista)",
+      "prompt": "Foley «scream» para El Corazón Delator",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/characters/agente_cortes.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/characters/agente_suspicaz.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/characters/narrador_febril.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/characters/narrador_sereno.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/characters/viejo_temeroso.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/items/linterna.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/items/reloj.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    },
+    {
+      "path": "assets/images/ojo.svg",
+      "kind": "image",
+      "origin": "author",
+      "status": "ready",
+      "author": "Duvarret",
+      "license": "CC BY 4.0",
+      "created_at": "2026-09-24T00:00:00.000Z"
+    }
+  ]
+}
