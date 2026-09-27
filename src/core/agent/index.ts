@@ -6,3 +6,4 @@ export * from './localDirector';
 export * from './tools/registry';
 export * from './tools/directorTools';
 export * from './providers/index';
+export * from './probe';
