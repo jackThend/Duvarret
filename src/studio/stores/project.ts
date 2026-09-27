@@ -9,6 +9,7 @@ import {
   hasBlockingIssues,
   validateManifest,
   validateManifestText,
+  type Choice,
   type Coordinates,
   type ManifestIssue,
   type StoryManifest,
@@ -17,9 +18,19 @@ import {
 import { ManifestEditor } from '@/core/agent/manifestEditor';
 import { AssetRegistry } from '@/core/assets/registry';
 import { ContinuitySupervisor, LoreGraph, seedFromManifest, type ContinuityIssue } from '@/core/lore';
-import { createMeta, manifestFromManuscript, MemoryStorage, ProjectMetaSchema, type ProjectMeta, type ProjectStorage } from '@/core/project';
+import { createMeta, manifestFromManuscript, MemoryStorage, ProjectMetaSchema, WorkLibrary, type ProjectMeta, type ProjectStorage } from '@/core/project';
 import type { ParsedManuscript } from '@/core/ingest/sceneParser';
 import { openLoreDriver } from '../services/lore';
+import { assetStoreFor, MemoryAssetStore, type AssetStore } from '../services/assetStore';
+import { MAX_ASSET_BYTES, assetFolderFor, assetPathFor, assetUsages } from '@/core/assets/usages';
+
+export type AssetAssignment =
+  | { kind: 'portrait'; characterId: string; mood: string }
+  | { kind: 'item_icon'; itemId: string }
+  | { kind: 'ambience' }
+  | { kind: 'illustration'; nodeId: string; placement?: 'fullscreen' | 'header' | 'margin'; alt?: string }
+  | { kind: 'scene_sound'; nodeId: string; label?: string; loop?: boolean }
+  | { kind: 'narration'; nodeId: string };
 
 export type NodeFormat = 'text' | 'ergodic' | 'visual_novel' | 'gameplay' | 'audio';
 
@@ -60,6 +71,12 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   const loadIssues = ref<ManifestIssue[]>([]);
   const continuity = ref<Record<string, ContinuityIssue[]>>({});
   const assetBase = ref('');
+  /** Resolución de rutas de recursos propia del almacenamiento (p. ej. archivos en disco en el escritorio). */
+  const assetResolver = shallowRef<((path: string) => string) | null>(null);
+  /** Almacén de archivos de la obra abierta (disco, dispositivo o memoria). */
+  const assetStore = shallowRef<AssetStore>(new MemoryAssetStore());
+  /** URLs temporales de recursos aportados en esta sesión (tienen prioridad). */
+  const assetOverrides = shallowRef<Map<string, string>>(new Map());
   /** Marca de tiempo del último cambio (para medir la latencia de la vista previa). */
   const changedAt = ref(0);
   const undoStack: StoryManifest[] = [];
@@ -85,6 +102,112 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     }
     return out;
   });
+
+  /** URL de un recurso de la obra para la vista previa y el audio. */
+  function resolveAsset(path: string): string {
+    if (!path || /^(https?:|data:|blob:|asset:)/.test(path)) return path;
+    const clean = path.replace(/^\.?\//, '');
+    const override = assetOverrides.value.get(clean);
+    if (override) return override;
+    if (assetResolver.value) return assetResolver.value(clean);
+    return assetBase.value ? `${assetBase.value.replace(/\/$/, '')}/${clean}` : clean;
+  }
+
+  function setAssetOverride(path: string, url: string | null) {
+    const next = new Map(assetOverrides.value);
+    const clean = path.replace(/^\.?\//, '');
+    const previous = next.get(clean);
+    if (previous?.startsWith('blob:') && previous !== url) URL.revokeObjectURL?.(previous);
+    if (url) next.set(clean, url);
+    else next.delete(clean);
+    assetOverrides.value = next;
+  }
+
+  /** Rutas de recursos conocidas (catálogo + referencias del manifiesto). */
+  const assetPaths = computed(() => new Set([...assets.value.list().map((r) => r.path), ...assetUsages(manifest.value).keys()]));
+
+  /**
+   * Aporta un archivo de la autora. Si `replacePath` se indica, ocupa ese lugar (p. ej. un sonido
+   * que la obra ya usaba pero faltaba); si no, recibe una ruta nueva según su nombre.
+   */
+  async function addAsset(file: { name: string; data: Uint8Array }, options: { replacePath?: string } = {}): Promise<string> {
+    if (file.data.byteLength > MAX_ASSET_BYTES) throw new Error(`«${file.name}» pesa demasiado (máximo 50 MB).`);
+    const folder = assetFolderFor(file.name);
+    if (!folder) throw new Error(`«${file.name}» no es un sonido ni una imagen que Duvarret sepa usar.`);
+    let path = options.replacePath;
+    if (path) {
+      const expected = assetFolderFor(path);
+      if (expected && expected !== folder) throw new Error(folder === 'audio' ? 'Ese lugar espera una imagen, no un sonido.' : 'Ese lugar espera un sonido, no una imagen.');
+      if (path.split('.').pop()?.toLowerCase() !== file.name.split('.').pop()?.toLowerCase()) {
+        // Otro formato: se guarda con su extensión y se actualizan las referencias.
+        const renamed = path.replace(/\.[^.]+$/, `.${file.name.split('.').pop()!.toLowerCase()}`);
+        replaceAssetReferences(path, renamed);
+        path = renamed;
+      }
+    } else {
+      path = assetPathFor(file.name, assetPaths.value)!;
+    }
+    const url = await assetStore.value.put(path, file.data);
+    if (url) setAssetOverride(path, url);
+    const previous = assets.value.get(path);
+    if (previous?.origin === 'synthetic' || previous?.status === 'pending' || previous?.status === 'missing') assets.value.remove(path);
+    assets.value.register({ path, origin: 'author', status: 'ready', title: file.name, bytes: file.data.byteLength });
+    triggerRef(assets);
+    dirty.value = true;
+    changedAt.value = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    return path;
+  }
+
+  function replaceAssetReferences(from: string, to: string) {
+    const json = JSON.stringify(manifest.value, (_k, v: unknown) => (v === from ? to : v));
+    commit(validateManifest(JSON.parse(json)).manifest);
+  }
+
+  /** Retira un recurso aportado. Sus usos seguirán en la obra y sonarán como tono de prueba. */
+  async function removeAsset(path: string) {
+    await assetStore.value.remove(path);
+    setAssetOverride(path, null);
+    assets.value.remove(path);
+    triggerRef(assets);
+    dirty.value = true;
+  }
+
+  /** Coloca un recurso en la obra sin tocar el manifiesto a mano. */
+  function assignAsset(path: string, target: AssetAssignment) {
+    const ed = editor();
+    switch (target.kind) {
+      case 'portrait':
+        ed.patchManifest({ character_registry: { [target.characterId]: { sprites: { [target.mood || 'neutral']: path } } } });
+        break;
+      case 'item_icon':
+        ed.patchManifest({ item_registry: { [target.itemId]: { icon: path } } });
+        break;
+      case 'ambience':
+        ed.patchManifest({ acoustic_environment: { ambience_bed: path } });
+        break;
+      case 'illustration': {
+        const node = nodes.value.find((n) => n.node_id === target.nodeId);
+        ed.patchNode(target.nodeId, { illustration: { asset: path, placement: target.placement ?? 'header', alt: target.alt ?? node?.title ?? '' } });
+        break;
+      }
+      case 'scene_sound': {
+        const node = nodes.value.find((n) => n.node_id === target.nodeId);
+        const label = target.label ?? path.split('/').pop()!.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
+        const base = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'sonido';
+        const taken = new Set(node?.acoustic_events.map((e) => e.event_id));
+        let eventId = base;
+        for (let n = 2; taken.has(eventId); n++) eventId = `${base}_${n}`;
+        // Delante del oyente a 2 m: después se ajusta arrastrándolo en el radar.
+        const event = { event_id: eventId, asset: path, label, trigger: 'on_node_enter', loop: !!target.loop, coordinates: { x: 0, y: 0, z: 2 }, gain: 0.8 };
+        ed.patchNode(target.nodeId, { acoustic_events: [...(node?.acoustic_events ?? []), event] });
+        break;
+      }
+      case 'narration':
+        ed.patchNode(target.nodeId, { screenless_mode: { voice_over_asset: path } });
+        break;
+    }
+    commit(ed.current);
+  }
 
   function chapterTitle(id: string, first: StoryNode) {
     const pretty = id.replace(/^cap_?\d*_?/, '').replace(/_/g, ' ').trim();
@@ -134,6 +257,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     assets?: AssetRegistry;
     lore?: Uint8Array | null;
     assetBase?: string;
+    assetResolver?: ((path: string) => string) | null;
     withLore?: boolean;
   }) {
     const result = typeof options.manifest === 'string' ? validateManifestText(options.manifest) : validateManifest(options.manifest);
@@ -143,6 +267,16 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     if (options.storage) storage.value = options.storage;
     assets.value = options.assets ?? new AssetRegistry();
     assetBase.value = options.assetBase ?? '';
+    assetResolver.value = options.assetResolver ?? null;
+    for (const url of assetOverrides.value.values()) if (url.startsWith('blob:')) URL.revokeObjectURL?.(url);
+    assetOverrides.value = new Map();
+    assetStore.value = assetStoreFor(storage.value);
+    try {
+      const stored = await assetStore.value.urls();
+      if (stored.size) assetOverrides.value = stored;
+    } catch {
+      /* sin archivos propios en este dispositivo */
+    }
     selectedNodeId.value = result.manifest.initial_state.start_node ?? result.manifest.nodes[0]?.node_id ?? null;
     undoStack.length = 0;
     redoStack.length = 0;
@@ -153,16 +287,37 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     if (options.withLore !== false) await initLore(options.lore ?? null);
   }
 
-  async function openFromStorage(target: ProjectStorage, fallback?: unknown) {
+  async function openFromStorage(target: ProjectStorage, options: { fallback?: unknown; assetResolver?: ((path: string) => string) | null; assetBase?: string } = {}) {
     const files = await target.load();
-    if (!files.manifest && fallback === undefined) throw new Error('No se encontró la obra.');
+    if (!files.manifest && options.fallback === undefined) throw new Error('No se encontró la obra.');
     await open({
-      manifest: files.manifest ?? fallback,
+      manifest: files.manifest ?? options.fallback,
       ...(files.meta ? { meta: ProjectMetaSchema.parse(JSON.parse(files.meta)) } : {}),
       storage: target,
       assets: files.assets ? AssetRegistry.fromJson(files.assets) : new AssetRegistry(),
       lore: files.lore,
+      ...(options.assetResolver ? { assetResolver: options.assetResolver } : {}),
+      ...(options.assetBase ? { assetBase: options.assetBase } : {}),
     });
+    rememberWork();
+  }
+
+  /** Registra la obra abierta en «Obras recientes» (solo las que tienen un lugar propio). */
+  function rememberWork() {
+    const kind = storage.value.kind;
+    if (kind !== 'browser' && kind !== 'tauri') return;
+    new WorkLibrary().touch({ kind, location: storage.value.location, title: manifest.value.metadata.title, author: manifest.value.metadata.author });
+  }
+
+  /** Crea y guarda de inmediato una obra nueva en el almacenamiento indicado. */
+  async function createWork(options: { storage: ProjectStorage; manifest: unknown; meta?: Partial<ProjectMeta>; assetResolver?: ((path: string) => string) | null }) {
+    await open({
+      manifest: options.manifest,
+      storage: options.storage,
+      ...(options.meta ? { meta: options.meta } : {}),
+      ...(options.assetResolver ? { assetResolver: options.assetResolver } : {}),
+    });
+    await save();
   }
 
   async function save() {
@@ -175,15 +330,18 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     });
     dirty.value = false;
     lastSavedAt.value = new Date().toISOString();
+    rememberWork();
   }
 
-  async function importManuscript(parsed: ParsedManuscript, options: { title?: string; author?: string } = {}) {
-    await open({
-      manifest: manifestFromManuscript(parsed, { title: options.title ?? parsed.title, author: options.author ?? meta.value.author }),
-      meta: { mode: 'exegesis', ...(options.title ? { title: options.title } : {}) },
-      storage: storage.value,
+  /** Crea una obra nueva a partir de un manuscrito segmentado (nunca reemplaza la obra abierta). */
+  async function importManuscript(parsed: ParsedManuscript, options: { title?: string; author?: string; storage: ProjectStorage; assetResolver?: ((path: string) => string) | null }) {
+    const title = options.title ?? parsed.title;
+    await createWork({
+      storage: options.storage,
+      manifest: manifestFromManuscript(parsed, { title, author: options.author ?? '' }),
+      meta: { mode: 'exegesis', title, ...(options.author ? { author: options.author } : {}) },
+      ...(options.assetResolver ? { assetResolver: options.assetResolver } : {}),
     });
-    dirty.value = true;
   }
 
   function select(nodeId: string) {
@@ -233,29 +391,56 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     patchNode(nodeId, { acoustic_events: events }, { undoable: true });
   }
 
-  function addNode(afterId?: string) {
+  /**
+   * Crea una escena. Por defecto queda enlazada como continuación de la escena de referencia;
+   * con `link: false` solo se crea (p. ej. como destino de una elección nueva).
+   */
+  function addNode(afterId?: string, options: { title?: string; link?: boolean; select?: boolean } = {}) {
     const ed = editor();
     let n = nodes.value.length + 1;
     while (nodes.value.some((x) => x.node_id === `escena_${String(n).padStart(3, '0')}`)) n++;
     const id = `escena_${String(n).padStart(3, '0')}`;
     const anchor = nodes.value.find((x) => x.node_id === (afterId ?? selectedNodeId.value));
+    const link = options.link !== false;
     ed.patchNode(id, {
-      title: 'Nueva escena',
+      title: options.title?.trim() || 'Nueva escena',
       text_payload: '',
       ...(anchor?.chapter_id ? { chapter_id: anchor.chapter_id } : {}),
-      navigation: anchor?.navigation.default_next_node ? { default_next_node: anchor.navigation.default_next_node } : { is_ending: true },
+      navigation: link && anchor?.navigation.default_next_node ? { default_next_node: anchor.navigation.default_next_node } : { is_ending: true },
     });
     const next = ed.current;
     const created = next.nodes.pop()!;
     const at = anchor ? next.nodes.findIndex((x) => x.node_id === anchor.node_id) + 1 : next.nodes.length;
     next.nodes.splice(at, 0, created);
-    if (anchor) {
+    if (anchor && link) {
       const a = next.nodes.find((x) => x.node_id === anchor.node_id)!;
       a.navigation = { ...a.navigation, default_next_node: id, is_ending: false };
     }
     commit(next);
-    selectedNodeId.value = id;
+    if (options.select !== false) selectedNodeId.value = id;
     return id;
+  }
+
+  /** Sustituye por completo los caminos de una escena (continuación, elecciones y final). */
+  function updateNavigation(nodeId: string, navigation: { default_next_node?: string | undefined; choices: Choice[]; is_ending: boolean }) {
+    const next = structuredClone(manifest.value);
+    const node = next.nodes.find((n) => n.node_id === nodeId);
+    if (!node) return;
+    const choices = navigation.choices.map((c) => {
+      const condition = Object.fromEntries(Object.entries(c.condition ?? {}).filter(([, v]) => v !== undefined && v !== ''));
+      return {
+        choice_text: c.choice_text.trim() || 'Continuar',
+        target_node: c.target_node,
+        grant_flags: [...new Set(c.grant_flags.filter(Boolean))],
+        ...(Object.keys(condition).length ? { condition } : {}),
+      };
+    });
+    node.navigation = {
+      ...(navigation.default_next_node ? { default_next_node: navigation.default_next_node } : {}),
+      choices,
+      is_ending: navigation.is_ending,
+    } as typeof node.navigation;
+    commit(validateManifest(next).manifest);
   }
 
   function removeNode(nodeId: string) {
@@ -308,7 +493,17 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     loadIssues,
     continuity,
     assetBase,
+    assetResolver,
+    assetOverrides,
     changedAt,
+    resolveAsset,
+    setAssetOverride,
+    assetStore,
+    assetPaths,
+    addAsset,
+    removeAsset,
+    assignAsset,
+    createWork,
     open,
     openFromStorage,
     save,
@@ -322,6 +517,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     applyDraft,
     moveAcousticEvent,
     addNode,
+    updateNavigation,
     removeNode,
     analyzeContinuity,
     initLore,

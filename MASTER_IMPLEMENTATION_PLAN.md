@@ -128,8 +128,10 @@ e2e/           # Pruebas Playwright
   - Archivos: `src/core/agent/orchestrator.ts`
 - [x] **4.4 Intérprete espacial en lenguaje natural (RF-11)**
   - Archivos: `src/core/agent/spatialLanguage.ts`
-- [x] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf)**
-  - Archivos: `src/core/ingest/{readers.ts,sceneParser.ts,toneAnalyzer.ts}`
+- [x] **4.5 Ingesta y Scene Parsing (.txt/.md/.pdf/.docx/.epub)**
+  - Archivos: `src/core/ingest/{readers.ts,office.ts,sceneParser.ts,toneAnalyzer.ts}`
+  - .docx: estilos de título/encabezado de Word (en cualquier idioma), tabuladores, saltos y control de cambios.
+  - .epub: orden del índice (spine), títulos `<h1>`–`<h3>` o maquetados con CSS, entidades HTML.
   - Beats de 300–800 palabras respetando capítulos; tono e interacción candidata.
 - [x] **4.6 Director local heurístico (offline, sin LLM)**
   - Archivos: `src/core/agent/localDirector.ts` — genera Pitch Cards y llamadas a herramientas deterministas.
@@ -161,6 +163,26 @@ e2e/           # Pruebas Playwright
 - [x] **6.6 CI multiplataforma (GitHub Actions)**
 - [x] **6.7 Verificación final de builds**
 
+## OLEADA 7 — Autoría autónoma (sin depender del agente ni del JSON)
+
+- [x] **7.1 Obras: abrir, crear y recordar**
+  - Archivos: `src/core/project/workLibrary.ts`, `src/studio/services/{desktop.ts,workManager.ts}`, `src/studio/composables/useWorks.ts`, `src/studio/components/WorksDialog.vue`, `src-tauri/src/{lib.rs,project.rs}`
+  - Escritorio: diálogo nativo de carpetas, creación de `<Título>.duvarret` sin sobrescribir nunca otra obra, recursos servidos solo desde la carpeta abierta.
+  - Navegador: varias obras en el dispositivo; obras recientes; se guarda la obra actual antes de cambiar; importar un manuscrito crea una obra nueva.
+  - Verificación: `npm test -- workLibrary workManager useWorks`, E2E «Obras», `cargo test`.
+- [x] **7.2 Recursos propios: arrastrar y soltar sonidos e imágenes**
+  - Archivos: `src/core/assets/usages.ts`, `src/studio/services/assetStore.ts`, `src/studio/components/AssetsDialog.vue`, `src/studio/stores/project.ts`, `src-tauri/src/project.rs`
+  - Almacenes: carpeta `assets/` en el escritorio, IndexedDB en el navegador; catálogo de procedencia «obra de la autora».
+  - Recursos que faltan (se aportan en su lugar exacto), colocación sin JSON (retrato, ilustración, icono, sonido de escena, narración, ambiente) y retirada con aviso.
+  - El ambiente de fondo de la obra (`ambience_bed`) ahora suena en el runtime; el motor recarga sonidos aportados sin reiniciar.
+  - Verificación: `npm test -- usages assetStore assets`, E2E «Recursos propios» (incluye exportación), `cargo test`.
+- [x] **7.3 Editor visual de bifurcaciones**
+  - Archivos: `src/core/manifest/navigation.ts`, `src/studio/components/PathsEditor.vue`, `src/studio/components/PathsMap.vue`, `src/studio/stores/project.ts`
+  - «Caminos de la escena» bajo el lienzo: continuación natural, final, elecciones (texto, destino, orden), condiciones en lenguaje llano (acontecimiento ocurrido o no, objeto, atributo mínimo) y marcas que deja cada elección; «＋ Escena nueva» como destino directo.
+  - «Mapa de caminos» (`Ctrl/⌘+M`): escenas por distancia al inicio, continuaciones, elecciones, desenlaces de enigma y atajos sin pantalla; avisa de escenas sin camino de llegada y de caminos rotos; pulsar una escena la abre.
+  - Todo cambio es deshacible y se refleja al momento en la vista previa.
+  - Verificación: `npm test -- navigation paths`, E2E «Caminos».
+
 ---
 
 ## Registro de verificación final
@@ -181,4 +203,3 @@ Pendiente / limitaciones conocidas:
 - El `.exe` de Windows y el `.app` de macOS solo se compilan en CI; en este entorno solo se verificó el binario Linux.
 - La RAM < 150 MB no se midió de forma representativa (Xvfb con renderizado por software).
 - La transcodificación a Ogg/WebP depende de que `ffmpeg` esté instalado; sin él, los assets se empaquetan tal cual.
-- Ingesta: .txt, .md y .pdf (el PRD menciona también .docx y .epub, aún no soportados).

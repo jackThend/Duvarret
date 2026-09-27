@@ -56,6 +56,14 @@ export class BrowserStorage implements ProjectStorage {
       return { meta: null, manifest: null, assets: null, lore: null };
     }
   }
+  /** Borra la obra de este dispositivo. */
+  async remove() {
+    try {
+      for (const part of ['meta', 'manifest', 'assets', 'lore']) localStorage.removeItem(this.key(part));
+    } catch {
+      /* nada que borrar */
+    }
+  }
   async save(files: Partial<ProjectFiles>) {
     try {
       if (files.meta != null) localStorage.setItem(this.key('meta'), files.meta);

@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { readManuscript } from '@/core/ingest/readers';
+import { MANUSCRIPT_EXTENSIONS, readManuscript } from '@/core/ingest/readers';
 import { parseManuscript, type ParsedManuscript } from '@/core/ingest/sceneParser';
 import { TONE_LABELS } from '@/core/ingest/toneAnalyzer';
-import { useProjectStore } from '../stores/project';
-import { useStudioStore } from '../stores/studio';
+import { useWorks } from '../composables/useWorks';
 import Modal from './Modal.vue';
 
 const emit = defineEmits<{ close: [] }>();
-const project = useProjectStore();
-const studio = useStudioStore();
+const works = useWorks();
 const parsed = ref<ParsedManuscript | null>(null);
 const error = ref('');
 const reading = ref(false);
@@ -35,18 +33,15 @@ async function onFile(event: Event) {
 
 async function confirm() {
   if (!parsed.value) return;
-  await project.importManuscript(parsed.value, { title: title.value });
-  studio.reset();
-  studio.refreshPitches();
-  emit('close');
+  if (await works.createFromManuscript(parsed.value, { title: title.value.trim() || parsed.value.title })) emit('close');
 }
 </script>
 
 <template>
   <Modal title="Importar manuscrito" wide @close="emit('close')">
     <div class="space-y-4 text-sm" data-testid="import-dialog">
-      <p class="text-dv-muted">Sube tu obra en .txt, .md o .pdf. La dividiremos en escenas de 300 a 800 palabras respetando sus capítulos.</p>
-      <input type="file" accept=".txt,.md,.markdown,.pdf" aria-label="Archivo del manuscrito" data-testid="import-file" @change="onFile" />
+      <p class="text-dv-muted">Sube tu obra en Word (.docx), libro electrónico (.epub), PDF, .md o .txt. La dividiremos en escenas de 300 a 800 palabras respetando sus capítulos.</p>
+      <input type="file" :accept="MANUSCRIPT_EXTENSIONS.join(',')" aria-label="Archivo del manuscrito" data-testid="import-file" @change="onFile" />
       <p v-if="reading" class="text-dv-muted">Leyendo…</p>
       <p v-if="error" role="alert" class="text-dv-danger">{{ error }}</p>
       <template v-if="parsed">
@@ -60,7 +55,9 @@ async function confirm() {
             </span>
           </li>
         </ol>
-        <button type="button" class="dv-btn-accent" data-testid="import-confirm" @click="confirm">Crear la obra</button>
+        <p class="text-xs text-dv-muted">Se creará una obra nueva; la que tienes abierta se guarda y queda en «Obras».</p>
+        <button type="button" class="dv-btn-accent" :disabled="works.busy.value" data-testid="import-confirm" @click="confirm">Crear la obra</button>
+        <p v-if="works.error.value" role="alert" class="text-dv-danger">{{ works.error.value }}</p>
       </template>
     </div>
   </Modal>

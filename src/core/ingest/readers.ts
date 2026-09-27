@@ -1,12 +1,17 @@
-/** Lectura de manuscritos .txt, .md y .pdf (extracción de texto local, sin servicios externos). */
+/** Lectura de manuscritos .txt, .md, .pdf, .docx y .epub (extracción de texto local, sin servicios externos). */
+import { docxToText, epubToText } from './office';
 
-export type ManuscriptFormat = 'txt' | 'md' | 'pdf';
+export type ManuscriptFormat = 'txt' | 'md' | 'pdf' | 'docx' | 'epub';
+
+export const MANUSCRIPT_EXTENSIONS = ['.txt', '.md', '.markdown', '.pdf', '.docx', '.epub'] as const;
 
 export function detectFormat(fileName: string): ManuscriptFormat | null {
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (ext === 'txt') return 'txt';
   if (ext === 'md' || ext === 'markdown') return 'md';
   if (ext === 'pdf') return 'pdf';
+  if (ext === 'docx') return 'docx';
+  if (ext === 'epub') return 'epub';
   return null;
 }
 
@@ -65,7 +70,13 @@ export async function readManuscript(fileName: string, data: Uint8Array | string
     case 'pdf':
       if (typeof data === 'string') throw new Error('El PDF debe leerse como datos binarios.');
       return pdfToText(data);
+    case 'docx':
+      if (typeof data === 'string') throw new Error('El .docx debe leerse como datos binarios.');
+      return docxToText(data);
+    case 'epub':
+      if (typeof data === 'string') throw new Error('El .epub debe leerse como datos binarios.');
+      return epubToText(data);
     default:
-      throw new Error(`Formato no admitido: ${fileName}. Usa .txt, .md o .pdf.`);
+      throw new Error(`Formato no admitido: ${fileName}. Usa .txt, .md, .pdf, .docx o .epub.`);
   }
 }

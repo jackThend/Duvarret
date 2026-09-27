@@ -126,3 +126,33 @@
   outline: none;
 }
 .dv-modal.is-wide { max-width: 56rem; }
+
+.dv-dropzone {
+  @apply flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed p-6 text-center;
+  border-color: var(--dv-border);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.dv-dropzone:hover, .dv-dropzone.is-dragging, .dv-dropzone:focus-within {
+  border-color: var(--dv-accent);
+  background: color-mix(in srgb, var(--dv-accent) 8%, transparent);
+}
+
+.dv-chip {
+  @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5;
+  border-color: color-mix(in srgb, var(--dv-accent) 40%, var(--dv-border));
+  background: color-mix(in srgb, var(--dv-accent) 8%, transparent);
+}
+.dv-chip button { opacity: 0.6; }
+.dv-chip button:hover { opacity: 1; }
+
+.dv-flow-node rect { fill: var(--dv-panel-2); stroke: var(--dv-border); stroke-width: 1.5; }
+.dv-flow-node { cursor: pointer; }
+.dv-flow-node:hover rect, .dv-flow-node:focus-visible rect { stroke: var(--dv-accent); }
+.dv-flow-node:focus { outline: none; }
+.dv-flow-node.is-selected rect { stroke: var(--dv-accent-2); stroke-width: 2.5; }
+.dv-flow-node.is-start rect { fill: color-mix(in srgb, var(--dv-accent) 14%, var(--dv-panel-2)); }
+.dv-flow-node.is-orphan rect { stroke-dasharray: 4 3; opacity: 0.75; }
+.dv-flow-title { fill: var(--dv-text); font-family: var(--dv-font-prose); font-size: 14px; }
+.dv-flow-sub { fill: var(--dv-muted); font-size: 10px; }
+.dv-flow-missing { fill: var(--dv-danger); font-size: 16px; font-weight: 700; }
+.dv-flow-orphans { fill: color-mix(in srgb, var(--dv-danger) 6%, transparent); stroke: color-mix(in srgb, var(--dv-danger) 30%, transparent); stroke-dasharray: 4 4; }

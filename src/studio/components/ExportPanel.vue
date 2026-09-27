@@ -24,7 +24,7 @@ async function run(target: ExportTarget) {
   message.value = '';
   pending.value = [];
   try {
-    const result = await compileFromStudio({ manifest: project.manifest, assetBase: project.assetBase, target });
+    const result = await compileFromStudio({ manifest: project.manifest, resolveAsset: project.resolveAsset, target });
     if (!result.ok) {
       message.value = 'La obra tiene escenas por resolver antes de publicarse.';
       return;

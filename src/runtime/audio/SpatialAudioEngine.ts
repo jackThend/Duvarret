@@ -17,6 +17,9 @@ import type { RuntimeEvent } from '../stores/story';
 import { HrtfBackend, ResonanceBackend, StereoBackend, setParam, type BackendKind, type SpatialBackend } from './backends';
 import { sanitizeCoordinates } from './coordinates';
 
+/** Identificador de la voz del ambiente de fondo de la obra. */
+export const AMBIENCE_ID = 'ambiente-de-la-obra';
+
 export type AssetLoader = (path: string) => Promise<ArrayBuffer | null>;
 
 export interface AudioEngineOptions {
@@ -263,9 +266,10 @@ export class SpatialAudioEngine {
     this.notify();
   }
 
-  stopAll(options: { fadeMs?: number; loopsOnly?: boolean } = {}) {
+  stopAll(options: { fadeMs?: number; loopsOnly?: boolean; except?: string[] } = {}) {
     for (const handle of [...this.voices.values()]) {
       if (options.loopsOnly && !handle.loop) continue;
+      if (options.except?.includes(handle.id)) continue;
       this.stop(handle.id, options.fadeMs ?? 400);
     }
   }
@@ -329,12 +333,26 @@ export class SpatialAudioEngine {
    * Conecta el motor a la máquina de estados: cada evento narrativo dispara los sonidos
    * declarados. Devuelve la función de desconexión.
    */
+  /** Olvida sonidos ya cargados (p. ej. cuando la autora aporta el archivo que faltaba). */
+  invalidate(path?: string) {
+    if (path === undefined) this.buffers.clear();
+    else this.buffers.delete(path);
+  }
+
+  /** Ambiente de fondo de toda la obra: suena en bucle, suave y envolvente, entre escenas. */
+  private syncAmbience(asset: string | undefined) {
+    const current = this.voices.get(AMBIENCE_ID);
+    if (current && current.asset === asset) return;
+    if (current) this.stop(AMBIENCE_ID, 1500);
+    if (asset) void this.play(asset, { id: AMBIENCE_ID, loop: true, gain: 0.35, coordinates: { x: 0, y: 1.5, z: 0 }, fadeInMs: 2000, label: 'ambiente' });
+  }
+
   bind(store: { on(listener: (e: RuntimeEvent) => void): () => void; currentNode: StoryNode | null; manifest: StoryManifest | null }) {
     return store.on((event) => {
       const node = store.currentNode;
       const env = store.manifest?.acoustic_environment;
       if (event.type === 'node_exit') {
-        this.stopAll({ loopsOnly: true, fadeMs: 700 });
+        this.stopAll({ loopsOnly: true, fadeMs: 700, except: [AMBIENCE_ID] });
         return;
       }
       if (event.type === 'play_sfx') {
@@ -349,6 +367,7 @@ export class SpatialAudioEngine {
           first?.acoustic_material ?? env?.default_material ?? 'wood',
         );
         if (env) this.setMasterGain(env.master_gain);
+        this.syncAmbience(env?.ambience_bed);
         void this.preload(node.acoustic_events.map((e) => e.asset));
       }
       for (const acoustic of node.acoustic_events) {

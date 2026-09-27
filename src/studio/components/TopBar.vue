@@ -30,6 +30,7 @@ function setMode(event: Event) {
         <option v-for="mode in WORK_MODES" :key="mode" :value="mode">{{ WORK_MODE_LABELS[mode] }}</option>
       </select>
     </label>
+    <button type="button" class="dv-btn-ghost" data-testid="open-works" @click="studio.worksOpen = true">Obras</button>
     <button type="button" class="dv-btn-ghost" data-testid="open-import" @click="studio.importOpen = true">Importar manuscrito</button>
     <button type="button" class="dv-btn-ghost" data-testid="save" @click="project.save()">Guardar</button>
     <button type="button" class="dv-icon-btn" aria-label="Preferencias" data-testid="open-settings" @click="studio.settingsOpen = true">⚙</button>

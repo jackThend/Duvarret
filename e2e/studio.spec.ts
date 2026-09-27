@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { unzipSync } from 'fflate';
 
 async function openStudio(page: Page) {
   await page.addInitScript(() => localStorage.clear());
@@ -87,6 +89,19 @@ test.describe('Duvarret Studio (E2E)', () => {
     await expect(page.getByTestId('live-preview')).toContainText('La noche caía sobre el molino');
   });
 
+  test('importa un manuscrito de Word (.docx) y un libro electrónico (.epub)', async ({ page }) => {
+    await openStudio(page);
+    for (const file of ['la-llanura.docx', 'la-llanura.epub']) {
+      await page.getByTestId('open-import').click();
+      await page.getByTestId('import-file').setInputFiles(`src/core/ingest/__fixtures__/${file}`);
+      await expect(page.getByTestId('import-beats').locator('li')).toHaveCount(2);
+      await page.getByTestId('import-confirm').click();
+      await expect(page.getByTestId('work-title')).toHaveValue('La Llanura');
+      await expect(page.getByTestId('left-panel')).toContainText('Capítulo segundo');
+      await expect(page.getByTestId('live-preview')).toContainText('El viento soplaba sobre la llanura');
+    }
+  });
+
   test('modo sin pantalla accesible por teclado', async ({ page }) => {
     await openStudio(page);
     await page.keyboard.press('Control+Shift+A');
@@ -151,5 +166,167 @@ test.describe('Exportación a un clic', () => {
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-web').click()]);
     expect(download.suggestedFilename()).toBe('el-corazon-delator-web.zip');
     await expect(page.getByTestId('export-message')).toContainText('el-corazon-delator-web.zip');
+  });
+});
+
+test.describe('Obras: crear, cambiar y recordar', () => {
+  test('crea una obra en blanco, cambia a otra y vuelve sin perder nada', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('iniciado')) {
+        localStorage.clear();
+        sessionStorage.setItem('iniciado', '1');
+      }
+    });
+    await page.goto('/');
+    await expect(page.getByTestId('work-title')).toHaveValue('El Corazón Delator');
+    // Un cambio sin guardar en la obra de ejemplo…
+    await page.getByTestId('node-title').fill('I. Nervioso, siempre');
+    await page.getByTestId('node-title').blur();
+
+    await page.getByTestId('open-works').click();
+    await page.getByTestId('new-work-title').fill('Cuaderno de la Mancha');
+    await page.getByTestId('new-work-author').fill('Elena');
+    await page.getByTestId('create-work').click();
+    await expect(page.getByTestId('work-title')).toHaveValue('Cuaderno de la Mancha');
+    await expect(page.getByTestId('left-panel')).toContainText('Primera escena');
+    await page.getByTestId('prose').fill('Amanecía sobre la llanura.');
+    await page.getByTestId('save').click();
+
+    // …se guardó al cambiar: la obra de ejemplo sigue en «Obras recientes» con el cambio.
+    await page.getByTestId('open-works').click();
+    const recents = page.getByTestId('recent-works');
+    await expect(recents).toContainText('El Corazón Delator');
+    await recents.locator('li', { hasText: 'El Corazón Delator' }).getByTestId('open-recent').click();
+    await expect(page.getByTestId('work-title')).toHaveValue('El Corazón Delator');
+    await expect(page.getByTestId('node-title')).toHaveValue('I. Nervioso, siempre');
+
+    // Al recargar se abre la última obra usada.
+    await page.getByTestId('open-works').click();
+    await page.getByTestId('recent-works').locator('li', { hasText: 'Cuaderno de la Mancha' }).getByTestId('open-recent').click();
+    await page.reload();
+    await expect(page.getByTestId('work-title')).toHaveValue('Cuaderno de la Mancha');
+    await expect(page.getByTestId('prose')).toHaveValue('Amanecía sobre la llanura.');
+
+    // Eliminar del dispositivo pide confirmación.
+    await page.getByTestId('open-works').click();
+    const example = page.getByTestId('recent-works').locator('li', { hasText: 'El Corazón Delator' });
+    await example.getByTestId('delete-recent').click();
+    await example.getByTestId('confirm-delete').click();
+    await expect(page.getByTestId('recent-works')).not.toContainText('El Corazón Delator');
+  });
+});
+
+test.describe('Caminos', () => {
+  test('crea una elección con condición y marca, la vista previa la respeta y el mapa la dibuja', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openStudio(page);
+
+    // En «El careo», arremeter solo es posible con valor.
+    await page.getByTestId('beat-careo').click();
+    const attack = page.getByTestId('choice-editor-0');
+    await attack.getByTestId('condition-add').click();
+    await attack.getByTestId('condition-flag').fill('Valor');
+    await attack.getByTestId('condition-confirm').click();
+    await expect(attack.getByTestId('condition-chip')).toContainText('si ya ocurrió «valor»');
+    const preview = page.getByTestId('live-preview');
+    await expect(preview.getByTestId('choices')).not.toContainText('Arremeter contra los gigantes');
+    await expect(preview.getByTestId('choices')).toContainText('Escuchar a Sancho');
+
+    // En la llanura, una elección nueva da ese valor.
+    await page.getByTestId('beat-molinos').click();
+    await page.getByTestId('choice-add').click();
+    const courage = page.getByTestId('choice-editor-0');
+    await courage.getByTestId('choice-text').fill('Armarse de valor');
+    await courage.getByTestId('choice-text').blur();
+    await courage.getByTestId('choice-target').selectOption('careo');
+    await courage.getByTestId('mark-input').fill('valor');
+    await courage.getByTestId('mark-input').press('Enter');
+    await expect(courage.getByTestId('mark-chip')).toContainText('valor');
+
+    await page.getByTestId('play-from-here').click();
+    await preview.getByTestId('choices').getByText('Armarse de valor').click();
+    await expect(preview.getByTestId('choices')).toContainText('Arremeter contra los gigantes');
+
+    // Una escena nueva creada desde el destino queda sin salida hasta escribirla.
+    await page.getByTestId('beat-prudencia').click();
+    await page.getByTestId('paths-ending').uncheck();
+    await page.getByTestId('paths-next').selectOption('__nueva__');
+    await expect(page.getByTestId('left-panel')).toContainText('Nueva escena');
+
+    await page.getByTestId('open-paths-map').click();
+    const map = page.getByTestId('paths-map');
+    await expect(map.getByTestId('flow-node-molinos')).toBeVisible();
+    await expect(map.getByTestId('flow-edge')).toHaveCount(5);
+    await expect(page.getByTestId('paths-ok')).toBeVisible();
+    await map.getByTestId('flow-node-embestida').click();
+    await expect(page.getByTestId('paths-map')).toHaveCount(0);
+    await expect(page.getByTestId('node-title')).toHaveValue('La embestida');
+    await page.keyboard.press('Control+m');
+    await expect(page.getByTestId('paths-map')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('Recursos propios', () => {
+  const wav = (seconds = 0.2) => {
+    const rate = 8000;
+    const n = Math.round(rate * seconds);
+    const b = Buffer.alloc(44 + n * 2);
+    b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+    b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+    for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.sin(i / 4) * 8000), 44 + i * 2);
+    return b;
+  };
+
+  test('aporta el sonido que faltaba, suelta uno nuevo, lo coloca y persiste al recargar', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('iniciado')) {
+        localStorage.clear();
+        indexedDB.deleteDatabase('duvarret-recursos');
+        sessionStorage.setItem('iniciado', '1');
+      }
+    });
+    await page.goto('/?obra=bienvenida');
+    await expect(page.getByTestId('writing-canvas')).toBeVisible();
+    await page.getByTestId('open-assets').click();
+
+    // El viento de la obra de bienvenida no existe todavía: se aporta el archivo.
+    const missing = page.getByTestId('missing-wind.ogg');
+    await expect(missing).toContainText('Sonido «viento»');
+    await missing.getByTestId('provide-input').setInputFiles({ name: 'viento-real.wav', mimeType: 'audio/wav', buffer: wav() });
+    await expect(page.getByTestId('asset-wind.wav')).toContainText('tuyo');
+    await expect(page.getByTestId('missing-wind.ogg')).toHaveCount(0);
+
+    // Arrastrar y soltar un archivo nuevo abre el formulario para colocarlo.
+    const transfer = await page.evaluateHandle((bytes) => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([new Uint8Array(bytes)], 'Campanas lejanas.wav', { type: 'audio/wav' }));
+      return dt;
+    }, [...wav()]);
+    await page.getByTestId('asset-dropzone').dispatchEvent('drop', { dataTransfer: transfer });
+    await expect(page.getByTestId('assign-form')).toBeVisible();
+    await page.getByTestId('assign-node').selectOption('prudencia');
+    await page.getByTestId('assign-confirm').click();
+    await expect(page.getByTestId('assets-message')).toContainText('radar');
+    await page.getByTestId('modal-close').click();
+
+    await expect(page.getByTestId('beat-prudencia')).toContainText('🎧');
+    await expect(page.getByTestId('radar-campanas_lejanas')).toBeVisible();
+    await page.getByTestId('save').click();
+
+    await page.reload();
+    await page.getByTestId('open-assets').click();
+    await expect(page.getByTestId('asset-campanas_lejanas.wav')).toContainText('Sonido «campanas lejanas» en La prudencia');
+    await expect(page.getByTestId('asset-wind.wav')).toBeVisible();
+    await page.getByTestId('modal-close').click();
+
+    // La exportación incluye los archivos aportados por la autora.
+    await page.getByTestId('open-export').click();
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-web').click()]);
+    const zip = unzipSync(new Uint8Array(readFileSync((await download.path())!)));
+    const files = Object.keys(zip);
+    expect(files).toContain('el-laberinto-de-la-mancha/assets/audio/campanas_lejanas.wav');
+    expect(files).toContain('el-laberinto-de-la-mancha/assets/audio/sfx/wind.wav');
   });
 });

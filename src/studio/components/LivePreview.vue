@@ -39,7 +39,7 @@ function toggleScreenless() {
       <RuntimePlayer
         :key="studio.previewNonce"
         :manifest="project.manifest"
-        :asset-base="project.assetBase"
+        :asset-resolver="project.resolveAsset"
         :audio-engine="audio"
         :start-node="startNode"
         embedded

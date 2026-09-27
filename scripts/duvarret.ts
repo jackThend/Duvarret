@@ -4,7 +4,7 @@
  *
  *   npm run duvarret -- validate <proyecto>
  *   npm run duvarret -- export <proyecto> --target web|audio|native|portable|all [--out <dir>] [--zip] [--player <binario>]
- *   npm run duvarret -- ingest <manuscrito.txt|md|pdf> --out <proyecto> [--title "Título"]
+ *   npm run duvarret -- ingest <manuscrito.txt|md|pdf|docx|epub> --out <proyecto> [--title "Título"]
  */
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';

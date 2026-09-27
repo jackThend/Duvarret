@@ -84,7 +84,7 @@ describe('useProjectStore', () => {
   it('importa un manuscrito segmentado como escenas encadenadas', async () => {
     const project = useProjectStore();
     const text = `Capítulo I\n\n${'palabra '.repeat(400)}.\n\nCapítulo II\n\n${'palabra '.repeat(350)}.`;
-    await project.importManuscript(parseManuscript(text), { title: 'Mi novela' });
+    await project.importManuscript(parseManuscript(text), { title: 'Mi novela', storage: new MemoryStorage('nueva') });
     expect(project.manifest.metadata.title).toBe('Mi novela');
     expect(project.nodes).toHaveLength(2);
     expect(project.nodes[0]!.navigation.default_next_node).toBe(project.nodes[1]!.node_id);
