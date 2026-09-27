@@ -202,6 +202,17 @@ Resultados detallados y método en `docs/06_VALIDACION.md`.
 
 ---
 
+## Próximos pasos (acordados, sin empezar)
+
+1. **Cerrar 8.3:** probar `probar-ia` con Claude (necesita `ANTHROPIC_API_KEY`) y con Ollama y un modelo real.
+2. **Memoria en Windows y macOS:** equivalente de `medir-ram` (conjunto de trabajo privado / `footprint`) y decidir si RNF-02 se reformula.
+3. **Publicación:**
+   - narración grabada para la obra insignia (modo sin pantalla);
+   - pulir la obra insignia;
+   - firma de código de los ejecutables (Windows y macOS).
+
+---
+
 ## Registro de verificación final
 
 | Verificación | Resultado |

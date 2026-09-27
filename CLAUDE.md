@@ -9,7 +9,7 @@ Estudio de autoría (Vue 3 + TS + Pinia + Tailwind 4) que compila obras literari
 - `src-tauri/` — shell nativo (comandos de proyecto, protocolo `obra://`).
 - `scripts/` — CLI `duvarret.ts`, `build-desktop.ts`, `measure-ram.ts`.
 - `works/el-corazon-delator.duvarret` — obra insignia. `docs/` — requisitos y `06_VALIDACION.md`.
-- Plan y estado por oleadas: `MASTER_IMPLEMENTATION_PLAN.md`.
+- Plan, estado por oleadas y próximos pasos: `MASTER_IMPLEMENTATION_PLAN.md`. Visión y requisitos: `docs/01`–`05`.
 
 ## Comandos (de más barato a más caro)
 - Una prueba unitaria: `npx vitest run <ruta-del-test>` · una E2E: `npx playwright test -g "<nombre>"`
