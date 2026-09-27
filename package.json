@@ -20,7 +20,8 @@
     "duvarret": "tsx scripts/duvarret.ts",
     "foley": "tsx scripts/synthesize-foley.ts",
     "flagship": "tsx scripts/build-flagship.ts",
-    "build:desktop": "tsx scripts/build-desktop.ts"
+    "build:desktop": "tsx scripts/build-desktop.ts",
+    "medir-ram": "tsx scripts/measure-ram.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
