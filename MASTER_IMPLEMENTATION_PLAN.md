@@ -208,7 +208,7 @@ Resultados detallados y método en `docs/06_VALIDACION.md`.
 2. **Memoria en Windows y macOS:** ✓ medida en el CI (65 MB en Windows, 62 MB en macOS en la pantalla de título; ver `docs/06_VALIDACION.md`). Pendiente: medir jugando y **decidir si RNF-02 se reformula** (decisión del autor del producto).
 3. **Publicación:**
    - narración grabada para la obra insignia (modo sin pantalla): ✓ el Studio graba o importa la voz por escena y el reproductor la usa; falta **grabar la voz** de las escenas de la obra insignia (necesita una persona);
-   - pulir la obra insignia;
+   - pulir la obra insignia: ✓ primera pasada (errata corregida; en modo sin pantalla los atajos respetan las condiciones de las elecciones; prueba que la recorre entera con el teclado); la revisión literaria queda para el autor;
    - firma de código de los ejecutables (Windows y macOS): ✓ preparada en la CLI y el CI (`docs/07_PUBLICACION.md`); falta **comprar los certificados y añadirlos como secretos** del repositorio.
 
 ---

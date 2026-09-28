@@ -22,7 +22,7 @@ Tardaba una hora en asomarla lo bastante para verlo dormido. ¿Haría eso un loc
 
 ## IV. La octava noche
 
-La octava noche fui aún más cauteloso. El minutero de un reloj se movía más deprisa que mi mano. Casi me reí al pensar que él ni soñaba con mis secretos intenciones; y quizá me oyó, porque se removió en la cama. Mi pulgar resbaló sobre el cierre metálico de la linterna.
+La octava noche fui aún más cauteloso. El minutero de un reloj se movía más deprisa que mi mano. Casi me reí al pensar que él ni soñaba con mis secretas intenciones; y quizá me oyó, porque se removió en la cama. Mi pulgar resbaló sobre el cierre metálico de la linterna.
 
 El viejo se incorporó de un salto.
 

@@ -159,11 +159,22 @@ export class ScreenlessController {
     }
 
     if (prompt) {
+      // Si el destino es el de una elección de la escena, se respetan sus condiciones y se elige
+      // a través de ella (para conceder sus marcas), igual que en pantalla.
+      const choices = node.navigation.choices;
+      const available = this.store.availableChoices;
+      const viaChoice = (target: string): Pick<ScreenlessOption, 'choiceIndex'> | null => {
+        if (!choices.some((c) => c.target_node === target)) return {};
+        const entry = available.find(({ choice }) => choice.target_node === target);
+        return entry ? { choiceIndex: entry.index } : null;
+      };
       const byTarget = new Map(prompt.voice_options.map((o) => [o.target_node, o.phrase]));
-      for (const [key, target] of Object.entries(prompt.keypad_shortcuts)) {
-        options.push({ key, label: byTarget.get(target) ?? target, target });
-      }
-      if (!options.length) prompt.voice_options.forEach((o, i) => options.push({ key: String(i + 1), label: o.phrase, target: o.target_node }));
+      const add = (key: string, label: string, target: string) => {
+        const choice = viaChoice(target);
+        if (choice) options.push({ key, label, target, ...choice });
+      };
+      for (const [key, target] of Object.entries(prompt.keypad_shortcuts)) add(key, byTarget.get(target) ?? target, target);
+      if (!Object.keys(prompt.keypad_shortcuts).length) prompt.voice_options.forEach((o, i) => add(String(i + 1), o.phrase, o.target_node));
     } else {
       this.store.availableChoices.forEach(({ choice, index }, i) =>
         options.push({ key: String(i + 1), label: choice.choice_text, target: choice.target_node, choiceIndex: index }),

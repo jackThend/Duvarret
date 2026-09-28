@@ -9,6 +9,7 @@ import { sampleManifest } from '../__fixtures__/sample';
 import ScreenlessStage from '../components/ScreenlessStage.vue';
 import { RUNTIME_SERVICES } from '../services';
 import example from '@/core/manifest/__fixtures__/doc03-example.json';
+import flagship from '../../../works/el-corazon-delator.duvarret/manifest/story_manifest.json';
 
 function setup(manifest: unknown = sampleManifest()) {
   const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => speaker.spoken.push(t)), cancel: vi.fn() };
@@ -168,6 +169,40 @@ describe('ScreenlessController', () => {
       expect(announcer.log.value.join(' ')).not.toContain('1: Seguir la brisa');
       controller.handleKey('o');
       expect(announcer.log.value.at(-1)).toContain('1: Seguir la brisa.');
+    });
+  });
+
+  describe('obra insignia sin pantalla', () => {
+    it('se puede jugar de principio a fin solo con el teclado', () => {
+      const { store, controller } = setup(flagship);
+      controller.start();
+      store.start();
+      const visited: string[] = [];
+      for (let step = 0; step < 60 && !store.isEnding; step++) {
+        visited.push(store.currentNodeId!);
+        // La última opción de cada menú (abalanzarse, cerrar el libro…) o, si no hay, continuar.
+        const last = controller.options.at(-1);
+        expect(controller.handleKey(last ? last.key : ' ')).toBe(true);
+      }
+      expect(store.currentNodeId).toBe('fin');
+      expect(visited).toEqual(expect.arrayContaining(['prologo', 'el_latido', 'el_crimen', 'bajo_las_tablas', 'los_agentes', 'la_confesion']));
+    });
+
+    it('los atajos respetan las condiciones de las elecciones: solo se espera una vez', () => {
+      const { store, controller, announcer } = setup(flagship);
+      controller.start();
+      store.start();
+      store.goTo('el_latido');
+      expect(controller.options.map((o) => `${o.key}:${o.label}`)).toEqual(['1:esperar', '2:abalanzarse']);
+      controller.handleKey('1');
+      expect(store.currentNodeId).toBe('la_retirada');
+      controller.handleKey(' ');
+      expect(store.currentNodeId).toBe('el_latido');
+      expect(controller.options.map((o) => `${o.key}:${o.label}`)).toEqual(['2:abalanzarse']);
+      expect(announcer.log.value.at(-1)).not.toContain('1: esperar');
+      expect(controller.handleKey('1')).toBe(false);
+      controller.handleKey('2');
+      expect(store.currentNodeId).toBe('el_crimen');
     });
   });
 
