@@ -56,9 +56,9 @@ Lo que aporta el propio reproductor sobre la página en blanco: **+27 MB** en el
 | :--- | ---: | ---: | ---: |
 | Windows (WebView2) · conjunto de trabajo privado | **65,2 MB** | 64,7 MB | +0,5 MB |
 | macOS (WKWebView) · `footprint` | **61,5 MB** | 41,5 MB | +20 MB |
-| Linux (WebKitGTK) · PSS | sin cifra válida en CI¹ (203 MB en este contenedor) | 230 MB | — |
+| Linux (WebKitGTK) · PSS | **281 MB**¹ | 226 MB | +55 MB |
 
-¹ En los runners de Ubuntu, los procesos de WebKitGTK no aparecen como hijos del ejecutable (probablemente por el sandbox `bwrap`), así que el script no los veía o los veía a ratos. Ahora también los busca por nombre y, si no aparece el motor web, marca la medición como no válida en lugar de dar una cifra falsa. En este contenedor, sin sandbox, la medición es estable.
+¹ En los runners de Ubuntu los procesos de WebKitGTK no cuelgan del ejecutable (probablemente por el sandbox `bwrap`) y aparecen a ratos: el script también los busca por nombre y descarta las muestras en que falta alguno (32 de 40 en la obra, 7 de 39 en blanco), así que la cifra de la obra sale de pocas muestras. Sin GPU, la composición GL por software infla la de Linux; en este contenedor, con `WEBKIT_DISABLE_DMABUF_RENDERER=1`, la obra ocupa 203 MB.
 
 En Windows, casi toda la memoria es del proceso principal de WebView2 (30,6 MB); el conjunto de trabajo total, que cuenta varias veces lo compartido con otros programas, ronda los 307 MB y no es la cifra que ve el usuario. En macOS, el proceso de contenido de WebKit pasa de 14 MB (en blanco) a 34 MB con la obra.
 
