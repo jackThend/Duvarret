@@ -9,6 +9,9 @@
  *
  * `probar-ia` hace una vuelta real del co-director sobre una copia de la obra (no la modifica). Las
  * claves se leen del entorno: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY.
+ *
+ * `export --target native` firma el ejecutable si el entorno trae los certificados (ver
+ * `scripts/lib/sign.ts` y `docs/07_PUBLICACION.md`).
  */
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
@@ -20,6 +23,7 @@ import { parseManuscript } from '../src/core/ingest/sceneParser';
 import { createMeta, manifestFromManuscript, PROJECT_PATHS } from '../src/core/project';
 import { createProvider, PROVIDER_LABELS, probeProvider, type ProviderKind } from '../src/core/agent';
 import { ensurePlayerRuntime, ffmpegOptimizer, loadProject, REPO_ROOT, runLocalCli, writeTree } from './lib/projectFs';
+import { signExecutable } from './lib/sign';
 
 const MB = 1024 * 1024;
 const fmt = (bytes: number) => (bytes >= MB ? `${(bytes / MB).toFixed(2)} MB` : `${(bytes / 1024).toFixed(1)} KB`);
@@ -81,6 +85,7 @@ async function exportTarget(projectDir: string, target: string, outRoot: string,
     copyFileSync(exe, dest);
     chmodSync(dest, 0o755);
     rmSync(stage, { recursive: true, force: true });
+    log(`  · ${signExecutable(dest)}`);
     const size = statSync(dest).size;
     log(`  ✓ ${dest} (${fmt(size)}${size < 20 * MB ? ', < 20 MB' : ', ¡supera 20 MB!'})`);
     return;
@@ -92,6 +97,7 @@ async function exportTarget(projectDir: string, target: string, outRoot: string,
     const dest = join(outDir, binaryName(slug));
     copyFileSync(exe, dest);
     chmodSync(dest, 0o755);
+    log(`  · ${signExecutable(dest)}`);
     const obra = new Map([...result.files].filter(([p]) => p.startsWith('manifest/') || p.startsWith('assets/')));
     writeTree(join(outDir, 'obra'), obra);
     log(`  ✓ ${dest} + obra/ (${fmt(statSync(dest).size)} + ${fmt(result.stats.assetBytes)})`);

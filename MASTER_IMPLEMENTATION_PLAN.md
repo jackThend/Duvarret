@@ -209,7 +209,7 @@ Resultados detallados y método en `docs/06_VALIDACION.md`.
 3. **Publicación:**
    - narración grabada para la obra insignia (modo sin pantalla): ✓ el Studio graba o importa la voz por escena y el reproductor la usa; falta **grabar la voz** de las escenas de la obra insignia (necesita una persona);
    - pulir la obra insignia;
-   - firma de código de los ejecutables (Windows y macOS).
+   - firma de código de los ejecutables (Windows y macOS): ✓ preparada en la CLI y el CI (`docs/07_PUBLICACION.md`); falta **comprar los certificados y añadirlos como secretos** del repositorio.
 
 ---
 

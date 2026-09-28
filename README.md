@@ -75,6 +75,10 @@ npm run medir-ram -- ruta/al/ejecutable --segundos 30   # memoria real (Linux, W
 
 `probar-ia` (también en ⚙ Preferencias → Probar conexión) hace una vuelta real del co-director sobre una copia de la obra. Resultados y método: [`docs/06_VALIDACION.md`](docs/06_VALIDACION.md).
 
+### Publicar
+
+La voz grabada de cada escena (Studio → Recursos → Narración grabada) y la firma de código de los ejecutables (automática si el entorno o el CI tienen los certificados) se explican en [`docs/07_PUBLICACION.md`](docs/07_PUBLICACION.md).
+
 ### Calidad
 
 | Comando | Qué verifica |

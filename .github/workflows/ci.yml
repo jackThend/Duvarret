@@ -74,7 +74,42 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev xvfb
       - run: npm ci
+      # Firma de código: solo si el repositorio tiene los secretos (ver docs/07_PUBLICACION.md).
+      - name: Preparar certificado de firma (si existe)
+        shell: bash
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ] && [ -n "$WINDOWS_CERTIFICATE" ]; then
+            pfx="$(cygpath -u "$RUNNER_TEMP")/firma.pfx"
+            echo "$WINDOWS_CERTIFICATE" | base64 --decode > "$pfx"
+            echo "DUVARRET_WIN_CERT=$(cygpath -w "$pfx")" >> "$GITHUB_ENV"
+            echo "Certificado de Windows listo."
+          elif [ "$RUNNER_OS" = "macOS" ] && [ -n "$APPLE_CERTIFICATE" ]; then
+            keychain="$RUNNER_TEMP/firma.keychain-db"
+            pass="$(openssl rand -hex 16)"
+            echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/firma.p12"
+            security create-keychain -p "$pass" "$keychain"
+            security set-keychain-settings -lut 3600 "$keychain"
+            security unlock-keychain -p "$pass" "$keychain"
+            security import "$RUNNER_TEMP/firma.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pass" "$keychain" > /dev/null
+            security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+            rm "$RUNNER_TEMP/firma.p12"
+            echo "DUVARRET_MAC_IDENTITY=$APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+            echo "Certificado de Apple listo."
+          else
+            echo "Sin certificado: el ejecutable se publicará sin firmar."
+          fi
       - run: npm run duvarret -- export works/el-corazon-delator.duvarret --target native --out export-ci
+        env:
+          DUVARRET_WIN_CERT_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
       - name: Comprobar tamaño (< 20 MB)
         shell: bash
         run: |
