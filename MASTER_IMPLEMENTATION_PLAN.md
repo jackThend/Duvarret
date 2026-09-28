@@ -205,9 +205,9 @@ Resultados detallados y método en `docs/06_VALIDACION.md`.
 ## Próximos pasos (acordados, sin empezar)
 
 1. **Cerrar 8.3:** probar `probar-ia` con Claude (necesita `ANTHROPIC_API_KEY`) y con Ollama y un modelo real.
-2. **Memoria en Windows y macOS:** equivalente de `medir-ram` (conjunto de trabajo privado / `footprint`) y decidir si RNF-02 se reformula.
+2. **Memoria en Windows y macOS:** ✓ medida en el CI (65 MB en Windows, 62 MB en macOS en la pantalla de título; ver `docs/06_VALIDACION.md`). Pendiente: medir jugando y **decidir si RNF-02 se reformula** (decisión del autor del producto).
 3. **Publicación:**
-   - narración grabada para la obra insignia (modo sin pantalla);
+   - narración grabada para la obra insignia (modo sin pantalla): ✓ el Studio graba o importa la voz por escena y el reproductor la usa; falta **grabar la voz** de las escenas de la obra insignia (necesita una persona);
    - pulir la obra insignia;
    - firma de código de los ejecutables (Windows y macOS).
 
@@ -229,5 +229,5 @@ Resultados detallados y método en `docs/06_VALIDACION.md`.
 
 Pendiente / limitaciones conocidas:
 - El `.exe` de Windows y el `.app` de macOS solo se compilan en CI; en este entorno solo se verificó el binario Linux.
-- La RAM se midió en la oleada 8 (ver `docs/06_VALIDACION.md`): RNF-02 no se cumple en Linux por la base de WebKitGTK.
+- La RAM se midió en la oleada 8 (ver `docs/06_VALIDACION.md`): RNF-02 se cumple en Windows y macOS (60–65 MB) y no en Linux, por la base de WebKitGTK.
 - La transcodificación a Ogg/WebP depende de que `ffmpeg` esté instalado; sin él, los assets se empaquetan tal cual.

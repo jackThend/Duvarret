@@ -272,12 +272,19 @@ async function main() {
   }
   if (!samples.length) throw new Error('No se tomó ninguna muestra (aumenta --segundos).');
 
+  // Una muestra es incompleta si le falta algún proceso o alguno se leyó a medias (cero): pasa
+  // cuando un proceso del motor web se reinicia o termina entre la lista y la lectura.
+  const fullCount = Math.max(...samples.map((s) => s.processes.length));
+  const complete = samples.filter((s) => s.processes.length === fullCount && s.processes.every((p) => p.mainKb > 0));
+  const discarded = samples.length - complete.length;
+  const usable = complete.length ? complete : samples;
   // Régimen estable: la mediana de la segunda mitad (tras la carga inicial).
-  const tail = samples.slice(Math.floor(samples.length / 2));
+  const tail = usable.slice(Math.floor(usable.length / 2));
   const steady = median(tail.map((s) => s.mainKb));
   const steadyOther = median(tail.map((s) => s.otherKb));
   const peak = Math.max(...samples.map((s) => s.mainKb));
-  const last = samples.at(-1)!;
+  const last = usable.at(-1)!;
+  if (discarded) console.warn(`(${discarded} de ${samples.length} muestras incompletas descartadas: faltaba algún proceso o se leyó a medias)`);
   console.log(`\nMemoria de ${label} en ${process.platform} durante ${seconds} s (${samples.length} muestras)`);
   console.log(`  ${'Proceso'.padEnd(34)} ${platform.main.padStart(30)} ${platform.other.padStart(22)}`);
   for (const p of last.processes) console.log(`  ${p.name.slice(0, 34).padEnd(34)} ${`${mb(p.mainKb)} MB`.padStart(30)} ${`${mb(p.otherKb)} MB`.padStart(22)}`);
@@ -291,6 +298,7 @@ async function main() {
     platform: process.platform,
     seconds,
     samples: samples.length,
+    discarded,
     metric: platform.main,
     steadyMb: +(steady / 1024).toFixed(1),
     peakMb: +(peak / 1024).toFixed(1),

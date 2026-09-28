@@ -20,10 +20,20 @@ Todos los ejecutables cumplen el límite de 20 MB. La AppImage es mayor porque l
 ## 2. Memoria (RNF-02: el reproductor debe operar con menos de 150 MB)
 
 ```bash
-npm run medir-ram -- <ejecutable> [--segundos 30] [--clic 640,456@6] [--captura ventana.png]
+npm run medir-ram -- <ejecutable> [--segundos 30] [--solo-medir] [--informe salida.json] [--clic 640,456@6] [--captura ventana.png]
 ```
 
-El script arranca el ejecutable (con un Xvfb propio si no hay pantalla y un `HOME` vacío), suma la memoria de todo el árbol de procesos —el shell de Rust y los procesos de WebKit— y pulsa donde se le indique para medir mientras se juega. Informa la **PSS** (reparte las bibliotecas compartidas entre quienes las usan) y la **memoria privada** (USS). Solo Linux.
+El script arranca el ejecutable y suma la memoria de todos sus procesos: el shell de Rust y los del motor web (en macOS, los servicios XPC de WebKit, que no cuelgan del ejecutable). Usa en cada sistema la cifra que muestra su propio monitor:
+
+| Sistema | Métrica principal | Secundaria |
+| :--- | :--- | :--- |
+| Linux | PSS (reparte las bibliotecas compartidas) | Memoria privada (USS) |
+| Windows | Conjunto de trabajo privado (columna «Memoria» del Administrador de tareas) | Conjunto de trabajo |
+| macOS | `footprint` (lo que muestra el Monitor de Actividad) | RSS |
+
+En Linux sin pantalla arranca un Xvfb propio; `--clic` y `--captura` solo funcionan allí. Descarta las muestras incompletas (un proceso que se reinicia entre la lista y la lectura) y avisa de cuántas fueron.
+
+**En el CI** se mide en cada cambio, en los tres sistemas, la obra insignia y el mismo shell con una página en blanco (la base del motor web). Las cifras salen en el resumen de la ejecución y en el artefacto `memoria-<sistema>`.
 
 ### Resultados (Linux, WebKitGTK 2.x, Xvfb sin GPU, septiembre de 2026)
 
@@ -40,12 +50,23 @@ PSS total del árbol de procesos, régimen estable:
 
 Lo que aporta el propio reproductor sobre la página en blanco: **+27 MB** en el título y **+65–87 MB** jugando, según el motor de audio. En Chromium, el heap de JavaScript de la obra jugando es de 4,6 MB y el DOM tiene 78 nodos: casi todo el aumento está en la parte nativa del motor web (audio, capas de pintado).
 
+### Resultados en el CI (runners de GitHub, pantalla de título, 40 s, septiembre de 2026)
+
+| Sistema | Obra insignia | Página en blanco | Lo que añade la obra |
+| :--- | ---: | ---: | ---: |
+| Windows (WebView2) · conjunto de trabajo privado | **65,2 MB** | 64,7 MB | +0,5 MB |
+| macOS (WKWebView) · `footprint` | **61,5 MB** | 41,5 MB | +20 MB |
+| Linux (WebKitGTK) · PSS | pico 283,5 MB¹ | 224,9 MB | — |
+
+¹ En esa ejecución algunas muestras de Linux salieron incompletas y la mediana no es válida; el script ya las descarta y la próxima ejecución del CI dará la cifra estable.
+
+En Windows, casi toda la memoria es del proceso principal de WebView2 (30,6 MB); el conjunto de trabajo total, que cuenta varias veces lo compartido con otros programas, ronda los 307 MB y no es la cifra que ve el usuario. En macOS, el proceso de contenido de WebKit pasa de 14 MB (en blanco) a 34 MB con la obra.
+
 ### Conclusiones
 
-- **RNF-02 no se cumple en Linux con WebKitGTK:** el motor web con una página vacía ya supera los 150 MB. Ninguna optimización del reproductor puede bajar de esa base.
-- En este contenedor no hay GPU y la composición GL se hace por software (llvmpipe), lo que añade unos 120–180 MB. En un equipo con GPU esa memoria pasa en gran parte a la tarjeta gráfica, así que la cifra real de un usuario estará más cerca de la columna «sin composición GL».
-- **Pendiente:** medir en Windows (WebView2), que es el destino principal del `.exe`, y en macOS (WKWebView). El script mide `/proc` y no sirve allí; hace falta su equivalente (conjunto de trabajo privado en Windows, `footprint` en macOS).
-- Decisión abierta para el producto: reformular RNF-02 por plataforma, o como «memoria añadida por la obra sobre el motor web» (hoy 27–87 MB), que es lo que Duvarret controla.
+- **RNF-02 se cumple con holgura en Windows y macOS** en la pantalla de título: unos 60–65 MB, menos de la mitad del límite. Queda medir jugando (con audio 3D), que en Linux añadía 40–60 MB: incluso así seguiría por debajo de 150 MB.
+- **En Linux no se cumple:** WebKitGTK con una página vacía ya ronda los 200–225 MB. Ninguna optimización del reproductor puede bajar de esa base. Sin GPU (en este contenedor y en los runners), la composición GL por software añade 120–180 MB; con GPU la cifra real estará más cerca de la columna «sin composición GL».
+- **Decisión abierta para el producto:** fijar RNF-02 para Windows y macOS (los destinos del `.exe` y del `.app`) y dar para Linux una cifra orientativa, o expresarlo como «memoria añadida por la obra sobre el motor web», que es lo que Duvarret controla (hoy entre 0,5 y 87 MB según el sistema y el momento).
 
 ## 3. Proveedores de IA reales
 
