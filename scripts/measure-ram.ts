@@ -93,6 +93,8 @@ const readField = (path: string, field: string): number => {
 const linux: Platform = {
   main: 'PSS',
   other: 'Privada (USS)',
+  // WebKitGTK puede lanzar sus procesos a través de un sandbox (bwrap) que los deja fuera del árbol.
+  helpers: /^WebKit/,
   list() {
     const procs: ProcInfo[] = [];
     for (const entry of readdirSync('/proc')) {
@@ -274,9 +276,20 @@ async function main() {
 
   // Una muestra es incompleta si le falta algún proceso o alguno se leyó a medias (cero): pasa
   // cuando un proceso del motor web se reinicia o termina entre la lista y la lectura.
+  // También lo es si no aparece ningún proceso del motor web: sin él la cifra no significa nada.
+  const hasEngine = (s: Sample) => !platform.helpers || s.processes.some((p) => platform.helpers!.test(p.name));
   const fullCount = Math.max(...samples.map((s) => s.processes.length));
-  const complete = samples.filter((s) => s.processes.length === fullCount && s.processes.every((p) => p.mainKb > 0));
+  const complete = samples.filter((s) => hasEngine(s) && s.processes.length === fullCount && s.processes.every((p) => p.mainKb > 0));
   const discarded = samples.length - complete.length;
+  if (!samples.some(hasEngine)) {
+    const seen = [...new Set(samples.flatMap((s) => s.processes.map((p) => p.name)))].join(', ');
+    const message = `No se encontraron los procesos del motor web (solo: ${seen}); la medición no es válida.`;
+    if (!measureOnly) throw new Error(message);
+    console.warn(`⚠ ${message}`);
+    if (report) writeFileSync(resolve(report), JSON.stringify({ label, platform: process.platform, valid: false, error: message }, null, 2));
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### Memoria · ${label} (${process.platform})\n\n⚠ ${message}\n`);
+    return;
+  }
   const usable = complete.length ? complete : samples;
   // Régimen estable: la mediana de la segunda mitad (tras la carga inicial).
   const tail = usable.slice(Math.floor(usable.length / 2));
@@ -297,6 +310,7 @@ async function main() {
     label,
     platform: process.platform,
     seconds,
+    valid: true,
     samples: samples.length,
     discarded,
     metric: platform.main,
