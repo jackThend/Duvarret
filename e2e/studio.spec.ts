@@ -330,3 +330,19 @@ test.describe('Recursos propios', () => {
     expect(files).toContain('el-laberinto-de-la-mancha/assets/audio/sfx/wind.wav');
   });
 });
+
+test.describe('Narración grabada', () => {
+  test('graba la voz de una escena con el micrófono y la asigna', async ({ page }) => {
+    await openStudio(page);
+    await page.getByTestId('open-narration').click();
+    const dialog = page.getByTestId('narration-dialog');
+    await expect(dialog.getByTestId('narration-coverage')).toContainText('0 de');
+    await dialog.getByTestId('narration-record').click();
+    await expect(dialog.getByTestId('narration-clock')).toContainText('0:01');
+    await dialog.getByTestId('narration-stop').click();
+    await expect(dialog.getByTestId('narration-message')).toContainText('Narración guardada');
+    await expect(dialog.getByTestId('narration-coverage')).toContainText('1 de');
+    await expect(dialog.getByTestId('narration-current')).toContainText('narracion_');
+    await expect(dialog.getByTestId('narration-listen')).toBeVisible();
+  });
+});

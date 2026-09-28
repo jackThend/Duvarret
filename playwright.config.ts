@@ -12,7 +12,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
-    ...(localChromium ? { launchOptions: { executablePath: localChromium } } : {}),
+    // Micrófono simulado (un pitido) para probar la grabación de la narración.
+    launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'], ...(localChromium ? { executablePath: localChromium } : {}) },
   },
   webServer: {
     command: 'npx vite build --mode player && npx vite build && npx vite preview --port 4173 --strictPort --host 127.0.0.1',
