@@ -125,7 +125,7 @@ jobs:
       # Tab lleva el foco a «Comenzar» e Intro empieza la obra (teclas reales): se mide jugando, con el audio 3D.
       - name: Memoria de la obra insignia jugando
         shell: bash
-        run: npm run medir-ram -- "$(ls export-ci/native/*)" --segundos 45 --tecla Tab@7 --tecla Enter@8 --solo-medir --nombre "Obra insignia jugando" --informe export-ci/memoria-jugando.json
+        run: npm run medir-ram -- "$(ls export-ci/native/*)" --segundos 45 --tecla Tab@7 --tecla Enter@8 --solo-medir --nombre "Obra insignia jugando" --informe export-ci/memoria-jugando.json --captura export-ci/pantalla-jugando.png
       - name: Memoria de una página en blanco (base del motor web)
         shell: bash
         run: |
@@ -142,4 +142,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: memoria-${{ runner.os }}
-          path: export-ci/memoria-*.json
+          path: |
+            export-ci/memoria-*.json
+            export-ci/pantalla-*.png

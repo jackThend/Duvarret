@@ -239,6 +239,30 @@ function pressKey(key: string, pid: number, display: string | undefined) {
   }
 }
 
+/**
+ * Captura la pantalla. En Windows imprime también el color medio: la portada de una obra es oscura
+ * y una página que no ha cargado se ve blanca, así el registro del CI dice si la obra llegó a abrirse.
+ */
+function capture(file: string, display: string | undefined) {
+  try {
+    if (process.platform === 'linux') execFileSync('import', ['-display', display!, '-window', 'root', file]);
+    else if (process.platform === 'darwin') execFileSync('screencapture', ['-x', file]);
+    else if (process.platform === 'win32') {
+      const rgb = powershell(
+        `Add-Type -AssemblyName System.Drawing, System.Windows.Forms; $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; ` +
+          `$bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height; $g = [System.Drawing.Graphics]::FromImage($bmp); ` +
+          `$g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size); $bmp.Save('${file}', [System.Drawing.Imaging.ImageFormat]::Png); ` +
+          `$r = 0; $gr = 0; $bl = 0; $n = 0; for ($x = 0; $x -lt $b.Width; $x += 16) { for ($y = 0; $y -lt $b.Height; $y += 16) { $c = $bmp.GetPixel($x, $y); $r += $c.R; $gr += $c.G; $bl += $c.B; $n++ } }; ` +
+          `'{0},{1},{2}' -f [int]($r / $n), [int]($gr / $n), [int]($bl / $n)`,
+      ).trim();
+      console.log(`(color medio de la pantalla: rgb(${rgb}))`);
+    }
+    console.log(`(captura: ${file})`);
+  } catch (error) {
+    console.warn(`(no se pudo capturar la pantalla: ${error instanceof Error ? error.message.split('\n')[0] : String(error)})`);
+  }
+}
+
 // ── Medición ───────────────────────────────────────────────────────────────────────────────────
 
 /** El ejecutable, sus descendientes y los auxiliares del motor web aparecidos tras arrancarlo. */
@@ -273,7 +297,7 @@ async function main() {
   if (!platform) throw new Error(`Sistema no compatible: ${process.platform}`);
   const { binary, seconds, limitMb, measureOnly, label, report, screenshot, clicks, keys } = parseArgs(process.argv.slice(2));
   if (!existsSync(binary)) throw new Error(`No existe ${binary}`);
-  if (process.platform !== 'linux' && (clicks.length || screenshot)) throw new Error('--clic y --captura solo funcionan en Linux.');
+  if (process.platform !== 'linux' && clicks.length) throw new Error('--clic solo funciona en Linux.');
 
   const { display, server } = await startDisplay();
   const home = mkdtempSync(join(tmpdir(), 'duvarret-ram-'));
@@ -299,7 +323,7 @@ async function main() {
         execFileSync('xdotool', ['mousemove', click.x, click.y, 'click', '1'], { env: { ...process.env, DISPLAY: display } });
       }
     }
-    if (screenshot) execFileSync('import', ['-display', display!, '-window', 'root', resolve(screenshot)]);
+    if (screenshot) capture(resolve(screenshot), display);
   } finally {
     const leftovers = app.pid ? windowProcesses(platform, app.pid, preexisting) : [];
     app.kill();
