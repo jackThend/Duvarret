@@ -19,18 +19,7 @@ También se puede **importar** un archivo grabado con otro programa (WAV, MP3, O
 
 **Consejos de grabación:** un micrófono de diadema o de solapa a un palmo, una habitación con cortinas o muebles blandos, y el mismo sitio y la misma distancia en todas las sesiones para que el volumen no cambie entre escenas.
 
-## 2. Publicar una versión (GitHub e itch.io)
-
-El flujo `.github/workflows/release.yml` se lanza al etiquetar una versión (`git tag v1.0.0 && git push --tags`) o a mano desde **Actions → Publicación → Run workflow**. Compila la obra insignia para web y para Windows, macOS y Linux (firmados si hay certificados), y:
-
-- con etiqueta, crea una *release* de GitHub con un ZIP por sistema y el de la versión web;
-- si existen el secreto `BUTLER_API_KEY` y la variable `ITCH_GAME` (p. ej. `mi-usuario/el-corazon-delator`), lo sube a itch.io con `butler` en los canales `html5`, `windows`, `mac` y `linux`, con la etiqueta como número de versión.
-
-Para itch.io: crea la página del juego en itch.io, genera una clave en *Settings → API keys* y añádela como secreto `BUTLER_API_KEY`; `ITCH_GAME` va en *Settings → Secrets and variables → Actions → Variables*. Steam necesita una cuenta de Steamworks y su propia herramienta de subida (SteamPipe); no está automatizado.
-
-**Estado:** preparado, pero sin ejecutar todavía: crear una etiqueta publica una versión, así que la primera vez la lanzas tú.
-
-## 3. Firma de código
+## 2. Firma de código
 
 Sin firmar, los ejecutables funcionan, pero:
 
