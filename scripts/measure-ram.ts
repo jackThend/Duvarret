@@ -8,7 +8,7 @@
  *   - macOS: `footprint` (lo que muestra el Monitor de Actividad).
  *
  *   npm run medir-ram -- <ejecutable> [--segundos 30] [--limite 150] [--solo-medir] [--nombre texto]
- *                        [--informe salida.json] [--captura ventana.png] [--clic 640,456@8 …]
+ *                        [--informe salida.json] [--tecla Tab@7 --tecla Enter@8 …] [--captura ventana.png] [--clic 640,456@8 …]
  *
  * En Linux sin pantalla arranca un Xvfb propio; `--clic x,y@s` (xdotool) y `--captura` (ImageMagick)
  * solo funcionan allí. `--solo-medir` informa sin fallar por el límite. Si existe
@@ -63,8 +63,14 @@ function parseArgs(argv: string[]) {
     if (!m) throw new Error(`Clic no válido: «${spec}» (formato x,y@segundos)`);
     return { x: m[1]!, y: m[2]!, at: Number(m[3]) };
   });
+  const keys = rest.flatMap((arg, i) => (rest[i - 1] === '--tecla' ? [arg] : [])).map((spec) => {
+    const m = spec.match(/^(\w+)@(\d+(?:\.\d+)?)$/);
+    if (!m) throw new Error(`Tecla no válida: «${spec}» (formato Enter@segundos)`);
+    return { key: m[1]!, at: Number(m[2]) };
+  });
   return {
     binary: resolve(binary),
+    keys,
     seconds: Number(flag('segundos') ?? 30),
     limitMb: Number(flag('limite') ?? 150),
     measureOnly: rest.includes('--solo-medir'),
@@ -208,6 +214,31 @@ const macos: Platform = {
   kill: linux.kill,
 };
 
+/**
+ * Pulsa una tecla de verdad (evento del sistema, no sintético) en la ventana del ejecutable, para
+ * medir mientras se juega: el navegador solo deja sonar el audio tras un gesto real.
+ */
+function pressKey(key: string, pid: number, display: string | undefined) {
+  try {
+    if (process.platform === 'linux') {
+      // Sin gestor de ventanas (Xvfb), la ventana no recibe el foco del teclado por sí sola.
+      const env = { ...process.env, DISPLAY: display };
+      const window = execFileSync('xdotool', ['search', '--pid', String(pid)], { env, encoding: 'utf8' }).trim().split('\n').at(-1);
+      if (window) execFileSync('xdotool', ['windowfocus', '--sync', window], { env });
+      execFileSync('xdotool', ['key', key === 'Enter' ? 'Return' : key], { env });
+    } else if (process.platform === 'win32') {
+      const code = ({ Enter: '{ENTER}', Tab: '{TAB}', Space: ' ' } as Record<string, string>)[key] ?? key;
+      powershell(`$w = New-Object -ComObject WScript.Shell; $null = $w.AppActivate(${pid}); Start-Sleep -Milliseconds 400; $w.SendKeys('${code}')`);
+    } else if (process.platform === 'darwin') {
+      const code = ({ Enter: 'key code 36', Tab: 'key code 48', Space: 'key code 49' } as Record<string, string>)[key] ?? `keystroke "${key}"`;
+      execFileSync('osascript', ['-e', `tell application "System Events" to set frontmost of (first process whose unix id is ${pid}) to true`, '-e', 'delay 0.4', '-e', `tell application "System Events" to ${code}`]);
+    }
+    console.log(`(tecla ${key} pulsada)`);
+  } catch (error) {
+    console.warn(`(no se pudo pulsar ${key}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)})`);
+  }
+}
+
 // ── Medición ───────────────────────────────────────────────────────────────────────────────────
 
 /** El ejecutable, sus descendientes y los auxiliares del motor web aparecidos tras arrancarlo. */
@@ -240,7 +271,7 @@ async function startDisplay(): Promise<{ display: string | undefined; server: Ch
 async function main() {
   const platform = { linux, win32: windows, darwin: macos }[process.platform as string];
   if (!platform) throw new Error(`Sistema no compatible: ${process.platform}`);
-  const { binary, seconds, limitMb, measureOnly, label, report, screenshot, clicks } = parseArgs(process.argv.slice(2));
+  const { binary, seconds, limitMb, measureOnly, label, report, screenshot, clicks, keys } = parseArgs(process.argv.slice(2));
   if (!existsSync(binary)) throw new Error(`No existe ${binary}`);
   if (process.platform !== 'linux' && (clicks.length || screenshot)) throw new Error('--clic y --captura solo funcionan en Linux.');
 
@@ -252,6 +283,7 @@ async function main() {
   const app = spawn(binary, [], { env, stdio: 'ignore' });
   const startedAt = Date.now();
   const samples: Sample[] = [];
+  const pressed = new Set<(typeof keys)[number]>();
   try {
     while ((Date.now() - startedAt) / 1000 < seconds) {
       await sleep(1000);
@@ -259,6 +291,10 @@ async function main() {
       const processes = platform.memory(windowProcesses(platform, app.pid!, preexisting));
       samples.push({ at: (Date.now() - startedAt) / 1000, mainKb: processes.reduce((s, p) => s + p.mainKb, 0), otherKb: processes.reduce((s, p) => s + p.otherKb, 0), processes });
       const elapsed = (Date.now() - startedAt) / 1000;
+      for (const key of keys.filter((k) => k.at <= elapsed && !pressed.has(k))) {
+        pressed.add(key);
+        pressKey(key.key, app.pid!, display);
+      }
       for (const click of clicks.filter((c) => c.at <= elapsed && c.at > elapsed - 1)) {
         execFileSync('xdotool', ['mousemove', click.x, click.y, 'click', '1'], { env: { ...process.env, DISPLAY: display } });
       }

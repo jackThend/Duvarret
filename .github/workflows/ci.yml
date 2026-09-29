@@ -122,6 +122,10 @@ jobs:
       - name: Memoria de la obra insignia
         shell: bash
         run: npm run medir-ram -- "$(ls export-ci/native/*)" --segundos 40 --solo-medir --nombre "Obra insignia" --informe export-ci/memoria-obra.json
+      # Tab lleva el foco a «Comenzar» e Intro empieza la obra (teclas reales): se mide jugando, con el audio 3D.
+      - name: Memoria de la obra insignia jugando
+        shell: bash
+        run: npm run medir-ram -- "$(ls export-ci/native/*)" --segundos 45 --tecla Tab@7 --tecla Enter@8 --solo-medir --nombre "Obra insignia jugando" --informe export-ci/memoria-jugando.json
       - name: Memoria de una página en blanco (base del motor web)
         shell: bash
         run: |
