@@ -346,3 +346,19 @@ test.describe('Narración grabada', () => {
     await expect(dialog.getByTestId('narration-listen')).toBeVisible();
   });
 });
+
+test.describe('Prueba de escucha 3D', () => {
+  test('suena con el motor real y avanza al responder', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openStudio(page);
+    await page.getByTestId('open-settings').click();
+    await page.getByTestId('open-listening').click();
+    await page.getByTestId('listening-start').click();
+    await page.getByTestId('listening-play').click();
+    await expect(page.getByTestId('listening-izquierda')).toBeEnabled();
+    await page.getByTestId('listening-izquierda').click();
+    await expect(page.getByTestId('listening-progress')).toHaveText('Sonido 2 de 12');
+    expect(errors).toEqual([]);
+  });
+});

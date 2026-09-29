@@ -209,6 +209,7 @@ Resultados detallados y método en `docs/06_VALIDACION.md`.
 3. **Publicación:**
    - narración grabada para la obra insignia (modo sin pantalla): ✓ el Studio graba o importa la voz por escena y el reproductor la usa; falta **grabar la voz** de las escenas de la obra insignia (necesita una persona);
    - pulir la obra insignia: ✓ primera pasada (errata corregida; en modo sin pantalla los atajos respetan las condiciones de las elecciones; prueba que la recorre entera con el teclado); la revisión literaria queda para el autor;
+   - prueba de escucha a ciegas para el KPI 3 (sonido 3D): ✓ en ⚙ Preferencias; faltan **las pruebas con personas** (objetivo: más del 90 % de aciertos);
    - firma de código de los ejecutables (Windows y macOS): ✓ preparada en la CLI y el CI (`docs/07_PUBLICACION.md`); falta **comprar los certificados y añadirlos como secretos** del repositorio.
 
 ---

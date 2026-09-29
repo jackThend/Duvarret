@@ -75,6 +75,13 @@ async function testProvider() {
           <p class="text-xs text-dv-muted">{{ probe.model }} · {{ (probe.latencyMs / 1000).toFixed(1) }} s</p>
         </div>
       </fieldset>
+      <fieldset class="space-y-2">
+        <legend class="dv-section-title">Sonido 3D</legend>
+        <div class="flex items-center gap-3">
+          <button type="button" class="dv-btn-ghost" data-testid="open-listening" @click="studio.listeningOpen = true; emit('close')">Prueba de escucha</button>
+          <span class="text-xs text-dv-muted">Con auriculares: ¿distingues delante, detrás, izquierda y derecha?</span>
+        </div>
+      </fieldset>
     </div>
   </Modal>
 </template>

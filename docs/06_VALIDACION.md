@@ -94,3 +94,11 @@ Para Ollama se traducen los fallos habituales a un paso concreto: servicio apaga
 ### Fallo encontrado y corregido
 
 Si un modelo inventaba el identificador de una escena, las herramientas creaban en silencio una escena vacía con ese nombre. Ahora el bus de herramientas rechaza la llamada y devuelve la lista de escenas válidas para que el modelo corrija en el siguiente paso.
+
+## 4. Fidelidad del sonido 3D (KPI 3)
+
+Objetivo del roadmap: en una prueba a ciegas con auriculares, más del 90 % de los oyentes distinguen si un sonido está delante, detrás, a la izquierda o a la derecha.
+
+En el Studio: **⚙ Preferencias → Sonido 3D → Prueba de escucha**. Suenan 12 ráfagas de ruido de banda ancha (tres por dirección, a 2 m, en orden aleatorio) con el mismo motor de audio que las obras. Al final da el porcentaje de aciertos, el de cada dirección y las confusiones delante/detrás, y permite copiar el resultado en JSON para juntar los de varias personas. Avisa si el equipo usa sonido estéreo simple, que no puede separar delante de detrás.
+
+**Estado:** la herramienta está lista y probada (unitarias y E2E en Chromium); **faltan las pruebas con personas**.

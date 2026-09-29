@@ -13,6 +13,7 @@ import { LEGACY_SLOT, forgetWork, targetFor } from './services/workManager';
 import WorksDialog from './components/WorksDialog.vue';
 import AssetsDialog from './components/AssetsDialog.vue';
 import NarrationDialog from './components/NarrationDialog.vue';
+import ListeningTest from './components/ListeningTest.vue';
 import PathsEditor from './components/PathsEditor.vue';
 import PathsMap from './components/PathsMap.vue';
 import TopBar from './components/TopBar.vue';
@@ -155,6 +156,7 @@ const columns = computed(() => (studio.leftCollapsed ? 'minmax(0,0fr) minmax(0,5
     <WorksDialog v-if="studio.worksOpen" @close="studio.worksOpen = false" />
     <AssetsDialog v-if="studio.assetsOpen" @close="studio.assetsOpen = false" />
     <NarrationDialog v-if="studio.narrationOpen" @close="studio.narrationOpen = false" />
+    <ListeningTest v-if="studio.listeningOpen" @close="studio.listeningOpen = false" />
     <PathsMap v-if="studio.pathsMapOpen" @close="studio.pathsMapOpen = false" />
     <ExportPanel v-if="studio.exportOpen" @close="studio.exportOpen = false" />
   </div>
