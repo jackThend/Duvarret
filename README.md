@@ -41,7 +41,7 @@ Toda la especificación técnica y de producto aprobada se encuentra en la carpe
 
 ## 🧪 Probar Duvarret en tu computadora
 
-**Opción A: solo jugar la obra insignia (sin instalar nada).** En GitHub, abre *Actions*, elige la última ejecución en verde de la rama `claude/dreamy-allen-9ohajm` y baja, en *Artifacts*:
+**Opción A: solo jugar la obra insignia (sin instalar nada).** En GitHub, abre *Actions*, elige la última ejecución en verde de la rama `main` y baja, en *Artifacts*:
 
 - `el-corazon-delator-Windows`, `-macOS` o `-Linux`: el ejecutable de la obra. Sin firmar: en Windows, «Más información → Ejecutar de todas formas»; en macOS, clic derecho → Abrir (o `xattr -d com.apple.quarantine el-corazon-delator`); en Linux, `chmod +x el-corazon-delator`.
 - `obra-insignia-web-y-audio`: la versión web y el audio-drama en ZIP (descomprime y sírvelos con cualquier servidor local, p. ej. `npx serve`).
@@ -49,7 +49,7 @@ Toda la especificación técnica y de producto aprobada se encuentra en la carpe
 **Opción B: el Studio completo.** Necesitas [Node 22+](https://nodejs.org) y [Git](https://git-scm.com).
 
 ```bash
-git clone -b claude/dreamy-allen-9ohajm https://github.com/jackThend/Duvarret.git
+git clone https://github.com/jackThend/Duvarret.git
 cd Duvarret
 npm ci
 npm run dev        # abre http://localhost:1420 en el navegador
