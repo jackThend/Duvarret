@@ -70,10 +70,12 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   const busy = ref(false);
   const graphOpen = ref(false);
   const settingsOpen = ref(false);
+  const listeningOpen = ref(false);
   const exportOpen = ref(false);
   const importOpen = ref(false);
   const worksOpen = ref(false);
   const assetsOpen = ref(false);
+  const narrationOpen = ref(false);
   const pathsMapOpen = ref(false);
   const mobilePreview = ref(false);
   const previewScreenless = ref(false);
@@ -254,10 +256,12 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     busy,
     graphOpen,
     settingsOpen,
+    listeningOpen,
     exportOpen,
     importOpen,
     worksOpen,
     assetsOpen,
+    narrationOpen,
     pathsMapOpen,
     mobilePreview,
     previewScreenless,

@@ -9,6 +9,7 @@ import { sampleManifest } from '../__fixtures__/sample';
 import ScreenlessStage from '../components/ScreenlessStage.vue';
 import { RUNTIME_SERVICES } from '../services';
 import example from '@/core/manifest/__fixtures__/doc03-example.json';
+import flagship from '../../../works/el-corazon-delator.duvarret/manifest/story_manifest.json';
 
 function setup(manifest: unknown = sampleManifest()) {
   const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => speaker.spoken.push(t)), cancel: vi.fn() };
@@ -98,6 +99,111 @@ describe('ScreenlessController', () => {
     controller.handleKey('r');
     expect(announcer.log.value.at(-1)).toContain('angosto');
     expect(controller.handleKey('x')).toBe(false);
+  });
+
+  describe('narración grabada', () => {
+    function withRecording(found = true) {
+      const manifest = sampleManifest() as { nodes: { node_id: string; screenless_mode?: object }[] };
+      manifest.nodes[0]!.screenless_mode = { voice_over_asset: 'assets/audio/voz/inicio.ogg' };
+      const plays: { asset: string; id?: string; onEnded?: () => void }[] = [];
+      const audio = {
+        play: vi.fn(async (asset: string, options: { id?: string; onEnded?: () => void } = {}) => {
+          plays.push({ asset, ...options });
+          return { id: options.id ?? 'x', asset, label: '', coordinates: { x: 0, y: 0, z: 0 }, loop: false, placeholder: !found };
+        }),
+        stop: vi.fn(),
+      };
+      const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => speaker.spoken.push(t)), cancel: vi.fn() };
+      const announcer = new Announcer(speaker);
+      const store = useStoryStore();
+      store.load(manifest);
+      const controller = new ScreenlessController(store, announcer, audio as never);
+      controller.start();
+      store.start();
+      return { store, announcer, controller, audio, plays };
+    }
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+
+    it('suena la grabación en lugar de la voz sintética y el menú espera a que termine', async () => {
+      const { store, announcer, controller, plays } = withRecording();
+      await flush();
+      expect(plays.at(-1)?.asset).toBe('assets/audio/voz/inicio.ogg');
+      const log = () => announcer.log.value.join(' | ');
+      expect(log()).toContain('El Pasillo');
+      expect(log()).not.toContain('angosto');
+      expect(log()).not.toContain('1: Seguir la brisa');
+      // Las teclas ya funcionan mientras suena la voz.
+      plays.at(-1)!.onEnded!();
+      expect(log()).toContain('Percibes una brisa tibia.');
+      expect(log()).toContain('1: Seguir la brisa.');
+      expect(controller.handleKey('1')).toBe(true);
+      expect(store.currentNodeId).toBe('rejilla');
+    });
+
+    it('permite elegir antes de que termine la grabación', async () => {
+      const { store, controller } = withRecording();
+      await flush();
+      expect(controller.handleKey('1')).toBe(true);
+      expect(store.currentNodeId).toBe('rejilla');
+    });
+
+    it('si falta el archivo, narra con la voz sintética', async () => {
+      const { announcer } = withRecording(false);
+      await flush();
+      expect(announcer.log.value.join(' ')).toContain('angosto');
+      expect(announcer.log.value.at(-1)).toContain('1: Seguir la brisa.');
+    });
+
+    it('R repite la grabación y S la detiene sin anunciar nada más', async () => {
+      const { announcer, controller, audio, plays } = withRecording();
+      await flush();
+      const first = plays.at(-1)!;
+      controller.handleKey('r');
+      await flush();
+      expect(plays).toHaveLength(2);
+      first.onEnded!(); // la anterior ya no cuenta
+      expect(announcer.log.value.join(' ')).not.toContain('1: Seguir la brisa');
+      controller.handleKey('s');
+      expect(audio.stop).toHaveBeenCalledWith('inicio::voz', 150);
+      plays.at(-1)!.onEnded!();
+      expect(announcer.log.value.join(' ')).not.toContain('1: Seguir la brisa');
+      controller.handleKey('o');
+      expect(announcer.log.value.at(-1)).toContain('1: Seguir la brisa.');
+    });
+  });
+
+  describe('obra insignia sin pantalla', () => {
+    it('se puede jugar de principio a fin solo con el teclado', () => {
+      const { store, controller } = setup(flagship);
+      controller.start();
+      store.start();
+      const visited: string[] = [];
+      for (let step = 0; step < 60 && !store.isEnding; step++) {
+        visited.push(store.currentNodeId!);
+        // La última opción de cada menú (abalanzarse, cerrar el libro…) o, si no hay, continuar.
+        const last = controller.options.at(-1);
+        expect(controller.handleKey(last ? last.key : ' ')).toBe(true);
+      }
+      expect(store.currentNodeId).toBe('fin');
+      expect(visited).toEqual(expect.arrayContaining(['prologo', 'el_latido', 'el_crimen', 'bajo_las_tablas', 'los_agentes', 'la_confesion']));
+    });
+
+    it('los atajos respetan las condiciones de las elecciones: solo se espera una vez', () => {
+      const { store, controller, announcer } = setup(flagship);
+      controller.start();
+      store.start();
+      store.goTo('el_latido');
+      expect(controller.options.map((o) => `${o.key}:${o.label}`)).toEqual(['1:esperar', '2:abalanzarse']);
+      controller.handleKey('1');
+      expect(store.currentNodeId).toBe('la_retirada');
+      controller.handleKey(' ');
+      expect(store.currentNodeId).toBe('el_latido');
+      expect(controller.options.map((o) => `${o.key}:${o.label}`)).toEqual(['2:abalanzarse']);
+      expect(announcer.log.value.at(-1)).not.toContain('1: esperar');
+      expect(controller.handleKey('1')).toBe(false);
+      controller.handleKey('2');
+      expect(store.currentNodeId).toBe('el_crimen');
+    });
   });
 
   it('normaliza frases sin acentos ni signos', () => {

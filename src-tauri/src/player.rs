@@ -24,6 +24,8 @@ pub fn mime_for(path: &str) -> &'static str {
         "ogg" | "opus" => "audio/ogg",
         "mp3" => "audio/mpeg",
         "wav" => "audio/wav",
+        "m4a" => "audio/mp4",
+        "flac" => "audio/flac",
         "webp" => "image/webp",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",

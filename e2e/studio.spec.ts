@@ -330,3 +330,35 @@ test.describe('Recursos propios', () => {
     expect(files).toContain('el-laberinto-de-la-mancha/assets/audio/sfx/wind.wav');
   });
 });
+
+test.describe('Narración grabada', () => {
+  test('graba la voz de una escena con el micrófono y la asigna', async ({ page }) => {
+    await openStudio(page);
+    await page.getByTestId('open-narration').click();
+    const dialog = page.getByTestId('narration-dialog');
+    await expect(dialog.getByTestId('narration-coverage')).toContainText('0 de');
+    await dialog.getByTestId('narration-record').click();
+    await expect(dialog.getByTestId('narration-clock')).toContainText('0:01');
+    await dialog.getByTestId('narration-stop').click();
+    await expect(dialog.getByTestId('narration-message')).toContainText('Narración guardada');
+    await expect(dialog.getByTestId('narration-coverage')).toContainText('1 de');
+    await expect(dialog.getByTestId('narration-current')).toContainText('narracion_');
+    await expect(dialog.getByTestId('narration-listen')).toBeVisible();
+  });
+});
+
+test.describe('Prueba de escucha 3D', () => {
+  test('suena con el motor real y avanza al responder', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openStudio(page);
+    await page.getByTestId('open-settings').click();
+    await page.getByTestId('open-listening').click();
+    await page.getByTestId('listening-start').click();
+    await page.getByTestId('listening-play').click();
+    await expect(page.getByTestId('listening-izquierda')).toBeEnabled();
+    await page.getByTestId('listening-izquierda').click();
+    await expect(page.getByTestId('listening-progress')).toHaveText('Sonido 2 de 12');
+    expect(errors).toEqual([]);
+  });
+});

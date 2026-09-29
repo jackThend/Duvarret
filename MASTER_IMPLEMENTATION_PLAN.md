@@ -185,6 +185,35 @@ e2e/           # Pruebas Playwright
 
 ---
 
+## OLEADA 8 — Validación en condiciones reales
+
+Resultados detallados y método en `docs/06_VALIDACION.md`.
+
+- [x] **8.1 Compilación de escritorio completa** (`npm run build:desktop`): Studio 6,7 MB con el reproductor de 5,3 MB incluido; `.deb` y `.rpm` de 6,1 MB y AppImage de 79 MB (lleva WebKitGTK).
+- [x] **8.2 Medición de memoria** (`npm run medir-ram`): PSS y memoria privada de todo el árbol de procesos, con clics simulados para medir jugando.
+  - Resultado: RNF-02 (< 150 MB) no se cumple en Linux. WebKitGTK con una página vacía ya ocupa 199 MB sin composición GL y 322 MB con GL por software. El reproductor añade de 27 a 87 MB.
+  - Pendiente: medir en Windows (WebView2) y macOS, y decidir si RNF-02 se reformula por plataforma.
+- [ ] **8.3 Proveedores de IA reales** (`npm run duvarret -- probar-ia`, y en el Studio ⚙ Preferencias → Probar conexión)
+  - [x] Prueba de extremo a extremo con cuatro comprobaciones (conexión, uso de herramientas, colocación, validez), sin tocar la obra.
+  - [x] Director local: supera la prueba. Ollama: mensajes con el paso concreto para cada fallo habitual.
+  - [x] Corregido: un identificador de escena inventado por el modelo ya no crea una escena vacía.
+  - [ ] Claude con la API real (necesita `ANTHROPIC_API_KEY`).
+  - [ ] Ollama con un modelo real (el entorno de desarrollo no puede descargar Ollama ni sus modelos).
+
+---
+
+## Próximos pasos (acordados, sin empezar)
+
+1. **Cerrar 8.3:** probar `probar-ia` con Claude (necesita `ANTHROPIC_API_KEY`) y con Ollama y un modelo real.
+2. **Memoria en Windows y macOS:** ✓ medida en el CI (65 MB en Windows, 62 MB en macOS en la pantalla de título; ver `docs/06_VALIDACION.md`). Pendiente: medir jugando y **decidir si RNF-02 se reformula** (decisión del autor del producto).
+3. **Publicación:**
+   - narración grabada para la obra insignia (modo sin pantalla): ✓ el Studio graba o importa la voz por escena y el reproductor la usa; falta **grabar la voz** de las escenas de la obra insignia (necesita una persona);
+   - pulir la obra insignia: ✓ primera pasada (errata corregida; en modo sin pantalla los atajos respetan las condiciones de las elecciones; prueba que la recorre entera con el teclado); la revisión literaria queda para el autor;
+   - prueba de escucha a ciegas para el KPI 3 (sonido 3D): ✓ en ⚙ Preferencias; faltan **las pruebas con personas** (objetivo: más del 90 % de aciertos);
+   - firma de código de los ejecutables (Windows y macOS): ✓ preparada en la CLI y el CI (`docs/07_PUBLICACION.md`); falta **comprar los certificados y añadirlos como secretos** del repositorio.
+
+---
+
 ## Registro de verificación final
 
 | Verificación | Resultado |
@@ -201,5 +230,5 @@ e2e/           # Pruebas Playwright
 
 Pendiente / limitaciones conocidas:
 - El `.exe` de Windows y el `.app` de macOS solo se compilan en CI; en este entorno solo se verificó el binario Linux.
-- La RAM < 150 MB no se midió de forma representativa (Xvfb con renderizado por software).
+- La RAM se midió en la oleada 8 (ver `docs/06_VALIDACION.md`): RNF-02 se cumple en Windows y macOS (60–65 MB) y no en Linux, por la base de WebKitGTK.
 - La transcodificación a Ogg/WebP depende de que `ffmpeg` esté instalado; sin él, los assets se empaquetan tal cual.

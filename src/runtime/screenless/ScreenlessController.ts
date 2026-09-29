@@ -44,7 +44,10 @@ export class ScreenlessController {
   start() {
     this.unbind = this.store.on((event) => {
       if (event.type === 'on_node_enter') this.enterNode();
-      if (event.type === 'node_exit') this.audio?.stop(`${event.nodeId}::foley`, 900);
+      if (event.type === 'node_exit') {
+        this.audio?.stop(`${event.nodeId}::foley`, 900);
+        this.audio?.stop(`${event.nodeId}::voz`, 300);
+      }
     });
     if (this.store.currentNode) this.enterNode();
     else this.announcer.say(`Modo sin pantalla activado. ${HELP_TEXT}`);
@@ -53,7 +56,7 @@ export class ScreenlessController {
   stop() {
     this.unbind?.();
     this.unbind = null;
-    this.announcer.silence();
+    this.silence();
   }
 
   private get node(): StoryNode | null {
@@ -72,12 +75,16 @@ export class ScreenlessController {
     this.attempts = 0;
     const sl = node.screenless_mode;
     if (sl?.foley_bed) void this.audio?.play(sl.foley_bed, { id: `${node.node_id}::foley`, loop: true, gain: 0.5, fadeInMs: 800 });
-
     if (node.title) this.announcer.say(node.title, { interrupt: true });
-    if (sl?.voice_over_asset) void this.audio?.play(sl.voice_over_asset, { id: `${node.node_id}::voz` });
-    else this.narrate();
+    this.store.setRevealProgress(100);
+    // Las teclas funcionan desde el primer momento, aunque el menú se anuncie al final.
+    this.options = this.buildOptions();
+    // Con narración grabada, el resto (diálogos, hallazgos y menú) espera a que termine la voz.
+    this.narrate(() => this.announceRest());
+  }
 
-    const vn = node.visual_novel_overlay;
+  private announceRest() {
+    const vn = this.node?.visual_novel_overlay;
     if (vn?.enabled) {
       const lines = vn.lines.length ? vn.lines : [{ speaker: vn.active_speaker, text: vn.dialogue_text }];
       for (const line of lines) {
@@ -87,14 +94,53 @@ export class ScreenlessController {
       }
     }
     for (const extra of this.store.revealedExtraTexts) this.announcer.say(extra);
-    this.store.setRevealProgress(100);
     this.announceOptions();
   }
 
-  narrate() {
+  private voiceId(node: StoryNode) {
+    return `${node.node_id}::voz`;
+  }
+
+  /**
+   * Narra la escena: la grabación del autor si existe (y se puede reproducir) o, si no, la voz
+   * sintética. `then` se llama al terminar la grabación, o en seguida con voz sintética (su cola
+   * mantiene el orden). Si la voz se silencia o se cambia de escena, `then` ya no se llama.
+   */
+  narrate(then?: () => void) {
     const node = this.node;
     if (!node) return;
-    this.announcer.say(node.screenless_mode?.narration_text ?? node.text_payload);
+    const recording = node.screenless_mode?.voice_over_asset;
+    const synthetic = () => {
+      this.announcer.say(node.screenless_mode?.narration_text ?? node.text_payload);
+      then?.();
+    };
+    this.pending = null;
+    if (!recording || !this.audio) return synthetic();
+    const token = {};
+    this.pending = token;
+    const current = () => this.pending === token && this.node?.node_id === node.node_id;
+    const finish = (fallback: boolean) => {
+      if (!current()) return;
+      this.pending = null;
+      if (fallback) synthetic();
+      else then?.();
+    };
+    this.audio
+      .play(recording, { id: this.voiceId(node), label: 'narración', onEnded: () => finish(false) })
+      // Sin archivo (tono de prueba) o sin sonido: se narra con la voz sintética.
+      .then((voice) => (!voice || voice.placeholder) && finish(true))
+      .catch(() => finish(true));
+  }
+
+  /** Narración grabada en curso (se compara por identidad para descartar las anteriores). */
+  private pending: object | null = null;
+
+  /** Detiene la voz (sintética y grabada) sin tocar el fondo sonoro. */
+  silence() {
+    this.pending = null;
+    this.announcer.silence();
+    const node = this.node;
+    if (node) this.audio?.stop(this.voiceId(node), 150);
   }
 
   /** Construye el menú audible de la escena actual. */
@@ -113,11 +159,22 @@ export class ScreenlessController {
     }
 
     if (prompt) {
+      // Si el destino es el de una elección de la escena, se respetan sus condiciones y se elige
+      // a través de ella (para conceder sus marcas), igual que en pantalla.
+      const choices = node.navigation.choices;
+      const available = this.store.availableChoices;
+      const viaChoice = (target: string): Pick<ScreenlessOption, 'choiceIndex'> | null => {
+        if (!choices.some((c) => c.target_node === target)) return {};
+        const entry = available.find(({ choice }) => choice.target_node === target);
+        return entry ? { choiceIndex: entry.index } : null;
+      };
       const byTarget = new Map(prompt.voice_options.map((o) => [o.target_node, o.phrase]));
-      for (const [key, target] of Object.entries(prompt.keypad_shortcuts)) {
-        options.push({ key, label: byTarget.get(target) ?? target, target });
-      }
-      if (!options.length) prompt.voice_options.forEach((o, i) => options.push({ key: String(i + 1), label: o.phrase, target: o.target_node }));
+      const add = (key: string, label: string, target: string) => {
+        const choice = viaChoice(target);
+        if (choice) options.push({ key, label, target, ...choice });
+      };
+      for (const [key, target] of Object.entries(prompt.keypad_shortcuts)) add(key, byTarget.get(target) ?? target, target);
+      if (!Object.keys(prompt.keypad_shortcuts).length) prompt.voice_options.forEach((o, i) => add(String(i + 1), o.phrase, o.target_node));
     } else {
       this.store.availableChoices.forEach(({ choice, index }, i) =>
         options.push({ key: String(i + 1), label: choice.choice_text, target: choice.target_node, choiceIndex: index }),
@@ -210,6 +267,7 @@ export class ScreenlessController {
         else this.announceOptions();
         return true;
       case 'r':
+        this.silence();
         this.narrate();
         return true;
       case 'o':
@@ -219,7 +277,7 @@ export class ScreenlessController {
         this.announceInventory();
         return true;
       case 's':
-        this.announcer.silence();
+        this.silence();
         return true;
       case 'h':
       case '?':

@@ -66,6 +66,7 @@ function appearances(id: string) {
     <section aria-label="Recursos">
       <h3 class="dv-section-title">▾ Recursos ({{ project.assetPaths.size }})</h3>
       <button type="button" class="dv-btn-ghost mt-1" data-testid="open-assets" @click="studio.assetsOpen = true">Sonidos e imágenes</button>
+      <button type="button" class="dv-btn-ghost mt-1" data-testid="open-narration" @click="studio.narrationOpen = true">Narración grabada</button>
     </section>
 
     <section aria-label="Grafo semántico">

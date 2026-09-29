@@ -39,6 +39,33 @@ Toda la especificación técnica y de producto aprobada se encuentra en la carpe
 
 ---
 
+## 🧪 Probar Duvarret en tu computadora
+
+**Opción A: solo jugar la obra insignia (sin instalar nada).** En GitHub, abre *Actions*, elige la última ejecución en verde de la rama `claude/dreamy-allen-9ohajm` y baja, en *Artifacts*:
+
+- `el-corazon-delator-Windows`, `-macOS` o `-Linux`: el ejecutable de la obra. Sin firmar: en Windows, «Más información → Ejecutar de todas formas»; en macOS, clic derecho → Abrir (o `xattr -d com.apple.quarantine el-corazon-delator`); en Linux, `chmod +x el-corazon-delator`.
+- `obra-insignia-web-y-audio`: la versión web y el audio-drama en ZIP (descomprime y sírvelos con cualquier servidor local, p. ej. `npx serve`).
+
+**Opción B: el Studio completo.** Necesitas [Node 22+](https://nodejs.org) y [Git](https://git-scm.com).
+
+```bash
+git clone -b claude/dreamy-allen-9ohajm https://github.com/jackThend/Duvarret.git
+cd Duvarret
+npm ci
+npm run dev        # abre http://localhost:1420 en el navegador
+```
+
+Qué probar: escribir y ver la vista previa al instante, el mapa de caminos, **▶ Exportar**, *Recursos → Narración grabada* (pide permiso de micrófono), *⚙ Preferencias → Prueba de escucha* (con auriculares) y el co-director (el director local funciona sin conexión; Claude necesita tu clave, que se guarda solo en tu equipo). `?obra=bienvenida` en la URL abre la obra mínima.
+
+**Opción C: la app de escritorio y los ejecutables.** Además de lo anterior, [Rust](https://rustup.rs) y las [dependencias de Tauri v2](https://tauri.app/start/prerequisites/) de tu sistema (en Windows, «Desktop development with C++» de Visual Studio Build Tools; WebView2 ya viene con Windows 10/11).
+
+```bash
+npm run tauri dev                                                          # Studio como app de escritorio
+npm run duvarret -- export works/el-corazon-delator.duvarret --target native   # ejecutable de la obra (1–3 min la primera vez)
+```
+
+Si algo falla, anota el paso, el sistema y el mensaje de error (o una captura) para la siguiente ronda.
+
 ## 🚀 Puesta en marcha
 
 Requisitos: Node 22+, y para el ejecutable nativo Rust estable + las dependencias de sistema de [Tauri v2](https://tauri.app/start/prerequisites/).
@@ -63,6 +90,21 @@ npm run duvarret -- export   works/el-corazon-delator.duvarret --target native  
 npm run duvarret -- export   works/el-corazon-delator.duvarret --target portable       # reproductor + carpeta obra/
 npm run duvarret -- ingest   mi-novela.docx --out Mi_Novela.duvarret                   # .docx/.epub/.pdf/.md/.txt → escenas de 300–800 palabras
 ```
+
+### Validar en condiciones reales
+
+```bash
+ANTHROPIC_API_KEY=… npm run duvarret -- probar-ia works/el-corazon-delator.duvarret --proveedor anthropic
+npm run duvarret -- probar-ia works/el-corazon-delator.duvarret --proveedor ollama --modelo qwen2.5
+npm run build:desktop                                                    # Studio de escritorio con el reproductor incluido
+npm run medir-ram -- ruta/al/ejecutable --segundos 30   # memoria real (Linux, Windows, macOS; también en CI)
+```
+
+`probar-ia` (también en ⚙ Preferencias → Probar conexión) hace una vuelta real del co-director sobre una copia de la obra. Resultados y método: [`docs/06_VALIDACION.md`](docs/06_VALIDACION.md).
+
+### Publicar
+
+La voz grabada de cada escena (Studio → Recursos → Narración grabada) y la firma de código de los ejecutables (automática si el entorno o el CI tienen los certificados) se explican en [`docs/07_PUBLICACION.md`](docs/07_PUBLICACION.md).
 
 ### Calidad
 

@@ -37,6 +37,8 @@ export interface PlayOptions {
   coordinates?: Partial<Coordinates>;
   fadeInMs?: number;
   label?: string;
+  /** Se llama cuando el sonido termina solo (no si se detiene o se sustituye). */
+  onEnded?: () => void;
 }
 
 export interface ActiveVoice {
@@ -220,7 +222,9 @@ export class SpatialAudioEngine {
       voice,
     };
     source.onended = () => {
-      if (this.voices.get(id) === handle) this.release(handle);
+      if (this.voices.get(id) !== handle) return;
+      this.release(handle);
+      options.onEnded?.();
     };
     this.voices.set(id, handle);
     this.notify();

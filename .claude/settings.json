@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./src-tauri/target/**)",
+      "Read(./dist/**)",
+      "Read(./dist-player/**)",
+      "Read(./dist-native-player/**)",
+      "Read(./test-results/**)",
+      "Read(./playwright-report/**)"
+    ]
+  }
+}
