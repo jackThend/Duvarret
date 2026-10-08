@@ -54,6 +54,21 @@ describe('Narración grabada', () => {
     expect([...useProjectStore().assetPaths].filter((p) => p.includes('narracion'))).toHaveLength(1);
   });
 
+  it('cerrar en plena grabación guarda la toma en vez de descartarla', async () => {
+    const stop = vi.fn(async () => ({ data: encodeWav(new Float32Array(2400).fill(0.3), 24000), seconds: 0.1 }));
+    const cancel = vi.fn();
+    recorder.startRecording.mockResolvedValue({ stop, cancel });
+    const w = mount(NarrationDialog);
+    await w.get('[data-testid="narration-record"]').trigger('click');
+    await flushPromises();
+    await w.get('[aria-label="Cerrar"]').trigger('click');
+    await flushPromises();
+    expect(stop).toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(voiceOf('inicio')).toBeTruthy();
+    expect(w.emitted('close')).toHaveLength(1);
+  });
+
   it('explica por qué no puede grabar', async () => {
     recorder.startRecording.mockRejectedValue(new Error('No hay permiso para usar el micrófono (o no hay ninguno conectado).'));
     const w = mount(NarrationDialog);

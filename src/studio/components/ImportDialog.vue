@@ -16,7 +16,10 @@ const title = ref('');
 const INTERACTION_LABELS = { dialogo: 'Diálogo', monologo: 'Monólogo', enigma: 'Enigma', aparatos: 'Aparatos', narracion: 'Narración' } as const;
 
 async function onFile(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // Se vacía el selector para poder volver a elegir el mismo archivo (p. ej. tras corregirlo).
+  input.value = '';
   if (!file) return;
   // Un archivo nuevo sustituye al anterior: si no se puede leer, no debe quedar el viejo listo para importar.
   parsed.value = null;
