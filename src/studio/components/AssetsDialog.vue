@@ -55,6 +55,7 @@ async function upload(files: FileList | File[] | null, replacePath?: string) {
   busy.value = true;
   error.value = '';
   const added: string[] = [];
+  const failures: string[] = [];
   for (const file of Array.from(files)) {
     try {
       const path = await project.addAsset({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }, replacePath ? { replacePath } : {});
@@ -62,9 +63,11 @@ async function upload(files: FileList | File[] | null, replacePath?: string) {
       present.value = new Set([...present.value, path]);
       added.push(path);
     } catch (e) {
-      error.value = e instanceof Error ? e.message : `No se pudo añadir «${file.name}».`;
+      failures.push(e instanceof Error ? e.message : `No se pudo añadir «${file.name}».`);
     }
   }
+  // Con varios archivos soltados a la vez, cada fallo se nombra (antes solo quedaba el último).
+  error.value = failures.join(' ');
   busy.value = false;
   if (added.length) {
     message.value = added.length === 1 ? `Añadido: ${nameOf(added[0]!)}` : `${added.length} recursos añadidos.`;
