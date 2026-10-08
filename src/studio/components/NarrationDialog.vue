@@ -122,6 +122,12 @@ function removeNarration() {
   message.value = 'La escena vuelve a narrarse con la voz del sistema.';
 }
 
+/** Cerrar en plena grabación guarda la toma en vez de perderla (Esc o clic fuera del diálogo). */
+async function close() {
+  if (recording.value) await stop();
+  emit('close');
+}
+
 onBeforeUnmount(() => {
   cancel();
   player?.pause();
@@ -129,7 +135,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Modal title="Narración grabada" wide @close="emit('close')">
+  <Modal title="Narración grabada" wide @close="close">
     <div class="grid gap-5 text-sm md:grid-cols-[minmax(0,15rem)_1fr]" data-testid="narration-dialog">
       <nav aria-label="Escenas">
         <p class="mb-2 text-xs text-dv-muted" data-testid="narration-coverage">{{ narrated }} de {{ project.nodes.length }} escenas con voz grabada</p>
@@ -175,7 +181,7 @@ onBeforeUnmount(() => {
             <button v-if="current" type="button" class="dv-btn-ghost" data-testid="narration-listen" @click="listen">▶ Escuchar</button>
             <label class="dv-btn-ghost cursor-pointer">
               Importar archivo…
-              <input type="file" :accept="ACCEPT" class="sr-only" data-testid="narration-import" :disabled="busy" @change="importFile(($event.target as HTMLInputElement).files)" />
+              <input type="file" :accept="ACCEPT" class="sr-only" data-testid="narration-import" :disabled="busy" @change="importFile(($event.target as HTMLInputElement).files); ($event.target as HTMLInputElement).value = ''" />
             </label>
             <button v-if="current" type="button" class="dv-link !opacity-70" data-testid="narration-remove" @click="removeNarration">Quitar</button>
           </template>

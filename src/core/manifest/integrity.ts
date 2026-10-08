@@ -5,6 +5,7 @@
  */
 import type { ManifestIssue } from './diagnostics';
 import type { StoryManifest } from './schema';
+import { hasExit } from './navigation';
 
 export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
   const issues: ManifestIssue[] = [];
@@ -128,13 +129,7 @@ export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
       });
     }
 
-    const hasExit =
-      nav.is_ending ||
-      nav.default_next_node !== undefined ||
-      nav.choices.length > 0 ||
-      gp?.on_success.transition_to_node !== undefined ||
-      (node.screenless_mode?.voice_prompts.length ?? 0) > 0;
-    if (!hasExit) {
+    if (!hasExit(node)) {
       issues.push({
         severity: 'info',
         path: `${base}.navigation`,

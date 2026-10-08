@@ -16,14 +16,24 @@ const title = ref('');
 const INTERACTION_LABELS = { dialogo: 'Diálogo', monologo: 'Monólogo', enigma: 'Enigma', aparatos: 'Aparatos', narracion: 'Narración' } as const;
 
 async function onFile(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // Se vacía el selector para poder volver a elegir el mismo archivo (p. ej. tras corregirlo).
+  input.value = '';
   if (!file) return;
+  // Un archivo nuevo sustituye al anterior: si no se puede leer, no debe quedar el viejo listo para importar.
+  parsed.value = null;
   error.value = '';
   reading.value = true;
   try {
     const text = await readManuscript(file.name, new Uint8Array(await file.arrayBuffer()));
-    parsed.value = parseManuscript(text, { title: file.name.replace(/\.[^.]+$/, '') });
-    title.value = parsed.value.title;
+    const result = parseManuscript(text, { title: file.name.replace(/\.[^.]+$/, '') });
+    if (!result.beats.length) {
+      error.value = `«${file.name}» no contiene texto que se pueda convertir en escenas.`;
+      return;
+    }
+    parsed.value = result;
+    title.value = result.title;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'No se pudo leer el manuscrito.';
   } finally {

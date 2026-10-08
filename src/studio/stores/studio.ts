@@ -185,6 +185,11 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
         if (notes.length) say('director', notes.join(' '));
       }
       return turn;
+    } catch (error) {
+      // Los fallos del proveedor ya llegan como respuesta; esto cubre lo inesperado (p. ej. una herramienta).
+      thinking.pending = false;
+      thinking.text = `No pude completar la petición: ${error instanceof Error ? error.message : String(error)}`;
+      return null;
     } finally {
       busy.value = false;
     }

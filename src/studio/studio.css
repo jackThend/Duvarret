@@ -114,7 +114,8 @@
 .dv-radar-source circle { fill: var(--dv-accent-2); stroke: var(--dv-bg); stroke-width: 2; }
 .dv-radar-source.is-dragging { cursor: grabbing; }
 .dv-radar-source:focus-visible circle { stroke: var(--dv-mystic); stroke-width: 3; }
-.dv-radar-name { fill: var(--dv-text); font-size: 10px; }
+/* El halo del color de fondo mantiene el nombre legible sobre el oyente, los ejes y otras fuentes. */
+.dv-radar-name { fill: var(--dv-text); font-size: 10px; paint-order: stroke; stroke: var(--dv-bg); stroke-width: 3px; stroke-linejoin: round; }
 
 .dv-graph-edge { stroke: var(--dv-muted); }
 .dv-graph-label { fill: var(--dv-text); font-size: 10px; }

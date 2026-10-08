@@ -55,6 +55,7 @@ async function upload(files: FileList | File[] | null, replacePath?: string) {
   busy.value = true;
   error.value = '';
   const added: string[] = [];
+  const failures: string[] = [];
   for (const file of Array.from(files)) {
     try {
       const path = await project.addAsset({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }, replacePath ? { replacePath } : {});
@@ -62,15 +63,25 @@ async function upload(files: FileList | File[] | null, replacePath?: string) {
       present.value = new Set([...present.value, path]);
       added.push(path);
     } catch (e) {
-      error.value = e instanceof Error ? e.message : `No se pudo añadir «${file.name}».`;
+      failures.push(e instanceof Error ? e.message : `No se pudo añadir «${file.name}».`);
     }
   }
+  // Con varios archivos soltados a la vez, cada fallo se nombra (antes solo quedaba el último).
+  error.value = failures.join(' ');
   busy.value = false;
   if (added.length) {
     message.value = added.length === 1 ? `Añadido: ${nameOf(added[0]!)}` : `${added.length} recursos añadidos.`;
     studio.previewNonce++;
     if (!replacePath && added.length === 1) openAssign(added[0]!);
   }
+}
+
+/** Vacía el selector tras leerlo: así se puede volver a elegir el mismo archivo. */
+function pick(event: Event, replacePath?: string) {
+  const input = event.target as HTMLInputElement;
+  const files = input.files ? Array.from(input.files) : null;
+  input.value = '';
+  void upload(files, replacePath);
 }
 
 function onDrop(event: DragEvent) {
@@ -133,7 +144,7 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
       >
         <span class="font-prose text-base">Arrastra aquí tus sonidos e imágenes</span>
         <span class="text-xs text-dv-muted">o haz clic para elegirlos · voces, efectos, música, retratos, ilustraciones (hasta 50 MB cada uno)</span>
-        <input type="file" multiple :accept="ACCEPT" class="sr-only" data-testid="asset-input" @change="upload(($event.target as HTMLInputElement).files)" />
+        <input type="file" multiple :accept="ACCEPT" class="sr-only" data-testid="asset-input" @change="pick($event)" />
       </label>
       <p v-if="busy" class="text-dv-muted">Guardando…</p>
       <p v-if="message" role="status" data-testid="assets-message">{{ message }}</p>
@@ -150,7 +161,7 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
             </span>
             <label class="dv-btn-ghost shrink-0 cursor-pointer">
               Aportar archivo
-              <input type="file" :accept="ACCEPT" class="sr-only" data-testid="provide-input" @change="upload(($event.target as HTMLInputElement).files, path)" />
+              <input type="file" :accept="ACCEPT" class="sr-only" data-testid="provide-input" @change="pick($event, path)" />
             </label>
           </li>
         </ul>
