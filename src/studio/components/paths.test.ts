@@ -59,6 +59,16 @@ describe('PathsEditor', () => {
     expect(w.get('[data-testid="choice-editor-1"]').text()).toContain('si no ha ocurrido «entro bunker»');
   });
 
+  it('no ofrece la propia escena como continuación natural', async () => {
+    await opened();
+    const w = mount(PathsEditor);
+    const options = w.get('[data-testid="paths-next"]').findAll('option').map((o) => o.element.value);
+    expect(options).not.toContain('inicio');
+    expect(options).toContain('consola');
+    const targets = w.get('[data-testid="choice-target"]').findAll('option').map((o) => o.text());
+    expect(targets.some((t) => t.endsWith('(esta misma escena)'))).toBe(true);
+  });
+
   it('añade una elección, la dirige a una escena nueva y edita su texto', async () => {
     const project = await opened('rejilla');
     const w = mount(PathsEditor);
