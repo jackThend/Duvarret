@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { describeCondition, flagId, flagLabel, knownFlags, knownStats, type Choice, type ChoiceCondition } from '@/core/manifest';
+import { describeCondition, flagId, flagLabel, hasExit, knownFlags, knownStats, type Choice, type ChoiceCondition } from '@/core/manifest';
 import { useProjectStore } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 
@@ -175,6 +175,11 @@ function removeMark(index: number, flag: string) {
         Esta escena es un final
       </label>
     </div>
+    <p v-if="node && !hasExit(node)" class="text-xs text-dv-muted" data-testid="paths-implicit-ending">
+      Esta escena no lleva a ninguna otra, así que la historia terminará aquí.
+      <button type="button" class="dv-link" data-testid="paths-mark-ending" @click="setEnding(true)">Marcarla como final</button>
+      o elige una continuación.
+    </p>
     <p v-if="nav.default_next_node && !sceneIds.has(nav.default_next_node)" role="alert" class="text-xs text-dv-danger">La continuación lleva a una escena que ya no existe.</p>
 
     <ol class="space-y-3">

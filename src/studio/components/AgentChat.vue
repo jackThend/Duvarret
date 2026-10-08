@@ -10,6 +10,8 @@ const input = ref<HTMLTextAreaElement | null>(null);
 const log = ref<HTMLElement | null>(null);
 
 async function send() {
+  // Enter no pasa por el botón desactivado: mientras el director piensa, el borrador se conserva.
+  if (studio.busy || !draft.value.trim()) return;
   const text = draft.value;
   draft.value = '';
   await studio.ask(text);

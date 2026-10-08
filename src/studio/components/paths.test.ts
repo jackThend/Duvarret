@@ -69,6 +69,16 @@ describe('PathsEditor', () => {
     expect(targets.some((t) => t.endsWith('(esta misma escena)'))).toBe(true);
   });
 
+  it('avisa de una escena sin salida y permite marcarla como final', async () => {
+    const project = await opened();
+    project.updateNavigation('inicio', { default_next_node: undefined, choices: [], is_ending: false });
+    const w = mount(PathsEditor);
+    expect(w.find('[data-testid="paths-implicit-ending"]').exists()).toBe(true);
+    await w.get('[data-testid="paths-mark-ending"]').trigger('click');
+    expect(nav('inicio').is_ending).toBe(true);
+    expect(w.find('[data-testid="paths-implicit-ending"]').exists()).toBe(false);
+  });
+
   it('añade una elección, la dirige a una escena nueva y edita su texto', async () => {
     const project = await opened('rejilla');
     const w = mount(PathsEditor);
