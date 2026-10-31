@@ -13,7 +13,7 @@ import {
   type ProviderKind,
   type ToolExecution,
 } from '@/core/agent';
-import { OfflineSynthesizer } from '@/core/assets/registry';
+import { OfflineSynthesizer, type SynthesisRequest, type SynthesisResult } from '@/core/assets/registry';
 import type { StudioTheme } from '@/core/project';
 import { useProjectStore } from './project';
 import { useAiStore } from './ai';
@@ -174,20 +174,39 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
       ...(project.lore ? { lore: project.lore } : {}),
       ...(project.supervisor ? { supervisor: project.supervisor } : {}),
       assets: project.assets,
+      isDraftAsset: (path: string) => project.draftAssets.has(path),
+      // Lo creado vuelve como borrador: se escucha o se ve en la propuesta y solo se guarda al aceptarla.
       synthesizer: {
-        provider: 'Imagen en la nube',
-        async synthesize(request: import('@/core/assets/registry').SynthesisRequest) {
+        provider: 'Studio',
+        async synthesize(request: SynthesisRequest): Promise<SynthesisResult> {
+          if (request.type === 'voice') {
+            const manner = request.style_preset === 'editorial' || request.style_preset === 'natural' ? '' : request.style_preset;
+            const { path, provider } = await project.draftSpokenLine(request.prompt, manner);
+            return { path, status: 'draft', provider };
+          }
           if ((request.type !== 'portrait' && request.type !== 'background') || !await ai.refresh(ai.image.provider)) return new OfflineSynthesizer().synthesize(request);
           const prompt = `${request.prompt}\nEstilo: ${request.style_preset}`;
           const result = await generateImage({ provider: ai.image.provider, model: ai.image.model, accountId: ai.image.accountId, prompt });
           if (work !== project.workIdentity()) throw new Error('La obra cambió durante la creación de la imagen. La propuesta se ha descartado.');
           const extension = /jpe?g/.test(result.mimeType) ? 'jpg' : /webp/.test(result.mimeType) ? 'webp' : 'png';
-          const path = await project.addGeneratedAsset({ name: `ilustracion-${Date.now()}.${extension}`, data: result.data }, { provider: `${result.provider} · ${result.model}`, prompt });
-          return { path, status: 'ready' as const, provider: `${result.provider} · ${result.model}` };
+          const path = project.stageGeneratedAsset({ name: `ilustracion-${Date.now()}.${extension}`, data: result.data }, { provider: `${result.provider} · ${result.model}`, prompt, style_preset: request.style_preset });
+          return { path, status: 'draft', provider: `${result.provider} · ${result.model}` };
         },
       },
       timestamp: (project.selectedIndex + 1) * 1000,
     };
+  }
+
+  /** Recursos creados en una propuesta que esperan a que la autora la acepte o la descarte. */
+  function draftsOf(executions: ToolExecution[] = []): string[] {
+    return executions.flatMap((e) => {
+      const result = e.outcome.result as Partial<SynthesisResult> | null;
+      return e.call.name === 'requestAssetSynthesis' && !e.outcome.error && result?.status === 'draft' && result.path ? [result.path] : [];
+    });
+  }
+
+  function discardDrafts(executions?: ToolExecution[]) {
+    for (const path of draftsOf(executions)) project.discardGeneratedAsset(path);
   }
 
   function directorContext() {
@@ -233,6 +252,8 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
         context: directorContext(),
         tools: toolContext(),
       });
+      const stale = work !== project.workIdentity() || providerAtStart !== providerIdentity.value || baseManifest !== toRaw(project.manifest);
+      if (stale) discardDrafts(turn.executions);
       if (work !== project.workIdentity()) {
         thinking.pending = false;
         thinking.text = 'La obra cambió durante la petición. La propuesta se ha descartado.';
@@ -252,7 +273,8 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
       thinking.pending = false;
       thinking.text = turn.reply || (turn.mutated ? 'He preparado una propuesta.' : 'Entendido.');
       project.touchAssets();
-      if (turn.mutated && selectedNodeId) {
+      // Una voz o una imagen creadas sin colocar también esperan en una propuesta para escucharlas.
+      if ((turn.mutated || draftsOf(turn.executions).length) && selectedNodeId) {
         pitches.value.push({
           id: `chat:${Date.now()}:${chatCounter}`,
           nodeId: selectedNodeId,
@@ -287,18 +309,29 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     const baseManifest = toRaw(project.manifest);
     function rejectStaleDraft() {
       card!.status = 'dismissed';
+      discardDrafts(executions);
       say('system', 'La obra cambió desde esta propuesta. Genera otra para conservar tus cambios.');
       return false;
     }
     let draft = card.draft;
+    let executions = card.executions ?? [];
     if (draft && card.baseManifest && toRaw(card.baseManifest) !== baseManifest) return rejectStaleDraft();
     if (!draft) {
-      const result = await orchestrator.value.applyCalls(card.calls, baseManifest, toolContext());
+      // Tras ajustar parámetros se reaplica la propuesta, pero lo ya creado no se vuelve a crear.
+      const created = draftsOf(executions).some((path) => project.draftAssets.has(path));
+      const calls = created ? card.calls.filter((c) => c.name !== 'requestAssetSynthesis') : card.calls;
+      const result = await orchestrator.value.applyCalls(calls, baseManifest, toolContext());
       draft = result.draft;
+      executions = created ? [...executions.filter((e) => e.call.name === 'requestAssetSynthesis'), ...result.executions] : result.executions;
     }
     // La herramienta puede devolver un borrador anterior incluso si el generador
     // falló al detectar el cambio de obra. Nunca se integra sobre la nueva obra.
-    if (work !== project.workIdentity() || card.status !== 'open') return false;
+    if (work !== project.workIdentity()) return false;
+    if (card.status !== 'open') { if (executions !== card.executions) discardDrafts(executions); return false; }
+    if (baseManifest !== toRaw(project.manifest)) return rejectStaleDraft();
+    // Aceptar la propuesta es lo único que guarda en la obra lo que el director creó.
+    for (const path of draftsOf(executions)) await project.acceptGeneratedAsset(path);
+    if (work !== project.workIdentity()) return false;
     if (baseManifest !== toRaw(project.manifest)) return rejectStaleDraft();
     project.applyDraft(draft);
     card.status = 'applied';
@@ -309,7 +342,9 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
 
   function dismissPitch(id: string) {
     const card = pitches.value.find((p) => p.id === id);
-    if (card) card.status = 'dismissed';
+    if (!card) return;
+    card.status = 'dismissed';
+    discardDrafts(card.executions);
   }
 
   /** «Ver alternativa»: rota a la siguiente propuesta para la misma escena. */
@@ -343,6 +378,7 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   }
 
   function reset() {
+    for (const card of pitches.value) if (card.status === 'open') discardDrafts(card.executions);
     chat.value = [];
     history.value = [];
     pitches.value = [];

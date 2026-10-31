@@ -233,7 +233,7 @@ export const placeSpatialAudio = defineTool({
     };
     const events = [...existing.filter((e) => e.event_id !== eventId), event];
     const patch = ctx.editor.patchNode(args.node_id, { acoustic_events: events });
-    if (ctx.assets && !ctx.assets.get(args.asset_path)) ctx.assets.register({ path: args.asset_path, origin: 'author', status: 'missing' });
+    if (ctx.assets && !ctx.assets.get(args.asset_path) && !ctx.isDraftAsset?.(args.asset_path)) ctx.assets.register({ path: args.asset_path, origin: 'author', status: 'missing' });
     return {
       result: { ok: true, event_id: eventId, coordinates, room_preset: room },
       summary: `«${event.label}» ${describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}.`,
@@ -248,15 +248,28 @@ export const placeSpatialAudio = defineTool({
 
 export const requestAssetSynthesis = defineTool({
   name: 'requestAssetSynthesis',
-  description: 'Solicita la creación sintética de un recurso (retrato, fondo, efecto de sonido o voz) respetando el estilo de la obra.',
-  schema: z.object({ type: z.enum(['portrait', 'background', 'sfx', 'voice']), prompt: z.string().min(3), style_preset: z.string().default('editorial') }),
+  description:
+    'Solicita la creación sintética de un recurso (retrato, fondo, efecto de sonido o voz) respetando el estilo de la obra. Para `voice`, `prompt` es el texto literal que dirá la voz y `style_preset` cómo lo dice («susurrando», «gritando»). Devuelve la ruta del recurso: colócalo después con placeSpatialAudio o en su lugar de la escena.',
+  schema: z.object({ type: z.enum(['portrait', 'background', 'sfx', 'voice']), prompt: z.string().min(1), style_preset: z.string().default('editorial') }),
   async run(request, ctx) {
     if (!ctx.synthesizer) return { result: { error: 'No hay generador configurado.' }, summary: 'No hay un generador de recursos configurado.', mutates: false };
-    const result = await ctx.synthesizer.synthesize(request);
-    ctx.assets?.register({ path: result.path, origin: 'synthetic', status: result.status, provider: result.provider, prompt: request.prompt, style_preset: request.style_preset });
+    let result;
+    try {
+      result = await ctx.synthesizer.synthesize(request);
+    } catch (error) {
+      // El motivo llega al autor tal cual: «añade tu clave…», «abre la obra en el escritorio…».
+      const reason = error instanceof Error ? error.message : String(error);
+      return { result: { error: reason }, summary: `No pude crear ${request.type === 'voice' ? 'la voz' : 'el recurso'}: ${reason}`, mutates: false, error: 'synthesis_failed' };
+    }
+    // Un borrador no se registra: si el autor rechaza la propuesta, no queda rastro en la obra.
+    if (result.status !== 'draft') ctx.assets?.register({ path: result.path, origin: 'synthetic', status: result.status, provider: result.provider, prompt: request.prompt, style_preset: request.style_preset });
+    const what = request.type === 'voice' ? `la voz «${request.prompt}»` : `«${result.path}»`;
     return {
       result,
-      summary: result.status === 'ready' ? `Creé «${result.path}».` : `Reservé «${result.path}»; queda pendiente de crearse o de que aportes el tuyo.`,
+      summary:
+        result.status === 'draft' ? `He creado ${what} para que la escuches; solo entrará en la obra si aceptas la propuesta.`
+          : result.status === 'ready' ? `Creé ${what}.`
+            : `Reservé «${result.path}»; queda pendiente de crearse o de que aportes el tuyo.`,
       mutates: false,
     };
   },

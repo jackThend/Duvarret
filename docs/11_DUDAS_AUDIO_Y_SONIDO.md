@@ -133,6 +133,17 @@ El orden está pensado para que cada tarea deje algo usable y no bloquee a la si
 y 2 son las de mayor efecto por línea escrita.
 
 ### Tarea 1 — Voz y efectos en el sintetizador del Studio
+> **Estado (31-10-2026): voz hecha; efectos pendientes de las tareas 3 y 9.** El sintetizador de
+> `toolContext()` devuelve ahora **borradores** (`status: 'draft'`): `project.draftSpokenLine` crea la
+> réplica con Kokoro (escritorio) o con el servicio de voz elegido, la valida y la deja en memoria con
+> su URL de vista previa (`stageGeneratedAsset`). La tarjeta de propuesta la muestra con «▶ Escuchar»;
+> solo `applyPitch` la guarda (`acceptGeneratedAsset`) con su procedencia, y descartar la olvida sin
+> rastro. Las imágenes del director siguen el mismo camino (antes se guardaban al generarse). El
+> director local entiende «una voz que susurre «…» a mi oído derecho»: crea la voz y, con la ruta ya
+> conocida, la coloca. Lo que no se ha podido comprobar aquí: la rama Kokoro en el ejecutable real
+> (usa `narration_generate` + `project_read_bytes`, sin cambios en Rust). `sfx` sigue cayendo en
+> `OfflineSynthesizer`.
+
 **Por qué primero.** Es el único eslabón que impide que «ponme aquí una voz que susurre esto a mi
 derecha» sea una sola conversación. Toda la infraestructura existe; falta conectarla.
 
@@ -156,6 +167,11 @@ produce el WAV, lo deja escuchar, lo coloca como `acoustic_event` con sus coorde
 registrado con su procedencia; y el autor puede rechazarlo sin que nada se haya guardado.
 
 ### Tarea 2 — Validar el contenido de cada archivo, no su extensión
+> **Estado (31-10-2026): hecha.** `checkAssetContent` (`src/core/assets/content.ts`) se llama desde
+> `addAsset` y valida los bytes de WAV, MP3, OGG/Opus, FLAC, M4A, PNG, JPEG, WEBP, GIF, SVG y AVIF.
+> Nombra lo que parece el archivo («parece un vídeo, no un sonido») y acepta con su extensión real un
+> sonido válido mal nombrado (un WAV llamado `.mp3`).
+
 **Por qué.** Es el agujero de aviso más grave. `addAsset` (`src/studio/stores/project.ts:146`)
 comprueba tamaño y extensión, nada más. Un WAV truncado, un archivo corrupto o **un vídeo renombrado
 a `.mp3` entra sin una sola queja** y falla después en silencio: al reproducir suena el tono de

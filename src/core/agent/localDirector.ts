@@ -152,9 +152,20 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
   return out;
 }
 
+/** Réplica entre comillas que el autor quiere oír dicha: «ponme una voz que susurre "no mires atrás"». */
+function spokenLine(message: string): { text: string; manner: string } | null {
+  const quoted = message.match(/[«"“]([^»"”]+)[»"”]/)?.[1]?.trim();
+  const t = normalizeText(message.replace(/[«"“][^»"”]*[»"”]/g, ' '));
+  if (!quoted || !/\bvoz\b|susurr|dig[ae]|grit|murmur|hable|pronunci|recit/.test(t)) return null;
+  const manner = /susurr/.test(t) ? 'susurrando' : /grit/.test(t) ? 'gritando' : /murmur/.test(t) ? 'murmurando' : 'natural';
+  return { text: quoted, manner };
+}
+
 /** Interpreta una indicación del autor en lenguaje natural y la traduce a herramientas. */
 export function interpretInstruction(message: string, nodeId: string, nodeText = '', characters: string[] = []): ToolCall[] {
-  const t = normalizeText(message);
+  const spoken = spokenLine(message);
+  // Lo que dirá la voz no son indicaciones: «no mires atrás» no pide nada a la tipografía.
+  const t = normalizeText(spoken ? message.replace(/[«"“][^»"”]*[»"”]/g, ' ') : message);
   const calls: ToolCall[] = [];
   const effect = (effect_type: string, parameters: Record<string, unknown> = {}) =>
     calls.push(call('setTypographicEffect', { node_id: nodeId, effect_type, parameters }));
@@ -179,7 +190,10 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
 
   const reading = parseSpatialDescription(message);
   const sound = SOUND_NOUNS.find(([re]) => re.test(t));
-  if (sound || (reading.understood && /suen|oig|escuch|sonido|ruido|audio|pon /.test(t))) {
+  if (spoken) {
+    // Primero se crea la voz; su colocación llega cuando se conoce la ruta (ver `complete`).
+    calls.push(call('requestAssetSynthesis', { type: 'voice', prompt: spoken.text, style_preset: spoken.manner }));
+  } else if (sound || (reading.understood && /suen|oig|escuch|sonido|ruido|audio|pon /.test(t))) {
     const [, file, label] = sound ?? [null, 'sound', 'sonido'];
     calls.push(
       call('placeSpatialAudio', {
@@ -198,6 +212,36 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
   return calls;
 }
 
+/** Tras crear una voz, la sitúa donde el autor pidió («a mi oído derecho»); sin indicación, muy cerca y delante. */
+function placeCreatedVoice(request: CompletionRequest): ToolCall | null {
+  const messages = request.messages;
+  let userIndex = messages.length - 1;
+  while (userIndex >= 0 && messages[userIndex]!.role !== 'user') userIndex--;
+  const turn = messages.slice(userIndex + 1);
+  const calls = turn.flatMap((m) => (m.role === 'assistant' ? (m.toolCalls ?? []) : []));
+  if (calls.some((c) => c.name === 'placeSpatialAudio')) return null;
+  for (const message of turn) {
+    if (message.role !== 'tool' || message.name !== 'requestAssetSynthesis' || message.isError) continue;
+    const asked = calls.find((c) => c.id === message.toolCallId);
+    if (asked?.arguments.type !== 'voice') continue;
+    let result: { path?: string; status?: string } | null = null;
+    try { result = JSON.parse(message.content) as { path?: string; status?: string } | null; } catch { /* resultado ilegible */ }
+    if (!result?.path || (result.status !== 'ready' && result.status !== 'draft')) continue;
+    const said = String(asked.arguments.prompt ?? '');
+    const author = messages[userIndex];
+    const where = author?.role === 'user' ? author.content : '';
+    return call('placeSpatialAudio', {
+      node_id: request.context?.nodeId ?? 'nodo_001',
+      asset_path: result.path,
+      label: `voz «${said.length > 40 ? `${said.slice(0, 40)}…` : said}»`,
+      ...(parseSpatialDescription(where).understood ? { position_description: where } : { coordinates: { x: 0, y: 0, z: 0.6 } }),
+      room_preset: 'small_study',
+      acoustic_material: 'curtains',
+    });
+  }
+  return null;
+}
+
 export class LocalDirectorProvider implements LlmProvider {
   readonly kind = 'local' as const;
   readonly model = 'director-local';
@@ -210,9 +254,13 @@ export class LocalDirectorProvider implements LlmProvider {
       // Cierre del turno: se resume lo realizado a partir de los resultados.
       const results = [];
       for (let i = request.messages.length - 1; i >= 0 && request.messages[i]!.role === 'tool'; i--) results.unshift(request.messages[i]!);
+      const placement = placeCreatedVoice(request);
+      if (placement && available.has('placeSpatialAudio')) return { content: '', toolCalls: [placement], stopReason: 'tool_calls' };
       const failed = results.filter((r) => r.role === 'tool' && r.isError).length;
       return {
-        content: failed
+        content: failed && failed === results.length
+          ? 'No pude preparar esa propuesta.'
+          : failed
           ? 'He preparado la propuesta, aunque alguna indicación no pudo aplicarse. Revísala antes de aprobarla.'
           : 'Propuesta lista. Obsérvala en la vista previa y decide si la aplicas.',
         toolCalls: [],

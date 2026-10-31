@@ -26,7 +26,7 @@ import { MAX_ASSET_BYTES, assetFolderFor, assetPathFor, assetUsages } from '@/co
 import { checkAssetContent } from '@/core/assets/content';
 import { applyNarration, planNarration, type Delivery, type NarrationSelection } from '@/core/narration/plan';
 import { missingSpeech } from '@/core/narration/script';
-import { availableNarrationAssets, synthesizeNarration, type NarrationProgress } from '../services/narration';
+import { availableNarrationAssets, readGeneratedClip, synthesizeNarration, type NarrationProgress } from '../services/narration';
 import { generateSpeech } from '../services/ai';
 import { useAiStore } from './ai';
 
@@ -58,6 +58,9 @@ export function nodeFormats(node: StoryNode): NodeFormat[] {
   return formats.length ? formats : ['text'];
 }
 
+/** Procedencia de un recurso generado, tal como queda en el registro (RF-14). */
+export interface GeneratedProvenance { provider: string; prompt: string; title?: string; style_preset?: string; license?: string }
+
 export interface Chapter {
   id: string;
   title: string;
@@ -83,6 +86,8 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   const assetResolver = shallowRef<((path: string) => string) | null>(null);
   /** Almacén de archivos de la obra abierta (disco, dispositivo o memoria). */
   const assetStore = shallowRef<AssetStore>(new MemoryAssetStore());
+  /** Recursos generados pendientes de aceptación (ver `stageGeneratedAsset`). */
+  const draftAssets = shallowRef<Map<string, { name: string; data: Uint8Array; provenance: GeneratedProvenance }>>(new Map());
   /** URLs temporales de recursos aportados en esta sesión (tienen prioridad). */
   const assetOverrides = shallowRef<Map<string, string>>(new Map());
   /** Marca de tiempo del último cambio (para medir la latencia de la vista previa). */
@@ -179,13 +184,85 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   }
 
   /** Los bytes generados se guardan como cualquier archivo, con su procedencia verificable. */
-  async function addGeneratedAsset(file: { name: string; data: Uint8Array }, provenance: { provider: string; prompt: string; title?: string }) {
+  async function addGeneratedAsset(file: { name: string; data: Uint8Array }, provenance: GeneratedProvenance, options: { replacePath?: string } = {}) {
     const epoch = workEpoch;
-    const path = await addAsset(file);
+    const path = await addAsset(file, options);
     if (epoch !== workEpoch) throw new Error('La obra cambió. Vuelve a generar el recurso para la obra abierta.');
     assets.value.register({ path, origin: 'synthetic', status: 'ready', bytes: file.data.byteLength, ...provenance });
     triggerRef(assets);
     return path;
+  }
+
+  /**
+   * Un recurso generado que la autora aún no ha aceptado: suena y se ve en la vista previa con su
+   * ruta definitiva, pero no está en el almacén ni en el registro. Solo `acceptGeneratedAsset` lo
+   * guarda; `discardGeneratedAsset` lo olvida sin dejar rastro.
+   */
+  function stageGeneratedAsset(file: { name: string; data: Uint8Array }, provenance: GeneratedProvenance): string {
+    const content = checkAssetContent(file.name, file.data);
+    if (!content.ok) throw new Error(content.reason);
+    const path = assetPathFor(content.name, [...assetPaths.value, ...draftAssets.value.keys()]);
+    if (!path) throw new Error(`«${file.name}» no es un sonido ni una imagen que Duvarret sepa usar.`);
+    setAssetOverride(path, URL.createObjectURL(new Blob([file.data.slice().buffer])));
+    draftAssets.value = new Map(draftAssets.value).set(path, { name: content.name, data: file.data, provenance });
+    return path;
+  }
+
+  async function acceptGeneratedAsset(path: string) {
+    const draft = draftAssets.value.get(path);
+    if (!draft) return;
+    const next = new Map(draftAssets.value);
+    next.delete(path);
+    draftAssets.value = next;
+    await addGeneratedAsset({ name: draft.name, data: draft.data }, draft.provenance, { replacePath: path });
+  }
+
+  function discardGeneratedAsset(path: string) {
+    if (!draftAssets.value.has(path)) return;
+    const next = new Map(draftAssets.value);
+    next.delete(path);
+    draftAssets.value = next;
+    setAssetOverride(path, null);
+  }
+
+  /**
+   * Prepara una réplica hablada como borrador: con la voz incluida en el escritorio, o con el
+   * servicio de voz elegido en Conexiones de IA. `manner` es cómo se dice («susurrando»).
+   */
+  async function draftSpokenLine(text: string, manner = ''): Promise<{ path: string; provider: string }> {
+    const line = text.trim();
+    if (!line) throw new Error('Falta el texto que debe decir la voz.');
+    const epoch = workEpoch;
+    const ai = useAiStore();
+    const selection = ai.speech;
+    let data: Uint8Array; let ext = 'wav'; let provider: string; let license: string | undefined;
+    if (selection.provider === 'kokoro') {
+      const target = storage.value;
+      if (target.kind !== 'tauri') throw new Error('La voz incluida solo funciona con la obra abierta en la app de escritorio. Elige un servicio de voz en Preferencias → Conexiones de IA para crearla aquí.');
+      const delivery: Delivery = /susurr|dulce|suave|tiern|quedo/i.test(manner) ? 'sweet' : 'natural';
+      const speed = delivery === 'sweet' ? 0.91 : 0.94;
+      const asset = `assets/audio/voz-natural/ef_dora/replica-${Date.now().toString(36)}.wav`;
+      const clip = { text: line, asset };
+      await synthesizeNarration(target.location, { voice: 'ef_dora', voiceId: 'kokoro:ef_dora', label: 'Dora · español · Kokoro', delivery, speed, clips: [clip], pending: [clip] }, () => {});
+      // El motor escribe en la obra; el borrador vive en memoria hasta que la autora lo acepte.
+      data = await readGeneratedClip(target.location, asset);
+      await assetStore.value.remove(asset).catch(() => {});
+      provider = `Kokoro-82M · ONNX local · ef_dora · ${delivery}`;
+      license = 'Modelo Kokoro: Apache-2.0';
+    } else {
+      await ai.requireKey(selection.provider);
+      const result = await generateSpeech({
+        provider: selection.provider, model: selection.model ?? '', voice: selection.voice ?? '', text: line,
+        ...(manner && selection.provider === 'gemini' ? { style: `${manner}. Español natural, sin eco.` } : {}),
+        ...(selection.provider === 'compatible' ? { baseUrl: ai.endpoints.compatible } : {}),
+      });
+      data = result.data;
+      ext = /mpeg|mp3/.test(result.mimeType) ? 'mp3' : 'wav';
+      provider = `${result.provider} · ${result.model} · ${selection.voice}`;
+    }
+    if (epoch !== workEpoch) throw new Error('La obra cambió durante la creación de la voz. La propuesta se ha descartado.');
+    const path = stageGeneratedAsset({ name: `voz ${line.slice(0, 32)}.${ext}`, data }, { provider, prompt: line, title: `Voz: «${line}»`, ...(manner ? { style_preset: manner } : {}), ...(license ? { license } : {}) });
+    return { path, provider };
   }
 
   function replaceAssetReferences(from: string, to: string) {
@@ -301,6 +378,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     assetResolver.value = options.assetResolver ?? null;
     for (const url of assetOverrides.value.values()) if (url.startsWith('blob:')) URL.revokeObjectURL?.(url);
     assetOverrides.value = new Map();
+    draftAssets.value = new Map();
     assetStore.value = assetStoreFor(storage.value);
     try {
       const stored = await assetStore.value.urls();
@@ -597,6 +675,11 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     narrationProgress,
     updateNarration,
     addGeneratedAsset,
+    draftAssets,
+    stageGeneratedAsset,
+    acceptGeneratedAsset,
+    discardGeneratedAsset,
+    draftSpokenLine,
     workIdentity: () => workEpoch,
     resolveAsset,
     setAssetOverride,

@@ -327,6 +327,37 @@ describe('DirectorOrchestrator', () => {
     expect(turn.reply).toContain('Propuesta lista');
   });
 
+  it('crea una voz y después la coloca donde se pidió, sin registrarla mientras es un borrador', async () => {
+    const assets = new AssetRegistry();
+    const drafts = new Set<string>();
+    const synthesizer = {
+      provider: 'prueba',
+      synthesize: vi.fn(async () => { drafts.add('assets/audio/voz_no_mires_atras.wav'); return { path: 'assets/audio/voz_no_mires_atras.wav', status: 'draft' as const, provider: 'prueba' }; }),
+    };
+    const turn = await new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({
+      message: 'Ponme una voz que susurre «no mires atrás» a mi oído derecho',
+      manifest: manifest(),
+      context: { nodeId: 'rejilla' },
+      tools: { assets, synthesizer, isDraftAsset: (path) => drafts.has(path) },
+    });
+    expect(synthesizer.synthesize).toHaveBeenCalledWith({ type: 'voice', prompt: 'no mires atrás', style_preset: 'susurrando' });
+    expect(turn.executions.map((e) => e.call.name)).toEqual(['requestAssetSynthesis', 'placeSpatialAudio']);
+    const event = turn.draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(event).toMatchObject({ asset: 'assets/audio/voz_no_mires_atras.wav', label: 'voz «no mires atrás»', coordinates: { x: 0.25, y: 0, z: 0 } });
+    // Ni se da por creado ni por perdido: solo existe si el autor acepta.
+    expect(assets.get('assets/audio/voz_no_mires_atras.wav')).toBeUndefined();
+    expect(turn.executions[0]!.outcome.summary).toContain('solo entrará en la obra si aceptas');
+    // Lo que dice la voz no se confunde con indicaciones de puesta en escena.
+    expect(interpretInstruction('Que una voz diga «el corazón late en la oscuridad»', 'n1').map((c) => c.name)).toEqual(['requestAssetSynthesis']);
+  });
+
+  it('si no se puede crear la voz, el motivo llega al autor', async () => {
+    const synthesizer = { provider: 'prueba', synthesize: async () => { throw new Error('Añade tu clave de Gemini.'); } };
+    const turn = await new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({ message: 'Una voz que grite «¡fuera!»', manifest: manifest(), context: { nodeId: 'rejilla' }, tools: { synthesizer } });
+    expect(turn.mutated).toBe(false);
+    expect(turn.executions[0]!.outcome.summary).toBe('No pude crear la voz: Añade tu clave de Gemini.');
+  });
+
   it('aplica las llamadas de una Pitch Card', async () => {
     const [pitch] = suggestForBeat('inicio', 'El pasillo angosto; las paredes aplastaban, no podía respirar, estrecho y encerrado.');
     expect(pitch?.title).toBe('Estrechar la página');

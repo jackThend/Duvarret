@@ -11,6 +11,7 @@ import { useStudioStore } from '../stores/studio';
 import AiConnections from './AiConnections.vue';
 import AssetsDialog from './AssetsDialog.vue';
 import NarrationDialog from './NarrationDialog.vue';
+import PitchCards from './PitchCards.vue';
 
 const service = vi.hoisted(() => ({
   keys: new Map<string, string>(),
@@ -296,5 +297,57 @@ describe('IA híbrida con claves del autor', () => {
     await studio.ask('Una conversación nueva.');
     expect(requests[2]?.messages.some(message => message.content === 'Primera conversación.')).toBe(false);
     expect(studio.chat.filter(entry => entry.role === 'author')).toHaveLength(3);
+  });
+});
+
+describe('voz creada por el director', () => {
+  const voiceRequest = 'Ponme una voz que susurre «no mires atrás» a mi oído derecho';
+  async function askForVoice() {
+    service.keys.set('gemini', 'mock-key');
+    service.generateSpeech.mockResolvedValue({ data: encodeWav(new Float32Array(2400).fill(0.2), 24000), mimeType: 'audio/wav', provider: 'gemini', model: 'tts-prueba' });
+    useAiStore().selectSpeech('gemini');
+    const studio = useStudioStore();
+    await studio.ask(voiceRequest);
+    const card = studio.pitches.at(-1)!;
+    const path = card.executions![0]!.outcome.result as { path: string };
+    return { studio, card, path: path.path, project: useProjectStore() };
+  }
+
+  it('se escucha en la propuesta y rechazarla no deja rastro en la obra', async () => {
+    const { studio, card, path, project } = await askForVoice();
+    expect(service.generateSpeech).toHaveBeenCalledWith(expect.objectContaining({ text: 'no mires atrás', style: expect.stringContaining('susurrando') }));
+    expect(project.draftAssets.has(path)).toBe(true);
+    expect(project.resolveAsset(path)).toMatch(/^blob:/);
+    expect(project.assets.get(path)).toBeUndefined();
+    expect(project.nodes[0]!.acoustic_events).toHaveLength(0);
+    const w = mount(PitchCards);
+    expect(w.get('[data-testid="pitch-drafts"]').text()).toContain('Voz: «no mires atrás»');
+    expect(w.find('[data-testid="pitch-listen"]').exists()).toBe(true);
+    await w.get('[data-testid="pitch-dismiss"]').trigger('click');
+    expect(card.status).toBe('dismissed');
+    expect(project.draftAssets.size).toBe(0);
+    expect(project.resolveAsset(path)).toBe(path);
+    expect(project.assets.list()).toHaveLength(0);
+    expect(project.dirty).toBe(false);
+    expect(studio.chat.at(-1)?.text).toBeTruthy();
+    w.unmount();
+  });
+
+  it('al aceptarla queda colocada en su sitio y registrada con su procedencia', async () => {
+    const { studio, card, path, project } = await askForVoice();
+    expect(await studio.applyPitch(card.id)).toBe(true);
+    const event = project.nodes[0]!.acoustic_events.find(e => e.asset === path)!;
+    expect(event.coordinates).toEqual({ x: 0.25, y: 0, z: 0 });
+    expect(project.assets.get(path)).toMatchObject({ origin: 'synthetic', status: 'ready', prompt: 'no mires atrás', style_preset: 'susurrando', provider: 'gemini · tts-prueba · Kore' });
+    expect(project.draftAssets.size).toBe(0);
+    expect(project.resolveAsset(path)).toMatch(/^blob:/);
+  });
+
+  it('sin servicio de voz ni escritorio, explica cómo conseguirla', async () => {
+    const studio = useStudioStore();
+    await studio.ask(voiceRequest);
+    expect(studio.pitches).toHaveLength(0);
+    expect(studio.chat.map(entry => entry.text).join(' ')).toContain('La voz incluida solo funciona con la obra abierta en la app de escritorio');
+    expect(useProjectStore().draftAssets.size).toBe(0);
   });
 });
