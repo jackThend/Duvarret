@@ -172,7 +172,7 @@ fn request_headers(provider: &str, provided: HashMap<String, String>, key: Optio
 #[tauri::command]
 pub async fn ai_request(app: AppHandle, request: AiRequest) -> Result<AiResponse, String> {
     provider_id(&request.provider)?;
-    if !["GET", "POST"].contains(&request.method.as_str()) || request.body.as_ref().map_or(false, |body| body.len() > MAX_REQUEST) { return Err("La solicitud de IA no es válida o es demasiado grande.".into()); }
+    if !["GET", "POST"].contains(&request.method.as_str()) || request.body.as_ref().is_some_and(|body| body.len() > MAX_REQUEST) { return Err("La solicitud de IA no es válida o es demasiado grande.".into()); }
     let config = app_config(&app)?;
     let endpoint = configured_endpoint(&config, &request.provider)?;
     let target = validate_target(&endpoint, &request.url)?;
@@ -185,7 +185,7 @@ pub async fn ai_request(app: AppHandle, request: AiRequest) -> Result<AiResponse
     if let Some(body) = request.body { pending = pending.body(body); }
     let mut response = pending.send().await.map_err(|error| if error.is_timeout() { "El proveedor tardó demasiado. Reintenta la generación.".to_string() } else { "No se pudo contactar con el proveedor. Comprueba la conexión y su dirección en Ajustes.".to_string() })?;
     let status = response.status().as_u16();
-    if response.content_length().map_or(false, |size| size > MAX_RESPONSE as u64) { return Err("El recurso generado supera el tamaño permitido.".into()); }
+    if response.content_length().is_some_and(|size| size > MAX_RESPONSE as u64) { return Err("El recurso generado supera el tamaño permitido.".into()); }
     let mut data = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(|_| "Se interrumpió la descarga del recurso generado.")? {
         if data.len() + chunk.len() > MAX_RESPONSE { return Err("El recurso generado supera el tamaño permitido.".into()); }

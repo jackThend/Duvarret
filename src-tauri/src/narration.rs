@@ -136,8 +136,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join(crate::project::PROJECT_FILE), "{}").unwrap();
         let clip = Clip { text: "Una frase.".into(), asset: "assets/audio/voz-natural/ef_dora/test.wav".into() };
-        assert!(validate_request(dir.path(), "ef_dora", "sweet", 0.91, &[clip.clone()]).is_ok());
-        assert!(validate_request(dir.path(), "ef_dora", "sweet", f64::NAN, &[clip.clone()]).is_err());
+        assert!(validate_request(dir.path(), "ef_dora", "sweet", 0.91, std::slice::from_ref(&clip)).is_ok());
+        assert!(validate_request(dir.path(), "ef_dora", "sweet", f64::NAN, std::slice::from_ref(&clip)).is_err());
         let escape = Clip { asset: "assets/audio/voz-natural/../../../../fuera.wav".into(), ..clip };
         assert!(validate_request(dir.path(), "ef_dora", "natural", 0.94, &[escape]).is_err());
     }

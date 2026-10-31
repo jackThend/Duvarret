@@ -8,6 +8,14 @@ async function openStudio(page: Page) {
   await expect(page.getByTestId('writing-canvas')).toBeVisible();
 }
 
+/** El radar se recoge en «Ajustar la posición de los sonidos»: hay que abrirlo para verlo. */
+async function showRadar(page: Page) {
+  const details = page.getByTestId('sound-position-details');
+  await expect(details).toBeVisible();
+  if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open))) await details.locator('summary').click();
+  await expect(page.getByTestId('acoustic-radar')).toBeVisible();
+}
+
 test.describe('Duvarret Studio (E2E)', () => {
   test('diseño tripartito sin errores en consola', async ({ page }) => {
     const errors: string[] = [];
@@ -15,7 +23,7 @@ test.describe('Duvarret Studio (E2E)', () => {
     await openStudio(page);
     await expect(page.getByTestId('left-panel')).toBeVisible();
     await expect(page.getByTestId('live-preview')).toBeVisible();
-    await expect(page.getByTestId('acoustic-radar')).toBeVisible();
+    await showRadar(page);
     // Los paneles respetan las proporciones 20/45/35 aproximadas.
     const widths = await page.locator('.dv-workspace > *').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
     const total = widths.reduce((a, b) => a + b, 0);
@@ -48,12 +56,14 @@ test.describe('Duvarret Studio (E2E)', () => {
     await page.getByTestId('agent-send').click();
     await expect(page.getByTestId('chat-director')).toContainText('Propuesta lista');
     await page.getByTestId('pitch-apply').first().click();
+    await showRadar(page);
     await expect(page.getByTestId('radar-respiracion')).toBeVisible();
     await expect(page.getByTestId('beat-molinos')).toContainText('🎧');
   });
 
   test('el radar se arrastra con el ratón', async ({ page }) => {
     await openStudio(page);
+    await showRadar(page);
     const source = page.getByTestId('radar-viento').locator('circle');
     const box = (await source.boundingBox())!;
     const svg = (await page.getByTestId('acoustic-radar').locator('svg').boundingBox())!;
@@ -136,6 +146,7 @@ test.describe('Obra insignia: El Corazón Delator', () => {
     await expect(page.getByTestId('left-panel')).toContainText('III. Siete medianoches');
     await page.getByTestId('beat-el_latido').click();
     await expect(page.getByTestId('live-preview').locator('.dv-heartbeat')).toBeVisible();
+    await showRadar(page);
     await expect(page.getByTestId('radar-corazon_viejo')).toBeVisible();
     await page.getByTestId('open-graph').click();
     await expect(page.getByTestId('graph-node-ojo_buitre')).toBeVisible();
@@ -165,7 +176,8 @@ test.describe('Exportación a un clic', () => {
     await expect(page.getByTestId('export-ready')).toBeVisible();
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-web').click()]);
     expect(download.suggestedFilename()).toBe('el-corazon-delator-web.zip');
-    await expect(page.getByTestId('export-message')).toContainText('el-corazon-delator-web.zip');
+    // El aviso ya no repite el nombre del archivo: la descarga lo lleva (comprobado arriba).
+    await expect(page.getByTestId('export-message')).toContainText('Tu navegador iniciará la descarga');
   });
 });
 
@@ -312,6 +324,7 @@ test.describe('Recursos propios', () => {
     await page.getByTestId('modal-close').click();
 
     await expect(page.getByTestId('beat-prudencia')).toContainText('🎧');
+    await showRadar(page);
     await expect(page.getByTestId('radar-campanas_lejanas')).toBeVisible();
     await page.getByTestId('save').click();
 
@@ -342,7 +355,8 @@ test.describe('Narración grabada', () => {
     await dialog.getByTestId('narration-stop').click();
     await expect(dialog.getByTestId('narration-message')).toContainText('Narración guardada');
     await expect(dialog.getByTestId('narration-coverage')).toContainText('1 de');
-    await expect(dialog.getByTestId('narration-current')).toContainText('narracion_');
+    // Al artista se le dice el estado de la escena, no la ruta del archivo.
+    await expect(dialog.getByTestId('narration-current')).toContainText('grabación preparada');
     await expect(dialog.getByTestId('narration-listen')).toBeVisible();
   });
 });
