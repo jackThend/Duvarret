@@ -23,6 +23,11 @@ import type { ParsedManuscript } from '@/core/ingest/sceneParser';
 import { openLoreDriver } from '../services/lore';
 import { assetStoreFor, MemoryAssetStore, type AssetStore } from '../services/assetStore';
 import { MAX_ASSET_BYTES, assetFolderFor, assetPathFor, assetUsages } from '@/core/assets/usages';
+import { applyNarration, planNarration, type Delivery, type NarrationSelection } from '@/core/narration/plan';
+import { missingSpeech } from '@/core/narration/script';
+import { availableNarrationAssets, synthesizeNarration, type NarrationProgress } from '../services/narration';
+import { generateSpeech } from '../services/ai';
+import { useAiStore } from './ai';
 
 export type AssetAssignment =
   | { kind: 'portrait'; characterId: string; mood: string }
@@ -68,6 +73,8 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   const selectedNodeId = ref<string | null>(null);
   const dirty = ref(false);
   const lastSavedAt = ref<string | null>(null);
+  const savingCount = ref(0);
+  const saveError = ref('');
   const loadIssues = ref<ManifestIssue[]>([]);
   const continuity = ref<Record<string, ContinuityIssue[]>>({});
   const assetBase = ref('');
@@ -79,8 +86,14 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   const assetOverrides = shallowRef<Map<string, string>>(new Map());
   /** Marca de tiempo del último cambio (para medir la latencia de la vista previa). */
   const changedAt = ref(0);
+  const narrationBusy = ref(false);
+  const narrationProgress = ref<NarrationProgress>({ completed: 0, total: 0 });
+  let workEpoch = Symbol('obra abierta');
+  let saveQueue: Promise<void> = Promise.resolve();
   const undoStack: StoryManifest[] = [];
   const redoStack: StoryManifest[] = [];
+  const canUndo = computed(() => { void manifest.value; return undoStack.length > 0; });
+  const canRedo = computed(() => { void manifest.value; return redoStack.length > 0; });
 
   const nodes = computed(() => manifest.value.nodes);
   const selectedNode = computed(() => nodes.value.find((n) => n.node_id === selectedNodeId.value) ?? null);
@@ -131,6 +144,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
    * que la obra ya usaba pero faltaba); si no, recibe una ruta nueva según su nombre.
    */
   async function addAsset(file: { name: string; data: Uint8Array }, options: { replacePath?: string } = {}): Promise<string> {
+    const epoch = workEpoch;
     if (file.data.byteLength > MAX_ASSET_BYTES) throw new Error(`«${file.name}» pesa demasiado (máximo 50 MB).`);
     const folder = assetFolderFor(file.name);
     if (!folder) throw new Error(`«${file.name}» no es un sonido ni una imagen que Duvarret sepa usar.`);
@@ -148,6 +162,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
       path = assetPathFor(file.name, assetPaths.value)!;
     }
     const url = await assetStore.value.put(path, file.data);
+    if (epoch !== workEpoch) throw new Error('La obra cambió mientras se guardaba el recurso. Vuelve a abrir la obra anterior para recuperarlo.');
     if (url) setAssetOverride(path, url);
     const previous = assets.value.get(path);
     if (previous?.origin === 'synthetic' || previous?.status === 'pending' || previous?.status === 'missing') assets.value.remove(path);
@@ -155,6 +170,16 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     triggerRef(assets);
     dirty.value = true;
     changedAt.value = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    return path;
+  }
+
+  /** Los bytes generados se guardan como cualquier archivo, con su procedencia verificable. */
+  async function addGeneratedAsset(file: { name: string; data: Uint8Array }, provenance: { provider: string; prompt: string; title?: string }) {
+    const epoch = workEpoch;
+    const path = await addAsset(file);
+    if (epoch !== workEpoch) throw new Error('La obra cambió. Vuelve a generar el recurso para la obra abierta.');
+    assets.value.register({ path, origin: 'synthetic', status: 'ready', bytes: file.data.byteLength, ...provenance });
+    triggerRef(assets);
     return path;
   }
 
@@ -260,6 +285,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     assetResolver?: ((path: string) => string) | null;
     withLore?: boolean;
   }) {
+    workEpoch = Symbol('obra abierta');
     const result = typeof options.manifest === 'string' ? validateManifestText(options.manifest) : validateManifest(options.manifest);
     manifest.value = result.manifest;
     loadIssues.value = result.issues;
@@ -282,6 +308,8 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     redoStack.length = 0;
     continuity.value = {};
     dirty.value = false;
+    saveError.value = '';
+    lastSavedAt.value = null;
     lore.value = null;
     supervisor.value = null;
     if (options.withLore !== false) await initLore(options.lore ?? null);
@@ -321,16 +349,76 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   }
 
   async function save() {
+    const savedManifest = manifest.value;
+    const savedStorage = storage.value;
+    const savedAssets = JSON.stringify(assets.value.toJSON(), null, 2);
     meta.value = { ...meta.value, title: manifest.value.metadata.title, updated_at: new Date().toISOString() };
-    await storage.value.save({
+    const files = {
       meta: JSON.stringify(meta.value, null, 2),
       manifest: JSON.stringify(manifest.value, null, 2),
-      assets: JSON.stringify(assets.value.toJSON(), null, 2),
+      assets: savedAssets,
       lore: lore.value?.exportBytes() ?? null,
-    });
-    dirty.value = false;
+    };
+    const epoch = workEpoch;
+    savingCount.value++;
+    saveError.value = '';
+    const write = saveQueue.catch(() => undefined).then(() => savedStorage.save(files));
+    saveQueue = write;
+    try {
+      await write;
+    } catch (cause) {
+      if (epoch === workEpoch) saveError.value = 'No se pudo guardar. Tus cambios siguen abiertos. Comprueba el espacio disponible y vuelve a intentarlo.';
+      throw cause;
+    } finally { savingCount.value--; }
+    if (storage.value !== savedStorage) return;
+    dirty.value = manifest.value !== savedManifest || savedAssets !== JSON.stringify(assets.value.toJSON(), null, 2);
     lastSavedAt.value = new Date().toISOString();
     rememberWork();
+  }
+
+  /** Genera sobre una instantánea, integra en la obra actual y guarda sin cerrar el editor. */
+  async function updateNarration(delivery?: Delivery, selection?: NarrationSelection) {
+    if (narrationBusy.value) throw new Error('Ya se está actualizando la voz.');
+    const chosenProvider = selection?.provider ?? manifest.value.global_settings.narration_voice?.provider ?? 'kokoro';
+    if (chosenProvider === 'kokoro' && storage.value.kind !== 'tauri') throw new Error('Abre la obra en la app de escritorio para generar su voz local.');
+    const epoch = workEpoch;
+    const target = storage.value;
+    const snapshot = manifest.value;
+    narrationBusy.value = true;
+    narrationProgress.value = { completed: 0, total: 0 };
+    try {
+      const available = target.kind === 'tauri' ? await availableNarrationAssets(target.location) : new Set(assetOverrides.value.keys());
+      const plan = await planNarration(snapshot, path => available.has(path), delivery, selection);
+      narrationProgress.value = { completed: 0, total: plan.pending.length };
+      const generated: { text: string; asset: string; bytes: number }[] = [];
+      if (chosenProvider === 'kokoro') {
+        generated.push(...await synthesizeNarration(target.location, plan, progress => { narrationProgress.value = progress; }));
+      } else {
+        const ai = useAiStore();
+        await ai.requireKey(chosenProvider);
+        for (const clip of plan.pending) {
+          const result = await generateSpeech({ provider: chosenProvider, model: plan.model!, voice: plan.voice, text: clip.text, speed: plan.speed, ...(chosenProvider === 'compatible' ? { baseUrl: ai.endpoints.compatible } : {}) });
+          if (epoch !== workEpoch || storage.value !== target) throw new Error('La obra cambió durante la generación. Las grabaciones anteriores se conservan.');
+          const ext = /mpeg|mp3/.test(result.mimeType) ? 'mp3' : /wav/.test(result.mimeType) ? 'wav' : /ogg/.test(result.mimeType) ? 'ogg' : null;
+          if (!ext) throw new Error('El servicio devolvió un formato de voz no compatible.');
+          clip.asset = clip.asset.replace(/\.[^.]+$/, `.${ext}`);
+          const url = await assetStore.value.put(clip.asset, result.data);
+          if (epoch !== workEpoch || storage.value !== target) throw new Error('La obra cambió mientras se guardaba la grabación. Vuelve a abrir la obra anterior para actualizarla.');
+          if (url) setAssetOverride(clip.asset, url);
+          generated.push({ text: clip.text, asset: clip.asset, bytes: result.data.byteLength });
+          narrationProgress.value = { completed: generated.length, total: plan.pending.length };
+        }
+      }
+      if (epoch !== workEpoch || storage.value !== target) throw new Error('La voz se generó para la obra anterior. Vuelve a abrirla para actualizarla.');
+      if (manifest.value.global_settings.narration_voice?.voice_id !== snapshot.global_settings.narration_voice?.voice_id) throw new Error('La voz elegida cambió durante la generación. Actualízala de nuevo.');
+      for (const clip of plan.clips) assets.value.register({ path: clip.asset, bytes: generated.find(item => item.asset === clip.asset)?.bytes ?? assets.value.get(clip.asset)?.bytes, origin: 'synthetic', provider: chosenProvider === 'kokoro' ? `Kokoro-82M · ONNX local · ${plan.voice} · ${plan.delivery} · ${plan.speed}` : `${chosenProvider} · ${plan.model} · ${plan.voice}`, ...(chosenProvider === 'kokoro' ? { license: 'Modelo Kokoro: Apache-2.0' } : {}) });
+      triggerRef(assets);
+      commit(applyNarration(manifest.value, plan));
+      await save();
+      return { generated: generated.length, pending: missingSpeech(manifest.value).length };
+    } finally {
+      narrationBusy.value = false;
+    }
   }
 
   /** Crea una obra nueva a partir de un manuscrito segmentado (nunca reemplaza la obra abierta). */
@@ -490,12 +578,21 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     canExport,
     dirty,
     lastSavedAt,
+    savingCount,
+    saveError,
+    canUndo,
+    canRedo,
     loadIssues,
     continuity,
     assetBase,
     assetResolver,
     assetOverrides,
     changedAt,
+    narrationBusy,
+    narrationProgress,
+    updateNarration,
+    addGeneratedAsset,
+    workIdentity: () => workEpoch,
     resolveAsset,
     setAssetOverride,
     assetStore,

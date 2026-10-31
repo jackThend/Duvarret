@@ -16,6 +16,18 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     plugins: [
+      {
+        // Omnitone usa un constructor dinámico solo para crear un callback vacío.
+        // Sustituirlo por su equivalente estático mantiene Resonance bajo la CSP nativa.
+        name: 'duvarret-resonance-csp',
+        enforce: 'pre',
+        transform(code, id) {
+          if (!id.replace(/\\/g, '/').endsWith('/resonance-audio/build/resonance-audio.js')) return;
+          const legacy = 'this._rejectHandler = new Function();';
+          if (!code.includes(legacy)) throw new Error('Revisa la compatibilidad CSP de la nueva versión de Resonance Audio.');
+          return { code: code.replace(legacy, 'this._rejectHandler = function () {};'), map: null };
+        },
+      },
       vue(),
       tailwindcss(),
       {

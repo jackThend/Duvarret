@@ -5,6 +5,30 @@
   @apply grid h-8 w-8 place-items-center rounded-md text-dv-muted transition-colors;
 }
 .dv-icon-btn:hover { color: var(--dv-text); background: var(--dv-panel-2); }
+.dv-icon-btn:disabled, .dv-btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+.dv-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem; padding: 0.65rem 0.85rem; }
+.dv-topbar input[data-testid="work-title"] { flex: 1 1 12rem; }
+.dv-save-state { white-space: nowrap; }
+.dv-save-error { padding: 0.65rem 1rem; background: var(--dv-panel-2); color: var(--dv-danger); font-size: 0.875rem; }
+.dv-studio-status { padding: 0.4rem 1rem; border-top: 1px solid var(--dv-border); font-size: 0.8rem; color: var(--dv-muted); }
+.dv-author-guide { border-bottom: 1px solid var(--dv-border); padding-bottom: 0.85rem; color: var(--dv-muted); }
+.dv-author-guide summary { cursor: pointer; }
+.dv-compact-tabs { display: none; }
+.dv-modal-backdrop button:focus-visible, .dv-topbar button:focus-visible, .dv-compact-tabs button:focus-visible { outline: 2px solid var(--dv-accent-2); outline-offset: 3px; }
+@media (max-width: 1180px) { .dv-work-mode, .dv-brand { display: none; } }
+@media (max-width: 900px) {
+  .dv-compact-tabs { display: flex; gap: 0.4rem; padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--dv-border); }
+  .dv-compact-tabs button { padding: 0.5rem 0.8rem; border-radius: 0.4rem; color: var(--dv-muted); }
+  .dv-compact-tabs button[aria-pressed="true"] { color: var(--dv-text); background: var(--dv-panel-2); }
+  .dv-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+  .dv-workspace > .dv-structure, .dv-workspace > .dv-writing, .dv-workspace > .dv-preview { display: none; }
+  .dv-workspace[data-view="structure"] > .dv-structure, .dv-workspace[data-view="write"] > .dv-writing, .dv-workspace[data-view="preview"] > .dv-preview { display: block; }
+  .dv-workspace[data-view="structure"] > .dv-structure { visibility: visible; }
+  .dv-topbar { gap: 0.4rem; }
+  .dv-topbar input[data-testid="work-title"] { flex-basis: calc(100% - 7rem); }
+  .dv-topbar .dv-save-state { order: 1; flex-basis: 100%; }
+  .dv-modal { padding: 1.1rem; max-height: calc(100dvh - 2rem); }
+}
 
 .dv-btn-ghost {
   @apply inline-flex items-center gap-1.5 rounded-full border border-dv-border px-3 py-1 text-sm text-dv-text transition-colors;

@@ -10,6 +10,7 @@ let lastEdit = 0;
 let analysisTimer: ReturnType<typeof setTimeout> | undefined;
 
 const node = computed(() => project.selectedNode);
+const wordCount = computed(() => node.value?.text_payload.trim().split(/\s+/).filter(Boolean).length ?? 0);
 const issues = computed(() => (node.value ? (project.continuity[node.value.node_id] ?? []) : []));
 
 /** Marcadores fantasma: pequeñas marcas doradas que señalan efectos y sonidos sin ensuciar la prosa. */
@@ -90,8 +91,9 @@ onBeforeUnmount(() => analysisTimer && clearTimeout(analysisTimer));
       placeholder="Título de la escena"
       aria-label="Título de la escena"
       data-testid="node-title"
-      @change="project.updateTitle(node.node_id, ($event.target as HTMLInputElement).value)"
+      @input="project.updateTitle(node.node_id, ($event.target as HTMLInputElement).value)"
     />
+    <p class="mt-2 text-xs text-dv-muted" data-testid="word-count">{{ wordCount }} {{ wordCount === 1 ? 'palabra' : 'palabras' }} · Los cambios se guardan automáticamente</p>
     <div class="relative mt-4 flex gap-4">
       <ul class="dv-ghost-markers" aria-label="Marcas de dirección">
         <li v-for="(m, i) in markers" :key="i" class="dv-ghost-marker" :title="m.label" data-testid="ghost-marker">
@@ -121,5 +123,5 @@ onBeforeUnmount(() => analysisTimer && clearTimeout(analysisTimer));
       </div>
     </aside>
   </section>
-  <p v-else class="p-8 text-dv-muted">Elige o crea una escena para empezar a escribir.</p>
+  <div v-else class="space-y-3 py-8 text-dv-muted"><p>Tu historia empieza con una escena.</p><button type="button" class="dv-btn-accent" data-testid="create-first-scene" @click="project.addNode()">Crear la primera escena</button></div>
 </template>

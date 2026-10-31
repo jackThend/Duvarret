@@ -1,4 +1,5 @@
 # Logs
+.cache/
 logs
 *.log
 npm-debug.log*
@@ -36,3 +37,5 @@ playwright-report
 test-results
 src-tauri/gen/schemas
 dist-native-player
+dist-voice
+terminados/

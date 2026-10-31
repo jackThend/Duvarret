@@ -15,7 +15,19 @@ Sin grabación, el modo sin pantalla lee cada escena con la voz del sistema, que
 
 También se puede **importar** un archivo grabado con otro programa (WAV, MP3, OGG, FLAC, M4A). Las grabaciones del Studio se guardan en WAV mono de 24 kHz, que todos los motores web reproducen; al exportar, si está `ffmpeg`, se comprimen.
 
-**Cómo suena en la obra:** al entrar en la escena suena el título con la voz del sistema y después la grabación. Los diálogos, hallazgos y opciones esperan a que termine, aunque las teclas funcionan desde el primer momento. **R** repite la grabación, **S** la detiene y **O** lee las opciones. Si falta el archivo, se narra con la voz del sistema.
+**Cómo suena en la obra:** una única cola espera el final del título antes de comenzar la narración y después lee los diálogos, hallazgos y opciones. Las teclas funcionan desde el primer momento. **R** repite la escena, **S** la detiene y **O** encola las opciones. Cambiar de escena o salir cancela la voz actual y sus cargas pendientes. En las obras antiguas, sin una voz de obra configurada, se conservan la voz del sistema y las grabaciones por escena.
+
+### Voz natural uniforme
+
+`npm run duvarret -- narrar <carpeta.duvarret> --python <python-3.12>` genera localmente títulos, prosa, opciones, ayudas y avisos con Kokoro. Requiere `kokoro-onnx` y `soundfile` en `.cache/voz/runtime`, y los pesos `kokoro-v1.0.onnx` y `voices-v1.0.bin` en `.cache/voz/modelos`; se pueden indicar otras carpetas con `--runtime-voz` y `--modelos-voz`. La generación no envía el texto a servicios externos.
+
+La voz elegida y el catálogo de frases se guardan en `global_settings.narration_voice`. Las futuras actualizaciones conservan esa identidad y reutilizan las grabaciones cuyo texto sigue vigente. El reproductor nunca sustituye esa voz por la del navegador: si una frase falta, avisa de que hay que actualizarla. La exportación bloquea frases pendientes o archivos de voz ausentes. El esquema y el compilador incluyen todos los audios del catálogo.
+
+Se puede seguir editando la obra en Studio. Cuando una narración era una copia del texto de la escena, ambas se actualizan juntas. En el escritorio, **Narración y voz → Actualizar voz** genera las frases pendientes y guarda sobre la obra abierta, sin cerrarla ni ejecutar comandos. La interpretación **Dulce y pausada** de Dora mezcla sus timbres ef_dora (75 %) y af_bella (25 %) con fonemas españoles y velocidad 0.91; todos los pasajes conservan esos ajustes. Un cambio de interpretación regenera el conjunto una vez. La narración se escucha por un canal directo sin reverberación de sala; los efectos mantienen su espacialización.
+
+Studio integra las grabaciones sobre el texto actual, conserva ediciones hechas durante la síntesis y deja pendientes las frases nuevas. No aplica resultados a otra obra si se cambia de proyecto. Los guardados se serializan. El comando nativo usa Python local en segundo plano y solo escribe WAV; la edición del manifiesto sigue pasando por ManifestEditor y el validador. La app busca `.cache/voz` entre las carpetas superiores de la obra y del ejecutable, o usa `DUVARRET_KOKORO_MODELS`, `DUVARRET_KOKORO_RUNTIME` y `DUVARRET_PYTHON`.
+
+Después de actualizar, usa **Exportar**. `ACTUALIZAR-VOZ.cmd` sigue disponible para actualizar externamente las escuchas y publicaciones del ejemplo; solo esa vía requiere cerrar la obra antes. La caché PWA cambia con el contenido para no conservar una edición de audio anterior.
 
 **Consejos de grabación:** un micrófono de diadema o de solapa a un palmo, una habitación con cortinas o muebles blandos, y el mismo sitio y la misma distancia en todas las sesiones para que el volumen no cambie entre escenas.
 

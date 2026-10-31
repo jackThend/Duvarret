@@ -6,6 +6,8 @@
  *  - **Tolerante**: aplica valores seguros por defecto en lugar de abortar (RNF-09).
  */
 import { z } from 'zod';
+// La validación funciona bajo CSP estricta, sin sondeos ni generación dinámica de JavaScript.
+z.config({ jitless: true });
 import {
   ACOUSTIC_MATERIALS,
   ACOUSTIC_TRIGGERS,
@@ -98,6 +100,18 @@ function build(tolerant: boolean) {
     font_family_base: d(z.string().min(1), 'Spectral, serif'),
     theme_palette: d(themePalette, { background: '#0d0f12', foreground: '#e6e8eb', accent: '#d97706' }),
     typewriter_speed_cps: d(z.number().min(5).max(400), 45),
+    /** Con una voz natural elegida, toda intervención debe tener una grabación de esa voz. */
+    narration_voice: o(obj({
+      voice_id: r(z.string().min(1), 'sin-voz'),
+      label: r(z.string().min(1), 'Voz de la obra'),
+      delivery: o(z.enum(['natural', 'sweet'])),
+      speed: o(z.number().min(0.7).max(1.3)),
+      /** Configuración pública de síntesis; las credenciales nunca forman parte de la obra. */
+      provider: o(z.enum(['kokoro', 'gemini', 'elevenlabs', 'compatible', 'openai'])),
+      model: o(z.string().min(1)),
+      voice: o(z.string().min(1)),
+      clips: list(obj({ text: r(z.string().min(1), ''), asset: r(z.string().min(1), '') })),
+    })),
   });
 
   const voiceProfile = obj({

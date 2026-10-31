@@ -55,7 +55,15 @@ export class ManifestEditor {
   patchNode(nodeId: string, patch: Json): PatchResult {
     const index = this.manifest.nodes.findIndex((n) => n.node_id === nodeId);
     const base: Json = index >= 0 ? (structuredClone(this.manifest.nodes[index]) as unknown as Json) : { node_id: nodeId };
-    const merged = deepMerge(base, patch);
+    const previous = this.manifest.nodes[index];
+    const explicitNarration = isObject(patch.screenless_mode) && 'narration_text' in patch.screenless_mode;
+    // El lienzo, el co-director y cualquier herramienta pasan por aquí. Una copia del texto
+    // para narración sigue la edición; una adaptación propia o un cambio explícito se respeta.
+    const mirrored = previous?.screenless_mode?.narration_text === previous?.text_payload;
+    const synced = previous && typeof patch.text_payload === 'string' && mirrored && !explicitNarration
+      ? deepMerge(patch, { screenless_mode: { narration_text: patch.text_payload } })
+      : patch;
+    const merged = deepMerge(base, synced);
     merged.node_id = nodeId;
 
     const strict = StoryNodeSchema.safeParse(merged);

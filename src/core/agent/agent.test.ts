@@ -83,6 +83,7 @@ describe('proveedores (tool calling estándar)', () => {
     const provider = new GeminiProvider({
       kind: 'gemini',
       apiKey: 'g-key',
+      model: 'gemini-2.5-pro',
       fetch: jsonFetch({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'Hecho.' }] } }] }, calls),
     });
     const res = await provider.complete(request());

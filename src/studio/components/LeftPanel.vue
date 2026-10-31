@@ -7,7 +7,7 @@ const project = useProjectStore();
 const studio = useStudioStore();
 const openCharacter = ref<string | null>(null);
 
-const FORMAT_NAMES = { text: 'Texto tradicional', ergodic: 'Ergódico', visual_novel: 'Novela visual', gameplay: 'Minijuego', audio: 'Audio binaural' } as const;
+const FORMAT_NAMES = { text: 'Texto tradicional', ergodic: 'Texto expresivo', visual_novel: 'Novela visual', gameplay: 'Minijuego', audio: 'Sonido espacial' } as const;
 
 function appearances(id: string) {
   return project.nodes.filter((n) => n.visual_novel_overlay?.active_speaker === id || n.visual_novel_overlay?.lines.some((l) => l.speaker === id)).length;
@@ -38,7 +38,7 @@ function appearances(id: string) {
     </section>
     <button type="button" class="dv-btn-ghost self-start" data-testid="add-node" @click="project.addNode()">＋ Nueva escena</button>
 
-    <section aria-label="Personajes">
+    <section v-if="project.characters.length" aria-label="Personajes">
       <h3 class="dv-section-title">▾ Personajes ({{ project.characters.length }})</h3>
       <ul class="mt-1 space-y-0.5">
         <li v-for="c in project.characters" :key="c.id">
@@ -54,7 +54,7 @@ function appearances(id: string) {
       </ul>
     </section>
 
-    <section aria-label="Inventario">
+    <section v-if="project.items.length" aria-label="Inventario">
       <h3 class="dv-section-title">▾ Inventario ({{ project.items.length }})</h3>
       <ul class="mt-1 space-y-0.5">
         <li v-for="i in project.items" :key="i.id" class="dv-tree-item cursor-default" :title="i.description">
@@ -66,12 +66,12 @@ function appearances(id: string) {
     <section aria-label="Recursos">
       <h3 class="dv-section-title">▾ Recursos ({{ project.assetPaths.size }})</h3>
       <button type="button" class="dv-btn-ghost mt-1" data-testid="open-assets" @click="studio.assetsOpen = true">Sonidos e imágenes</button>
-      <button type="button" class="dv-btn-ghost mt-1" data-testid="open-narration" @click="studio.narrationOpen = true">Narración grabada</button>
+      <button type="button" class="dv-btn-ghost mt-1" data-testid="open-narration" @click="studio.narrationOpen = true">Narración y voz</button>
     </section>
 
     <section aria-label="Grafo semántico">
-      <h3 class="dv-section-title">▾ Grafo semántico</h3>
-      <button type="button" class="dv-btn-ghost mt-1" data-testid="open-graph" @click="studio.graphOpen = true">Abrir mapa</button>
+      <h3 class="dv-section-title">▾ Personajes y relaciones</h3>
+      <button type="button" class="dv-btn-ghost mt-1" data-testid="open-graph" @click="studio.graphOpen = true">Ver relaciones</button>
     </section>
   </nav>
 </template>

@@ -3,6 +3,7 @@
  * CLI de Duvarret: valida, importa y exporta obras `.duvarret`.
  *
  *   npm run duvarret -- validate <proyecto>
+ *   npm run duvarret -- narrar <proyecto> [--python <python-3.12>] [--modelos-voz <dir>] [--runtime-voz <dir>]
  *   npm run duvarret -- export <proyecto> --target web|audio|native|portable|all [--out <dir>] [--zip] [--player <binario>]
  *   npm run duvarret -- ingest <manuscrito.txt|md|pdf|docx|epub> --out <proyecto> [--title "Título"]
  *   npm run duvarret -- probar-ia <proyecto> --proveedor anthropic|ollama|openai|gemini|local [--modelo m] [--url base] [--escena id]
@@ -24,6 +25,7 @@ import { createMeta, manifestFromManuscript, PROJECT_PATHS } from '../src/core/p
 import { createProvider, PROVIDER_LABELS, probeProvider, type ProviderKind } from '../src/core/agent';
 import { ensurePlayerRuntime, ffmpegOptimizer, loadProject, REPO_ROOT, runLocalCli, writeTree } from './lib/projectFs';
 import { signExecutable } from './lib/sign';
+import { narrateProject } from './lib/narration';
 
 const MB = 1024 * 1024;
 const fmt = (bytes: number) => (bytes >= MB ? `${(bytes / MB).toFixed(2)} MB` : `${(bytes / 1024).toFixed(1)} KB`);
@@ -145,9 +147,18 @@ async function main() {
       modelo: { type: 'string' },
       url: { type: 'string' },
       escena: { type: 'string' },
+      python: { type: 'string' },
+      'modelos-voz': { type: 'string' },
+      'runtime-voz': { type: 'string' },
+      'voz-dulce': { type: 'boolean' },
     },
   });
   const [command, input] = positionals;
+
+  if (command === 'narrar' && input) {
+    await narrateProject(input, { python: values.python, models: values['modelos-voz'], runtime: values['runtime-voz'], ...(values['voz-dulce'] ? { delivery: 'sweet' as const } : {}) });
+    return;
+  }
 
   if (command === 'validate' && input) {
     const project = loadProject(input);

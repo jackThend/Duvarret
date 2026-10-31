@@ -6,9 +6,12 @@
 import type { ManifestIssue } from './diagnostics';
 import type { StoryManifest } from './schema';
 import { hasExit } from './navigation';
+import { missingSpeech } from '../narration/script';
 
 export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
   const issues: ManifestIssue[] = [];
+  const pendingVoice = missingSpeech(manifest);
+  if (pendingVoice.length) issues.push({ severity: 'error', code: 'narration_outdated', path: 'global_settings.narration_voice', message: `La voz de la obra necesita actualizar ${pendingVoice.length} frases antes de publicar (por ejemplo: «${pendingVoice[0]!.slice(0, 70)}»). Se conserva la voz elegida.` });
   const ids = new Set<string>();
   const characters = new Set(Object.keys(manifest.character_registry));
   const items = new Set(Object.keys(manifest.item_registry));

@@ -8,6 +8,7 @@ const emit = defineEmits<{ close: [] }>();
 const project = useProjectStore();
 const graph = ref<Subgraph>({ nodes: [], edges: [] });
 const selected = ref<LoreEntity | null>(null);
+const confirmPrune = ref(false);
 const state = ref<EntityState | null>(null);
 const SIZE = 560;
 
@@ -41,6 +42,7 @@ const layout = computed(() => {
 });
 
 async function inspect(entity: LoreEntity) {
+  confirmPrune.value = false;
   selected.value = entity;
   state.value = (await project.lore?.stateAt(entity.id)) ?? null;
 }
@@ -57,7 +59,7 @@ defineExpose({ load });
 </script>
 
 <template>
-  <Modal title="Mapa del lore" wide @close="emit('close')">
+  <Modal title="Personajes y relaciones" wide @close="emit('close')">
     <div class="flex flex-wrap gap-4" data-testid="graph-overlay">
       <svg :viewBox="`0 0 ${SIZE} ${SIZE}`" class="max-h-[70vh] w-full max-w-[560px]" role="img" aria-label="Constelación de personajes, lugares, objetos y escenas">
         <line
@@ -86,9 +88,14 @@ defineExpose({ load });
           <p class="text-dv-muted">{{ CATEGORY_LABELS[selected.category] }}</p>
           <p v-if="state && selected.category === 'character'">{{ state.alive ? 'Con vida' : 'Ha muerto' }}</p>
           <p v-if="state && selected.category === 'item'">{{ state.intact ? 'Disponible' : 'Ya no está disponible' }}</p>
-          <button type="button" class="dv-btn-ghost mt-2" data-testid="graph-prune" @click="prune">Podar del lore</button>
+          <button v-if="!confirmPrune" type="button" class="dv-btn-ghost mt-2" data-testid="graph-prune" @click="confirmPrune = true">Quitar del mapa</button>
+          <div v-else class="mt-3 space-y-2" role="alert">
+            <p>Se quitará «{{ selected.name }}» del registro de relaciones. Esta acción no se puede deshacer.</p>
+            <button type="button" class="dv-btn-ghost" data-testid="graph-prune-confirm" @click="prune">Sí, quitar del mapa</button>
+            <button type="button" class="dv-btn-ghost" @click="confirmPrune = false">Cancelar</button>
+          </div>
         </div>
-        <p v-if="!graph.nodes.length" class="text-dv-muted">El lore de la obra todavía está vacío.</p>
+        <p v-if="!graph.nodes.length" class="text-dv-muted">Aquí aparecerán los personajes, lugares y objetos registrados en tu historia.</p>
       </aside>
     </div>
   </Modal>

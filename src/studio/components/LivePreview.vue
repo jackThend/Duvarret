@@ -45,11 +45,14 @@ function toggleScreenless() {
         embedded
       />
     </div>
-    <AcousticRadar :events="events" @move="onMove" @preview="onPreviewMove" />
     <div class="flex flex-col gap-1.5">
       <button type="button" class="dv-btn-ghost justify-start" data-testid="play-from-here" @click="studio.playFromHere()">▶ Reproducir desde aquí</button>
-      <button type="button" class="dv-btn-ghost justify-start" :aria-pressed="story.mode === 'screenless'" data-testid="preview-screenless" @click="toggleScreenless">🎧 Modo 100% audio / ciego</button>
+      <button type="button" class="dv-btn-ghost justify-start" :aria-pressed="story.mode === 'screenless'" data-testid="preview-screenless" @click="toggleScreenless">🎧 Escuchar sin pantalla</button>
       <button type="button" class="dv-btn-ghost justify-start" :aria-pressed="studio.mobilePreview" data-testid="preview-mobile" @click="studio.mobilePreview = !studio.mobilePreview">📱 Probar en formato móvil</button>
     </div>
+    <details v-if="events.length" class="text-sm text-dv-muted" data-testid="sound-position-details">
+      <summary>Ajustar la posición de los sonidos</summary>
+      <AcousticRadar :events="events" @move="onMove" @preview="onPreviewMove" />
+    </details>
   </section>
 </template>

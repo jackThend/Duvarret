@@ -9,6 +9,7 @@ export function collectAssetReferences(manifest: StoryManifest): string[] {
     if (isLocal(p)) refs.add(p.replace(/^\.\//, ''));
   };
   add(manifest.acoustic_environment.ambience_bed);
+  manifest.global_settings.narration_voice?.clips.forEach(clip => add(clip.asset));
   for (const c of Object.values(manifest.character_registry)) {
     Object.values(c.sprites).forEach(add);
     add(c.voice_profile?.locution_sample);

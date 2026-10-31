@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, provide, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, provide, ref, watch } from 'vue';
 import type { StoryManifest } from '@/core/manifest';
 import { MODE_LABELS } from '@/core/manifest';
 import { useStoryStore } from '../stores/story';
@@ -54,8 +54,19 @@ const audio: SpatialAudioEngine | null = ownsEngine
 const announcer = new Announcer(createSpeechSpeaker(), (props.manifest as StoryManifest).metadata?.language ?? 'es-ES');
 const services: RuntimeServices = { audio, announcer, resolveAsset };
 provide(RUNTIME_SERVICES, services);
+const soundEnabled = ref(false);
+audio?.setMuted(true);
+announcer.setMuted(true);
+
+function toggleSound() {
+  soundEnabled.value = !soundEnabled.value;
+  audio?.setMuted(!soundEnabled.value);
+  announcer.setMuted(!soundEnabled.value);
+  if (soundEnabled.value) unlockAudio();
+}
 
 const started = ref(props.embedded);
+const player = ref<HTMLElement | null>(null);
 const showInventory = ref(false);
 let unbindAudio: (() => void) | null = null;
 
@@ -75,6 +86,7 @@ watch(
   () => store.currentNodeId,
   (id) => {
     if (id) emit('node', id);
+    if (id && started.value) void nextTick(() => { if (player.value) player.value.scrollTop = 0; });
     if (!props.embedded && props.persistKey && id) {
       try {
         localStorage.setItem(props.persistKey, JSON.stringify(store.snapshot()));
@@ -153,6 +165,7 @@ defineExpose({ store, audio, announcer });
 
 <template>
   <div
+    ref="player"
     class="dv-player"
     :class="[lighting ? `dv-light-${lighting}` : '', { 'dv-embedded': embedded }]"
     :style="palette"
@@ -164,6 +177,7 @@ defineExpose({ store, audio, announcer });
     <header v-if="started" class="dv-player-bar">
       <span class="dv-player-title">{{ store.manifest?.metadata.title }}</span>
       <div class="dv-player-tools">
+        <button type="button" class="dv-tool" data-testid="toggle-sound" :aria-pressed="soundEnabled" @click="toggleSound">{{ soundEnabled ? 'Apagar sonido' : 'Activar sonido' }}</button>
         <button type="button" class="dv-tool" :aria-pressed="showInventory" data-testid="toggle-inventory" aria-label="Inventario" @click="showInventory = !showInventory">🎒<span class="dv-tool-label"> Inventario</span></button>
         <button
           v-if="store.manifest?.global_settings.allow_screenless_toggle"
@@ -185,7 +199,8 @@ defineExpose({ store, audio, announcer });
         <button type="button" class="dv-continue" data-testid="begin" @click="begin()">Comenzar</button>
         <button v-if="savedGame" type="button" class="dv-link" data-testid="resume" @click="begin(true)">Continuar donde lo dejé</button>
       </div>
-      <p class="dv-cover-hint">🎧 Se recomiendan auriculares.</p>
+      <button type="button" class="dv-link" data-testid="toggle-sound" :aria-pressed="soundEnabled" @click="toggleSound">{{ soundEnabled ? 'Apagar sonido' : 'Activar sonido' }}</button>
+      <p class="dv-cover-hint">La música, los efectos y la voz comienzan apagados. Tú eliges cuándo escucharlos.</p>
     </section>
 
     <main v-else-if="store.currentNode" class="dv-player-main">
@@ -194,6 +209,6 @@ defineExpose({ store, audio, announcer });
     </main>
     <p v-else class="dv-empty" data-testid="empty">La obra todavía no tiene escenas.</p>
 
-    <ScreenlessStage v-if="started && store.mode === 'screenless'" @exit="store.setMode('visual')" />
+    <ScreenlessStage v-if="started && store.mode === 'screenless'" :sound-enabled="soundEnabled" @toggle-sound="toggleSound" @exit="store.setMode('visual')" />
   </div>
 </template>
