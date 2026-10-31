@@ -185,7 +185,8 @@ describe('Narración grabada', () => {
     const w = mount(NarrationDialog);
     expect(w.get('[data-testid="narration-record"]').attributes('disabled')).toBeDefined();
     const input = w.get('[data-testid="narration-import"]');
-    const file = new File([new Uint8Array([1, 2, 3])], 'Mi voz.mp3', { type: 'audio/mpeg' });
+    const mp3 = new Uint8Array(128); mp3.set([255, 251, 144, 0]);
+    const file = new File([mp3], 'Mi voz.mp3', { type: 'audio/mpeg' });
     Object.defineProperty(input.element, 'files', { value: [file] });
     await input.trigger('change');
     await vi.waitFor(() => expect(voiceOf('inicio')).toBe('assets/audio/mi_voz.mp3'));

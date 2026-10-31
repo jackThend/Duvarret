@@ -23,6 +23,7 @@ import type { ParsedManuscript } from '@/core/ingest/sceneParser';
 import { openLoreDriver } from '../services/lore';
 import { assetStoreFor, MemoryAssetStore, type AssetStore } from '../services/assetStore';
 import { MAX_ASSET_BYTES, assetFolderFor, assetPathFor, assetUsages } from '@/core/assets/usages';
+import { checkAssetContent } from '@/core/assets/content';
 import { applyNarration, planNarration, type Delivery, type NarrationSelection } from '@/core/narration/plan';
 import { missingSpeech } from '@/core/narration/script';
 import { availableNarrationAssets, synthesizeNarration, type NarrationProgress } from '../services/narration';
@@ -148,18 +149,22 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     if (file.data.byteLength > MAX_ASSET_BYTES) throw new Error(`«${file.name}» pesa demasiado (máximo 50 MB).`);
     const folder = assetFolderFor(file.name);
     if (!folder) throw new Error(`«${file.name}» no es un sonido ni una imagen que Duvarret sepa usar.`);
+    // Se miran los bytes, no la extensión: un archivo dañado no llega nunca al manifiesto.
+    const content = checkAssetContent(file.name, file.data);
+    if (!content.ok) throw new Error(content.reason);
+    const name = content.name;
     let path = options.replacePath;
     if (path) {
       const expected = assetFolderFor(path);
       if (expected && expected !== folder) throw new Error(folder === 'audio' ? 'Ese lugar espera una imagen, no un sonido.' : 'Ese lugar espera un sonido, no una imagen.');
-      if (path.split('.').pop()?.toLowerCase() !== file.name.split('.').pop()?.toLowerCase()) {
+      if (path.split('.').pop()?.toLowerCase() !== name.split('.').pop()?.toLowerCase()) {
         // Otro formato: se guarda con su extensión y se actualizan las referencias.
-        const renamed = path.replace(/\.[^.]+$/, `.${file.name.split('.').pop()!.toLowerCase()}`);
+        const renamed = path.replace(/\.[^.]+$/, `.${name.split('.').pop()!.toLowerCase()}`);
         replaceAssetReferences(path, renamed);
         path = renamed;
       }
     } else {
-      path = assetPathFor(file.name, assetPaths.value)!;
+      path = assetPathFor(name, assetPaths.value)!;
     }
     const url = await assetStore.value.put(path, file.data);
     if (epoch !== workEpoch) throw new Error('La obra cambió mientras se guardaba el recurso. Vuelve a abrir la obra anterior para recuperarlo.');
