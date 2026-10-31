@@ -18,6 +18,7 @@ import type { StudioTheme } from '@/core/project';
 import { useProjectStore } from './project';
 import { useAiStore } from './ai';
 import { generateImage, providerFetch } from '../services/ai';
+import { searchSoundBank } from '@/core/assets/freesound';
 
 export interface ChatEntry {
   id: number;
@@ -183,6 +184,14 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
             const manner = request.style_preset === 'editorial' || request.style_preset === 'natural' ? '' : request.style_preset;
             const { path, provider } = await project.draftSpokenLine(request.prompt, manner);
             return { path, status: 'draft', provider };
+          }
+          if (request.type === 'sfx') {
+            // Primero el banco libre (CC0); sin clave o sin resultados, queda reservado para que el autor lo aporte.
+            if (!await ai.refresh('freesound')) return new OfflineSynthesizer().synthesize(request);
+            const [sound] = await searchSoundBank(providerFetch('freesound'), request.prompt, { pageSize: 5 });
+            if (!sound) return new OfflineSynthesizer().synthesize(request);
+            const path = await project.draftBankSound(sound, request.prompt);
+            return { path, status: 'draft', provider: `Freesound · ${sound.author} · CC0` };
           }
           if ((request.type !== 'portrait' && request.type !== 'background') || !await ai.refresh(ai.image.provider)) return new OfflineSynthesizer().synthesize(request);
           const prompt = `${request.prompt}\nEstilo: ${request.style_preset}`;

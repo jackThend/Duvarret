@@ -133,7 +133,7 @@ El orden está pensado para que cada tarea deje algo usable y no bloquee a la si
 y 2 son las de mayor efecto por línea escrita.
 
 ### Tarea 1 — Voz y efectos en el sintetizador del Studio
-> **Estado (31-10-2026): voz hecha; efectos pendientes de las tareas 3 y 9.** El sintetizador de
+> **Estado (31-10-2026): voz y efectos del banco libre hechos; falta la generación remota (tarea 9).** El sintetizador de
 > `toolContext()` devuelve ahora **borradores** (`status: 'draft'`): `project.draftSpokenLine` crea la
 > réplica con Kokoro (escritorio) o con el servicio de voz elegido, la valida y la deja en memoria con
 > su URL de vista previa (`stageGeneratedAsset`). La tarjeta de propuesta la muestra con «▶ Escuchar»;
@@ -142,7 +142,8 @@ y 2 son las de mayor efecto por línea escrita.
 > director local entiende «una voz que susurre «…» a mi oído derecho»: crea la voz y, con la ruta ya
 > conocida, la coloca. Lo que no se ha podido comprobar aquí: la rama Kokoro en el ejecutable real
 > (usa `narration_generate` + `project_read_bytes`, sin cambios en Rust). `sfx` sigue cayendo en
-> `OfflineSynthesizer`.
+> `OfflineSynthesizer`. *Actualización:* `sfx` busca ahora en Freesound (tarea 3) y devuelve el primer
+> sonido CC0 como borrador; sin clave o sin resultados, sigue reservándolo como pendiente.
 
 **Por qué primero.** Es el único eslabón que impide que «ponme aquí una voz que susurre esto a mi
 derecha» sea una sola conversación. Toda la infraestructura existe; falta conectarla.
@@ -191,6 +192,15 @@ motivo nombrado, y ningún archivo inválido llega al manifiesto. Con varios arc
 rechazo se nombra por separado (comportamiento ya existente, no romperlo).
 
 ### Tarea 3 — Buscador del banco libre dentro del Studio
+> **Estado (31-10-2026): hecha, con previews** (decisión §4.2 tomada por el autor). Freesound es una
+> conexión más (clave cifrada, cabecera `Authorization: Token`); los previews del CDN
+> `cdn.freesound.org/previews/` se bajan sin enviar la clave, también en Rust (`freesound_preview`).
+> Cliente en `src/core/assets/freesound.ts` (filtro CC0 pedido y comprobado), buscador en
+> `AssetsDialog.vue` y rama `sfx` del sintetizador del director. El director local reconoce también
+> grillos, ladridos y disparos, y busca en inglés. **Sin verificar:** una búsqueda real contra
+> Freesound (requiere la clave del autor), la descarga del CDN desde el navegador web (CORS) y el
+> código Rust, que solo compila la CI.
+
 **Fuente principal: Freesound, filtrado a CC0.** API v2:
 `GET https://freesound.org/apiv2/search/text/?query=grillos&filter=license:"Creative Commons 0"`,
 con el token en la cabecera `Authorization: Token <clave>`. CC0 es la única licencia que no obliga a
@@ -293,6 +303,7 @@ quedaría muda. Opciones: respaldarla con el scroll (`IntersectionObserver`), co
 por palabras por minuto, o aceptar que ese modo no tiene sonidos sincronizados.
 
 ### 4.2 Previews o archivos originales de Freesound (afecta a la tarea 3)
+**Decidido (31-10-2026): previews.** OAuth2 queda para más adelante si hace falta calidad sin pérdida.
 Los previews en alta calidad se bajan con solo el token; el original exige implementar OAuth2. Para
 efectos cortos el preview probablemente basta. ¿Vale la pena el OAuth?
 

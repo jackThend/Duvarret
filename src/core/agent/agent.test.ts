@@ -369,8 +369,9 @@ describe('DirectorOrchestrator', () => {
 
 describe('director local', () => {
   it('interpreta indicaciones del doc 04 (grito atrás a 5 metros)', () => {
+    // Un sonido reconocible se busca primero en el banco libre; se coloca cuando se conoce su ruta.
     const [c] = interpretInstruction('Pon el grito atrás a 5 metros', 'n1');
-    expect(c).toMatchObject({ name: 'placeSpatialAudio', arguments: { asset_path: 'assets/audio/sfx/scream.ogg', position_description: 'Pon el grito atrás a 5 metros' } });
+    expect(c).toMatchObject({ name: 'requestAssetSynthesis', arguments: { type: 'sfx', prompt: 'scream' } });
   });
 
   it('propone escenificar diálogos y enigmas', () => {

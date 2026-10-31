@@ -27,7 +27,8 @@ import { checkAssetContent } from '@/core/assets/content';
 import { applyNarration, planNarration, type Delivery, type NarrationSelection } from '@/core/narration/plan';
 import { missingSpeech } from '@/core/narration/script';
 import { availableNarrationAssets, readGeneratedClip, synthesizeNarration, type NarrationProgress } from '../services/narration';
-import { generateSpeech } from '../services/ai';
+import { generateSpeech, providerFetch } from '../services/ai';
+import { bankProvenance, downloadBankSound, type BankSound } from '@/core/assets/freesound';
 import { useAiStore } from './ai';
 
 export type AssetAssignment =
@@ -59,7 +60,11 @@ export function nodeFormats(node: StoryNode): NodeFormat[] {
 }
 
 /** Procedencia de un recurso generado, tal como queda en el registro (RF-14). */
-export interface GeneratedProvenance { provider: string; prompt: string; title?: string; style_preset?: string; license?: string }
+export interface GeneratedProvenance {
+  provider: string; prompt: string; title?: string; style_preset?: string; license?: string; author?: string;
+  /** Un sonido del banco libre no es sintético: es obra de su autor, con su licencia. */
+  origin?: 'author' | 'synthetic';
+}
 
 export interface Chapter {
   id: string;
@@ -263,6 +268,20 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     if (epoch !== workEpoch) throw new Error('La obra cambió durante la creación de la voz. La propuesta se ha descartado.');
     const path = stageGeneratedAsset({ name: `voz ${line.slice(0, 32)}.${ext}`, data }, { provider, prompt: line, title: `Voz: «${line}»`, ...(manner ? { style_preset: manner } : {}), ...(license ? { license } : {}) });
     return { path, provider };
+  }
+
+  /** Descarga un sonido CC0 del banco libre, lo valida y lo guarda con autor y licencia. */
+  async function addBankSound(sound: BankSound, query: string): Promise<string> {
+    const file = await downloadBankSound(providerFetch('freesound'), sound);
+    return addGeneratedAsset(file, { ...bankProvenance(sound, query), origin: 'author' });
+  }
+
+  /** Igual, pero como borrador del director: suena en la propuesta y solo se guarda al aceptarla. */
+  async function draftBankSound(sound: BankSound, query: string): Promise<string> {
+    const epoch = workEpoch;
+    const file = await downloadBankSound(providerFetch('freesound'), sound);
+    if (epoch !== workEpoch) throw new Error('La obra cambió durante la descarga del sonido. La propuesta se ha descartado.');
+    return stageGeneratedAsset(file, { ...bankProvenance(sound, query), origin: 'author' });
   }
 
   function replaceAssetReferences(from: string, to: string) {
@@ -680,6 +699,8 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     acceptGeneratedAsset,
     discardGeneratedAsset,
     draftSpokenLine,
+    addBankSound,
+    draftBankSound,
     workIdentity: () => workEpoch,
     resolveAsset,
     setAssetOverride,

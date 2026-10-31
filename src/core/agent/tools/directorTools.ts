@@ -263,7 +263,7 @@ export const requestAssetSynthesis = defineTool({
     }
     // Un borrador no se registra: si el autor rechaza la propuesta, no queda rastro en la obra.
     if (result.status !== 'draft') ctx.assets?.register({ path: result.path, origin: 'synthetic', status: result.status, provider: result.provider, prompt: request.prompt, style_preset: request.style_preset });
-    const what = request.type === 'voice' ? `la voz «${request.prompt}»` : `«${result.path}»`;
+    const what = request.type === 'voice' ? `la voz «${request.prompt}»` : request.type === 'sfx' && result.status === 'draft' ? `el sonido «${request.prompt}» (${result.provider})` : `«${result.path}»`;
     return {
       result,
       summary:

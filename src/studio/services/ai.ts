@@ -1,6 +1,7 @@
 import { isTauri } from '@tauri-apps/api/core';
 import type { FetchLike } from '@/core/agent/types';
 import { decodeBase64, generateImageWith, generateSpeechWith } from '@/core/ai/media';
+import { isFreesoundPreview } from '@/core/assets/freesound';
 import type { AiProviderId, GeneratedMedia, ImageGenerationRequest, SpeechGenerationRequest } from '@/core/ai/types';
 
 // Solo la sesión web conserva temporalmente las claves en memoria; nunca localStorage ni obras.
@@ -17,6 +18,7 @@ export async function openProviderDocs(provider: AiProviderId): Promise<void> {
     gemini: 'https://aistudio.google.com/apikey', cloudflare: 'https://dash.cloudflare.com/profile/api-tokens',
     elevenlabs: 'https://elevenlabs.io/docs/eleven-api/quickstart', openai: 'https://platform.openai.com/api-keys',
     anthropic: 'https://console.anthropic.com/settings/keys', zen: 'https://opencode.ai/auth', ollama: 'https://ollama.com/', compatible: 'https://openrouter.ai/settings/keys',
+    freesound: 'https://freesound.org/apiv2/apply',
   };
   // Con noopener los navegadores pueden devolver null aunque abran la pestaña.
   window.open(links[provider], '_blank', 'noopener,noreferrer');
@@ -54,13 +56,14 @@ function authorization(provider: AiProviderId, key: string): Record<string, stri
   if (provider === 'gemini') return { 'x-goog-api-key': key };
   if (provider === 'anthropic') return { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
   if (provider === 'elevenlabs') return { 'xi-api-key': key };
+  if (provider === 'freesound') return { authorization: `Token ${key}` };
   return { authorization: `Bearer ${key}` };
 }
 
 const DEFAULT_ORIGINS: Partial<Record<AiProviderId, string>> = {
   openai: 'https://api.openai.com/v1', anthropic: 'https://api.anthropic.com/v1', gemini: 'https://generativelanguage.googleapis.com/v1beta',
   elevenlabs: 'https://api.elevenlabs.io/v1', zen: 'https://opencode.ai/inference/openai/v1', ollama: 'http://localhost:11434',
-  cloudflare: 'https://api.cloudflare.com/client/v4/accounts',
+  cloudflare: 'https://api.cloudflare.com/client/v4/accounts', freesound: 'https://freesound.org/apiv2',
 };
 function allowedWebUrl(provider: AiProviderId, input: string): string {
   const endpoint = new URL(sessionEndpoints.get(provider) ?? DEFAULT_ORIGINS[provider] ?? 'https://invalid.invalid/');
@@ -80,7 +83,10 @@ export function providerFetch(provider: AiProviderId): FetchLike {
     new Headers(init.headers).forEach((value, key) => {
       if (['content-type', 'accept', 'anthropic-version', 'anthropic-beta'].includes(key.toLowerCase())) headers[key] = value;
     });
+    // Los previews de Freesound están en su CDN público: se descargan sin clave.
+    const preview = provider === 'freesound' && (init.method ?? 'GET') === 'GET' && isFreesoundPreview(input);
     if (!isTauri()) {
+      if (preview) return fetch(input, { ...init, redirect: 'error', headers });
       const key = sessionKeys.get(provider);
       const target = allowedWebUrl(provider, input);
       const local = provider === 'compatible' && ['localhost', '127.0.0.1', '[::1]'].includes(new URL(target).hostname);

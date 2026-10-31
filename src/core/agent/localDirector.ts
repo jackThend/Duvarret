@@ -30,6 +30,9 @@ const SOUND_NOUNS: [RegExp, string, string][] = [
   [/lluvia/, 'rain', 'lluvia'],
   [/carruaje|caballo/, 'carriage', 'carruaje'],
   [/musica|piano|violin/, 'music', 'música'],
+  [/grillo/, 'crickets', 'grillos'],
+  [/perro|ladrido/, 'dog_bark', 'ladrido'],
+  [/disparo|\btiro\b/, 'gunshot', 'disparo'],
 ];
 
 const call = (name: string, args: Record<string, unknown>): ToolCall => ({ id: newCallId('local'), name, arguments: args });
@@ -161,6 +164,24 @@ function spokenLine(message: string): { text: string; manner: string } | null {
   return { text: quoted, manner };
 }
 
+/** Qué sonido pide el autor y cómo colocarlo; `query` es lo que se busca en el banco libre (en inglés, su idioma más rico). */
+function soundRequest(message: string, t = normalizeText(message)) {
+  const reading = parseSpatialDescription(message);
+  const noun = SOUND_NOUNS.find(([re]) => re.test(t));
+  if (!noun && !(reading.understood && /suen|oig|escuch|sonido|ruido|audio|pon /.test(t))) return null;
+  return {
+    query: noun ? noun[1].replace(/_/g, ' ') : null,
+    /** Ruta reservada de siempre si no hay generador que lo busque. */
+    fallback: `assets/audio/sfx/${noun?.[1] ?? 'sound'}.ogg`,
+    placement: {
+      label: noun?.[2] ?? 'sonido',
+      position_description: message,
+      loop: /bucle|constante|sin parar|goteo|gotera/.test(t),
+      trigger_event: /cuando lea|al leer|a mitad/.test(t) ? 'on_text_reveal' : 'on_enter',
+    },
+  };
+}
+
 /** Interpreta una indicación del autor en lenguaje natural y la traduce a herramientas. */
 export function interpretInstruction(message: string, nodeId: string, nodeText = '', characters: string[] = []): ToolCall[] {
   const spoken = spokenLine(message);
@@ -188,23 +209,15 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
   }
   if (/circuito|cables|cableado/.test(t)) calls.push(call('mountSimulatedModule', { node_id: nodeId, module_type: 'circuit_puzzle', config: {} }));
 
-  const reading = parseSpatialDescription(message);
-  const sound = SOUND_NOUNS.find(([re]) => re.test(t));
+  const sound = soundRequest(message, t);
   if (spoken) {
     // Primero se crea la voz; su colocación llega cuando se conoce la ruta (ver `complete`).
     calls.push(call('requestAssetSynthesis', { type: 'voice', prompt: spoken.text, style_preset: spoken.manner }));
-  } else if (sound || (reading.understood && /suen|oig|escuch|sonido|ruido|audio|pon /.test(t))) {
-    const [, file, label] = sound ?? [null, 'sound', 'sonido'];
-    calls.push(
-      call('placeSpatialAudio', {
-        node_id: nodeId,
-        asset_path: `assets/audio/sfx/${file}.ogg`,
-        label,
-        position_description: message,
-        loop: /bucle|constante|sin parar|goteo|gotera/.test(t),
-        trigger_event: /cuando lea|al leer|a mitad/.test(t) ? 'on_text_reveal' : 'on_enter',
-      }),
-    );
+  } else if (sound?.query) {
+    // Un sonido reconocible se busca en el banco libre (o queda reservado) y se coloca después.
+    calls.push(call('requestAssetSynthesis', { type: 'sfx', prompt: sound.query, style_preset: 'natural' }));
+  } else if (sound) {
+    calls.push(call('placeSpatialAudio', { node_id: nodeId, asset_path: sound.fallback, ...sound.placement }));
   }
   if (/continuidad|contradic|coheren|revisa/.test(t)) {
     calls.push(call('validateContinuity', { proposed_action: nodeText || message, target_nodes: [nodeId] }));
@@ -212,8 +225,12 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
   return calls;
 }
 
-/** Tras crear una voz, la sitúa donde el autor pidió («a mi oído derecho»); sin indicación, muy cerca y delante. */
-function placeCreatedVoice(request: CompletionRequest): ToolCall | null {
+/**
+ * Tras crear una voz o encontrar un sonido, lo sitúa donde el autor pidió («a mi oído derecho»).
+ * Una voz sin indicación queda muy cerca y delante; un sonido reservado también se coloca, para que
+ * el autor vea qué falta y lo aporte.
+ */
+function placeCreatedAsset(request: CompletionRequest): ToolCall | null {
   const messages = request.messages;
   let userIndex = messages.length - 1;
   while (userIndex >= 0 && messages[userIndex]!.role !== 'user') userIndex--;
@@ -221,18 +238,28 @@ function placeCreatedVoice(request: CompletionRequest): ToolCall | null {
   const calls = turn.flatMap((m) => (m.role === 'assistant' ? (m.toolCalls ?? []) : []));
   if (calls.some((c) => c.name === 'placeSpatialAudio')) return null;
   for (const message of turn) {
-    if (message.role !== 'tool' || message.name !== 'requestAssetSynthesis' || message.isError) continue;
+    if (message.role !== 'tool' || message.name !== 'requestAssetSynthesis') continue;
     const asked = calls.find((c) => c.id === message.toolCallId);
-    if (asked?.arguments.type !== 'voice') continue;
+    const type = asked?.arguments.type;
+    if (type !== 'voice' && type !== 'sfx') continue;
     let result: { path?: string; status?: string } | null = null;
     try { result = JSON.parse(message.content) as { path?: string; status?: string } | null; } catch { /* resultado ilegible */ }
-    if (!result?.path || (result.status !== 'ready' && result.status !== 'draft')) continue;
-    const said = String(asked.arguments.prompt ?? '');
+    const created = !message.isError && !!result?.path && ['ready', 'draft', 'pending'].includes(result.status ?? '');
     const author = messages[userIndex];
     const where = author?.role === 'user' ? author.content : '';
+    const node_id = request.context?.nodeId ?? 'nodo_001';
+    if (type === 'sfx') {
+      // Sin generador, el sonido se coloca igual en su ruta reservada: el autor verá que falta y lo aportará.
+      const sound = soundRequest(where);
+      const asset_path = created ? result!.path : sound?.fallback;
+      if (!asset_path) continue;
+      return call('placeSpatialAudio', { node_id, asset_path, ...(sound?.placement ?? { label: 'sonido', position_description: where }) });
+    }
+    if (!created) continue;
+    const said = String(asked!.arguments.prompt ?? '');
     return call('placeSpatialAudio', {
-      node_id: request.context?.nodeId ?? 'nodo_001',
-      asset_path: result.path,
+      node_id,
+      asset_path: result!.path,
       label: `voz «${said.length > 40 ? `${said.slice(0, 40)}…` : said}»`,
       ...(parseSpatialDescription(where).understood ? { position_description: where } : { coordinates: { x: 0, y: 0, z: 0.6 } }),
       room_preset: 'small_study',
@@ -254,7 +281,7 @@ export class LocalDirectorProvider implements LlmProvider {
       // Cierre del turno: se resume lo realizado a partir de los resultados.
       const results = [];
       for (let i = request.messages.length - 1; i >= 0 && request.messages[i]!.role === 'tool'; i--) results.unshift(request.messages[i]!);
-      const placement = placeCreatedVoice(request);
+      const placement = placeCreatedAsset(request);
       if (placement && available.has('placeSpatialAudio')) return { content: '', toolCalls: [placement], stopReason: 'tool_calls' };
       const failed = results.filter((r) => r.role === 'tool' && r.isError).length;
       return {

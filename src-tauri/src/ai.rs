@@ -11,7 +11,7 @@ const MAX_RESPONSE: usize = 64 * 1024 * 1024;
 const MAX_REQUEST: usize = 4 * 1024 * 1024;
 
 fn provider_id(provider: &str) -> Result<(), String> {
-    if ["openai", "anthropic", "gemini", "ollama", "zen", "compatible", "elevenlabs", "cloudflare"].contains(&provider) { Ok(()) }
+    if ["openai", "anthropic", "gemini", "ollama", "zen", "compatible", "elevenlabs", "cloudflare", "freesound"].contains(&provider) { Ok(()) }
     else { Err("Proveedor de IA desconocido.".into()) }
 }
 fn app_config(app: &AppHandle) -> Result<PathBuf, String> {
@@ -86,7 +86,7 @@ pub fn ai_open_provider_docs(provider: String) -> Result<(), String> {
         "openai" => "https://platform.openai.com/api-keys",
         "anthropic" => "https://console.anthropic.com/settings/keys",
         "zen" => "https://opencode.ai/auth", "ollama" => "https://ollama.com/",
-        "compatible" => "https://openrouter.ai/settings/keys", _ => return Err("Proveedor de IA desconocido.".into()),
+        "compatible" => "https://openrouter.ai/settings/keys", "freesound" => "https://freesound.org/apiv2/apply", _ => return Err("Proveedor de IA desconocido.".into()),
     };
     let program = if cfg!(windows) { "explorer.exe" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
     let mut command = std::process::Command::new(program);
@@ -100,7 +100,7 @@ fn default_endpoint(provider: &str) -> Option<&'static str> {
     match provider {
         "openai" => Some("https://api.openai.com/v1"), "anthropic" => Some("https://api.anthropic.com/v1"),
         "gemini" => Some("https://generativelanguage.googleapis.com/v1beta"), "elevenlabs" => Some("https://api.elevenlabs.io/v1"),
-        "cloudflare" => Some("https://api.cloudflare.com/client/v4/accounts"),
+        "cloudflare" => Some("https://api.cloudflare.com/client/v4/accounts"), "freesound" => Some("https://freesound.org/apiv2"),
         "zen" => Some("https://opencode.ai/inference/openai/v1"), "ollama" => Some("http://localhost:11434"), _ => None,
     }
 }
@@ -160,6 +160,7 @@ fn request_headers(provider: &str, provided: HashMap<String, String>, key: Optio
     if let Some(key) = key {
         let (name, value) = match provider {
             "gemini" => ("x-goog-api-key", key.to_string()), "anthropic" => ("x-api-key", key.to_string()), "elevenlabs" => ("xi-api-key", key.to_string()),
+            "freesound" => ("authorization", format!("Token {key}")),
             _ => ("authorization", format!("Bearer {key}")),
         };
         let mut value = HeaderValue::from_str(&value).map_err(|_| "La clave guardada no es válida.")?;
@@ -169,16 +170,26 @@ fn request_headers(provider: &str, provided: HashMap<String, String>, key: Optio
     Ok(headers)
 }
 
+/// Los previews de Freesound se sirven desde su CDN público: se descargan sin enviar la clave.
+fn freesound_preview(raw: &str) -> Option<Url> {
+    let url = Url::parse(raw).ok()?;
+    let public = url.scheme() == "https" && url.host_str() == Some("cdn.freesound.org") && url.path().starts_with("/previews/")
+        && url.query().is_none() && url.fragment().is_none() && url.username().is_empty() && url.password().is_none();
+    public.then_some(url)
+}
+
 #[tauri::command]
 pub async fn ai_request(app: AppHandle, request: AiRequest) -> Result<AiResponse, String> {
     provider_id(&request.provider)?;
     if !["GET", "POST"].contains(&request.method.as_str()) || request.body.as_ref().is_some_and(|body| body.len() > MAX_REQUEST) { return Err("La solicitud de IA no es válida o es demasiado grande.".into()); }
     let config = app_config(&app)?;
     let endpoint = configured_endpoint(&config, &request.provider)?;
-    let target = validate_target(&endpoint, &request.url)?;
-    let key = { let _guard = VAULT_LOCK.lock().map_err(|_| "No se pudo abrir el almacén de claves.")?; read_key(&config, &request.provider)? };
+    let preview = if request.provider == "freesound" && request.method == "GET" { freesound_preview(&request.url) } else { None };
+    let public = preview.is_some();
+    let target = match preview { Some(url) => url, None => validate_target(&endpoint, &request.url)? };
+    let key = if public { None } else { let _guard = VAULT_LOCK.lock().map_err(|_| "No se pudo abrir el almacén de claves.")?; read_key(&config, &request.provider)? };
     let local_compatible = request.provider == "compatible" && matches!(endpoint.host_str(), Some("localhost" | "127.0.0.1" | "[::1]" | "::1"));
-    if key.is_none() && request.provider != "ollama" && !local_compatible { return Err("Guarda tu clave del proveedor en Ajustes antes de generar.".into()); }
+    if key.is_none() && !public && request.provider != "ollama" && !local_compatible { return Err("Guarda tu clave del proveedor en Ajustes antes de generar.".into()); }
     // No se reenvía autorización a redirecciones: https://docs.rs/reqwest/latest/reqwest/redirect/struct.Policy.html#method.none
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(Duration::from_secs(180)).connect_timeout(Duration::from_secs(20)).build().map_err(|_| "No se pudo preparar la conexión con el proveedor.")?;
     let mut pending = client.request(if request.method == "POST" { reqwest::Method::POST } else { reqwest::Method::GET }, target).headers(request_headers(&request.provider, request.headers, key.as_deref())?);
@@ -216,6 +227,17 @@ mod tests {
             assert!(validate_target(&base, target).is_err(), "{target}");
         }
         assert!(validate_target(&base, "https://generativelanguage.googleapis.com/v1beta/interactions").is_ok());
+    }
+    #[test]
+    fn freesound_previews_come_only_from_its_public_cdn_and_never_carry_the_key() {
+        assert!(freesound_preview("https://cdn.freesound.org/previews/123/123456_789-hq.mp3").is_some());
+        for target in ["http://cdn.freesound.org/previews/1/1-hq.mp3", "https://cdn.freesound.org.evil.example/previews/1/1-hq.mp3", "https://cdn.freesound.org/sounds/1.wav", "https://cdn.freesound.org/previews/1/1-hq.mp3?token=x", "https://freesound.org/apiv2/search/text/"] {
+            assert!(freesound_preview(target).is_none(), "{target}");
+        }
+        let headers = request_headers("freesound", HashMap::new(), Some("test-secret")).unwrap();
+        assert_eq!(headers.get("authorization").unwrap(), "Token test-secret");
+        let api = configured_endpoint(Path::new("sin-config"), "freesound").unwrap();
+        assert!(validate_target(&api, "https://freesound.org/apiv2/search/text/?query=grillos").is_ok());
     }
     #[test]
     fn only_explicit_loopback_models_may_use_plain_http() {

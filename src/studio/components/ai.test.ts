@@ -351,3 +351,78 @@ describe('voz creada por el director', () => {
     expect(useProjectStore().draftAssets.size).toBe(0);
   });
 });
+
+describe('banco libre de sonidos', () => {
+  const preview = 'https://cdn.freesound.org/previews/0/42_1-hq.mp3';
+  function bank() {
+    const mp3 = new Uint8Array(256); mp3.set([255, 251, 144, 0]);
+    const fetcher = vi.fn(async (url: string) => url === preview
+      ? new Response(mp3)
+      : new Response(JSON.stringify({ results: [{ id: 42, name: 'Grillos de noche', username: 'campo', license: 'http://creativecommons.org/publicdomain/zero/1.0/', duration: 12.5, url: 'https://freesound.org/s/42/', previews: { 'preview-hq-mp3': preview } }] })));
+    service.keys.set('freesound', 'mock-key');
+    service.providerFetch.mockImplementation(() => fetcher);
+    return fetcher;
+  }
+
+  it('busca, deja escuchar con la licencia a la vista y al elegir guarda autor y licencia', async () => {
+    bank();
+    const project = useProjectStore();
+    const w = mount(AssetsDialog);
+    await flushPromises();
+    await w.get('[data-testid="bank-query"]').setValue('grillos');
+    await w.get('[data-testid="sound-bank"] form').trigger('submit');
+    await flushPromises();
+    expect(service.providerFetch).toHaveBeenCalledWith('freesound');
+    expect(w.get('[data-testid="bank-42"]').text()).toContain('campo');
+    expect(w.get('[data-testid="bank-license"]').text()).toContain('CC0');
+    expect(w.find('[data-testid="bank-listen"]').exists()).toBe(true);
+    await w.get('[data-testid="bank-choose"]').trigger('click');
+    await flushPromises();
+    const path = 'assets/audio/grillos_de_noche.mp3';
+    expect(project.assets.get(path)).toMatchObject({ origin: 'author', status: 'ready', author: 'campo', license: 'CC0 1.0 (dominio público)', prompt: 'grillos' });
+    expect(w.get('[data-testid="assets-message"]').text()).toContain('de campo');
+    expect(w.find('[data-testid="assign-form"]').exists()).toBe(true);
+    expect(w.get('[data-testid="asset-grillos_de_noche.mp3"] [data-testid="asset-credit"]').text()).toBe('CC0 · campo');
+    w.unmount();
+  });
+
+  it('sin clave pide conectar Freesound antes de buscar', async () => {
+    const w = mount(AssetsDialog);
+    await flushPromises();
+    await w.get('[data-testid="bank-query"]').setValue('grillos');
+    await w.get('[data-testid="sound-bank"] form').trigger('submit');
+    await flushPromises();
+    expect(w.get('[data-testid="assets-error"]').text()).toContain('Conexiones de IA');
+    w.unmount();
+  });
+
+  it('el director busca el sonido en el banco, lo deja escuchar y lo guarda acreditado al aceptar', async () => {
+    bank();
+    const project = useProjectStore();
+    const studio = useStudioStore();
+    await studio.ask('Pon unos grillos a lo lejos, en bucle');
+    const card = studio.pitches.at(-1)!;
+    const path = (card.executions![0]!.outcome.result as { path: string }).path;
+    expect(project.draftAssets.has(path)).toBe(true);
+    expect(project.assets.get(path)).toBeUndefined();
+    expect(card.rationale).toContain('Freesound · campo · CC0');
+    expect(await studio.applyPitch(card.id)).toBe(true);
+    const event = project.nodes[0]!.acoustic_events.find(e => e.asset === path)!;
+    expect(event).toMatchObject({ label: 'grillos', loop: true });
+    expect(event.coordinates.z).toBeGreaterThan(10);
+    expect(project.assets.get(path)).toMatchObject({ origin: 'author', author: 'campo', license: 'CC0 1.0 (dominio público)' });
+  });
+
+  it('sin banco conectado, el director reserva el sonido para que la autora lo aporte', async () => {
+    const studio = useStudioStore();
+    await studio.ask('Pon unos grillos a lo lejos');
+    expect(service.providerFetch).not.toHaveBeenCalledWith('freesound');
+    const event = useProjectStore().nodes[0]!.acoustic_events;
+    expect(event).toHaveLength(0);
+    const card = studio.pitches.at(-1)!;
+    expect(await studio.applyPitch(card.id)).toBe(true);
+    const placed = useProjectStore().nodes[0]!.acoustic_events[0]!;
+    expect(placed.label).toBe('grillos');
+    expect(useProjectStore().assets.get(placed.asset)?.status).toBe('pending');
+  });
+});
