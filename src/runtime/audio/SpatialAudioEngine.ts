@@ -39,6 +39,10 @@ export interface PlayOptions {
   label?: string;
   /** Se llama cuando el sonido termina solo (no si se detiene o se sustituye). */
   onEnded?: () => void;
+  /** La voz hablada no debe producir un pitido si una grabación falta. */
+  allowPlaceholder?: boolean;
+  /** La narración se escucha cerca y sin la reverberación reservada a los efectos. */
+  spatial?: boolean;
 }
 
 export interface ActiveVoice {
@@ -51,6 +55,7 @@ export interface ActiveVoice {
 }
 
 interface VoiceHandle extends ActiveVoice {
+  token: symbol;
   source: AudioScheduledSourceNode;
   gain: GainNode;
   voice: ReturnType<SpatialBackend['createVoice']>;
@@ -77,12 +82,15 @@ export class SpatialAudioEngine {
   ctx: BaseAudioContext | null = null;
   backend: SpatialBackend | null = null;
   private master: GainNode | null = null;
+  private masterLevel = 1;
+  private muted = false;
   private readonly buffers = new Map<string, Promise<AudioBuffer | null>>();
   private readonly voices = new Map<string, VoiceHandle>();
   private readonly listeners = new Set<(voices: ActiveVoice[]) => void>();
   private initPromise: Promise<void> | null = null;
   private room: { preset: RoomPreset; material: AcousticMaterial } | null = null;
   private counter = 0;
+  private readonly pendingPlays = new Map<string, symbol>();
 
   constructor(private readonly options: AudioEngineOptions = {}) {}
 
@@ -100,6 +108,7 @@ export class SpatialAudioEngine {
     const ctx = (this.options.contextFactory ?? defaultContext)();
     this.ctx = ctx;
     this.master = ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : this.masterLevel;
     this.master.connect(ctx.destination);
     const preferred = this.options.preferred ?? 'resonance_3d';
     const supportsHrtf = typeof ctx.createPanner === 'function';
@@ -142,7 +151,19 @@ export class SpatialAudioEngine {
   }
 
   setMasterGain(value: number) {
-    if (this.master && this.ctx) setParam(this.master.gain, Math.max(0, Math.min(1, value)), this.ctx);
+    this.masterLevel = Math.max(0, Math.min(1, value));
+    if (this.master && this.ctx) {
+      if (this.muted) {
+        this.master.gain.cancelScheduledValues?.(this.ctx.currentTime);
+        this.master.gain.setValueAtTime(0, this.ctx.currentTime);
+      } else setParam(this.master.gain, this.masterLevel, this.ctx);
+    }
+  }
+
+  /** La decisión del lector prevalece sobre el volumen ambiental de cada escena. */
+  setMuted(muted: boolean) {
+    this.muted = muted;
+    this.setMasterGain(this.masterLevel);
   }
 
   private loadBuffer(path: string): Promise<AudioBuffer | null> {
@@ -171,14 +192,22 @@ export class SpatialAudioEngine {
   }
 
   async play(asset: string, options: PlayOptions = {}): Promise<ActiveVoice | null> {
-    await this.init();
-    const ctx = this.ctx!;
     const id = options.id ?? `voz_${++this.counter}`;
     this.stop(id, 0);
+    const request = Symbol('carga de audio');
+    this.pendingPlays.set(id, request);
+    await this.init();
+    if (this.pendingPlays.get(id) !== request) return null;
+    const ctx = this.ctx!;
     const coordinates = sanitizeCoordinates(options.coordinates);
     const buffer = await this.loadBuffer(asset);
+    if (this.pendingPlays.get(id) !== request) return null;
+    this.pendingPlays.delete(id);
+    if (!buffer && options.allowPlaceholder === false) return null;
 
-    const voice = this.backend!.createVoice(coordinates);
+    const voice = options.spatial === false
+      ? { input: this.master!, setPosition: () => undefined, dispose: () => undefined }
+      : this.backend!.createVoice(coordinates);
     const gain = ctx.createGain();
     gain.connect(voice.input);
     const target = Math.max(0, Math.min(1, options.gain ?? 1));
@@ -211,6 +240,7 @@ export class SpatialAudioEngine {
     if (placeholder) source.stop(now + 0.25);
 
     const handle: VoiceHandle = {
+      token: Symbol('voz activa'),
       id,
       asset,
       label: options.label ?? id,
@@ -222,7 +252,7 @@ export class SpatialAudioEngine {
       voice,
     };
     source.onended = () => {
-      if (this.voices.get(id) !== handle) return;
+      if (this.voices.get(id)?.token !== handle.token) return;
       this.release(handle);
       options.onEnded?.();
     };
@@ -243,6 +273,7 @@ export class SpatialAudioEngine {
   }
 
   stop(id: string, fadeMs = 400) {
+    this.pendingPlays.delete(id);
     const handle = this.voices.get(id);
     if (!handle || !this.ctx) return;
     const now = this.ctx.currentTime;
@@ -271,6 +302,9 @@ export class SpatialAudioEngine {
   }
 
   stopAll(options: { fadeMs?: number; loopsOnly?: boolean; except?: string[] } = {}) {
+    if (!options.loopsOnly) for (const id of this.pendingPlays.keys()) {
+      if (!options.except?.includes(id)) this.pendingPlays.delete(id);
+    }
     for (const handle of [...this.voices.values()]) {
       if (options.loopsOnly && !handle.loop) continue;
       if (options.except?.includes(handle.id)) continue;

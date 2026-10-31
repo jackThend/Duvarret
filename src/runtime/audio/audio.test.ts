@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { reactive } from 'vue';
 import { TolerantSchemas } from '@/core/manifest';
 import { FakeAudioContext, fakeContextFactory } from '@/test/fakeAudio';
 import { AMBIENCE_ID, SpatialAudioEngine } from './SpatialAudioEngine';
@@ -11,6 +12,73 @@ import { sampleManifest } from '../__fixtures__/sample';
 
 const loader = vi.fn(async (path: string) => (path.includes('missing') ? null : new ArrayBuffer(8)));
 const flush = () => new Promise((r) => setTimeout(r, 0));
+
+describe('cancelación de cargas de voz', () => {
+  it('conserva el silencio desde antes de inicializar y al cambiar el volumen de escena', async () => {
+    const {e, ctx} = engine();
+    e.setMuted(true);
+    await e.init();
+    expect(ctx.byKind('gain')[0].gain.value).toBe(0);
+    e.setMasterGain(0.7);
+    expect(ctx.byKind('gain')[0].gain.value).toBe(0);
+    e.setMuted(false);
+    expect(ctx.byKind('gain')[0].gain.value).toBe(0.7);
+    e.setMuted(true);
+    expect(ctx.byKind('gain')[0].gain.value).toBe(0);
+    await e.dispose();
+  });
+  it('la narración seca evita el backend de sala, mientras los efectos conservan su posición', async () => {
+    const { e, ctx } = engine();
+    await e.init();
+    const spatial = vi.spyOn(e.backend!, 'createVoice');
+    await e.play('voz.wav', { spatial: false, id: 'narracion' });
+    expect(spatial).not.toHaveBeenCalled();
+    ctx.byKind('buffer')[0].end();
+    await e.play('reloj.wav', { coordinates: { x: 2, y: 0, z: 1 } });
+    expect(spatial).toHaveBeenCalledOnce();
+  });
+  it('también reproduce y notifica el final cuando Vue envuelve el motor en un proxy', async () => {
+    const { e, ctx } = engine();
+    const end = vi.fn();
+    const audio = reactive(e);
+    expect(await audio.play('voz.wav', { id: 'voz', onEnded: end })).not.toBeNull();
+    expect(audio.active).toHaveLength(1);
+    ctx.byKind('buffer')[0].end();
+    expect(end).toHaveBeenCalledOnce();
+    expect(audio.active).toHaveLength(0);
+  });
+  it('no inicia una grabación si se detiene mientras el archivo está cargando', async () => {
+    const ctx = new FakeAudioContext();
+    let resolve!: (value: ArrayBuffer) => void;
+    const audio = new SpatialAudioEngine({ preferred: 'stereo_simple', contextFactory: fakeContextFactory(ctx).factory, loadAsset: () => new Promise<ArrayBuffer>(r => { resolve = r; }) });
+    const pending = audio.play('voz.wav', { id: 'habla' });
+    await flush();
+    audio.stop('habla', 0);
+    resolve(new ArrayBuffer(8));
+    expect(await pending).toBeNull();
+    expect(ctx.byKind('buffer')).toHaveLength(0);
+  });
+
+  it('una carga antigua no sustituye la voz de la escena nueva', async () => {
+    const ctx = new FakeAudioContext();
+    let resolve!: (value: ArrayBuffer) => void;
+    const audio = new SpatialAudioEngine({ preferred: 'stereo_simple', contextFactory: fakeContextFactory(ctx).factory,
+      loadAsset: path => path === 'vieja.wav' ? new Promise<ArrayBuffer>(r => { resolve = r; }) : Promise.resolve(new ArrayBuffer(8)),
+    });
+    const old = audio.play('vieja.wav', { id: 'habla' });
+    await flush();
+    await audio.play('nueva.wav', { id: 'habla' });
+    resolve(new ArrayBuffer(8));
+    expect(await old).toBeNull();
+    expect(audio.active.map(voice => voice.asset)).toEqual(['nueva.wav']);
+  });
+
+  it('una grabación ausente no produce un pitido ni una voz de prueba', async () => {
+    const { e, ctx } = engine();
+    expect(await e.play('missing.wav', { allowPlaceholder: false })).toBeNull();
+    expect(ctx.byKind('oscillator')).toHaveLength(0);
+  });
+});
 
 function engine(preferred: 'resonance_3d' | 'stereo_simple' | 'steam_audio_wasm' = 'steam_audio_wasm', ctx = new FakeAudioContext()) {
   const warnings: string[] = [];

@@ -47,5 +47,12 @@ describe('flowGraph', () => {
     expect(orphan.reachable).toBe(false);
     expect(orphan.column).toBe(graph.columns - 1);
     expect(graph.edges.find((e) => e.to === 'no_existe')?.broken).toBe(true);
+    expect(orphan).toMatchObject({ ending: true, implicitEnding: true });
+  });
+
+  it('distingue un final elegido de una escena sin salida', () => {
+    const graph = flowGraph(sample());
+    expect(graph.nodes.find((n) => n.id === 'final')).toMatchObject({ ending: true, implicitEnding: false });
+    expect(graph.nodes.find((n) => n.id === 'inicio')).toMatchObject({ ending: false, implicitEnding: false });
   });
 });

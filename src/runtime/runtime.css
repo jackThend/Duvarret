@@ -189,7 +189,7 @@
   backdrop-filter: blur(6px);
 }
 .dv-player-title { opacity: 0.7; letter-spacing: 0.08em; text-transform: uppercase; }
-.dv-player-tools { display: flex; gap: 0.5rem; }
+.dv-player-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .dv-tool {
   background: transparent;
   color: inherit;
@@ -257,6 +257,11 @@
 .dv-inventory-detail { font-size: 0.85rem; opacity: 0.8; padding-left: 0.5rem; }
 .dv-inventory-inspect { font-style: italic; color: var(--dv-story-accent); }
 @media (max-width: 720px) {
+  .dv-player-bar { flex-wrap: wrap; gap: 0.5rem; }
+  .dv-player-title { width: 100%; }
+  .dv-player-tools { width: 100%; }
+  .dv-tool { min-height: 44px; }
+  .dv-cover-actions { flex-wrap: wrap; justify-content: center; }
   .dv-player-main { flex-direction: column; padding: 1.2rem 1rem 3rem; }
   .dv-inventory { width: auto; border-left: 0; padding-left: 0; }
 }

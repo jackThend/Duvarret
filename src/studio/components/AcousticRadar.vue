@@ -115,7 +115,12 @@ function onKey(event: KeyboardEvent, e: AcousticEvent) {
         @keydown="onKey($event, p.event)"
       >
         <circle :cx="p.cx" :cy="p.cy" r="7" />
-        <text :x="p.cx + 10" :y="p.cy + 4" class="dv-radar-name">{{ p.event.label ?? p.event.event_id }}</text>
+        <text
+          :x="p.cx > size * 0.55 ? p.cx - 10 : p.cx + 10"
+          :y="p.cy + 4"
+          :text-anchor="p.cx > size * 0.55 ? 'end' : 'start'"
+          class="dv-radar-name"
+        >{{ p.event.label ?? p.event.event_id }}</text>
       </g>
     </svg>
     <p v-if="!events.length" class="text-xs text-dv-muted">Esta escena aún no tiene sonidos situados.</p>

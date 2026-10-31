@@ -72,10 +72,17 @@ describe('RuntimePlayer (integración)', () => {
     expect(wrapper.get('[data-testid="item-detail"]').text()).toContain("Cifra '7391'.");
   });
 
-  it('conmuta al modo sin pantalla', async () => {
+  it('empieza sin sonido y conserva la elección al entrar al modo sin pantalla', async () => {
     const wrapper = mount(RuntimePlayer, { props: { manifest: sampleManifest(), audioEngine: null, embedded: true } });
+    expect(wrapper.get('[data-testid="toggle-sound"]').attributes('aria-pressed')).toBe('false');
     await wrapper.get('[data-testid="toggle-screenless"]').trigger('click');
     expect(wrapper.find('[data-testid="screenless-stage"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="screenless-sound"]').attributes('aria-pressed')).toBe('false');
+    await wrapper.get('[data-testid="screenless-sound"]').trigger('click');
+    expect(wrapper.get('[data-testid="toggle-sound"]').attributes('aria-pressed')).toBe('true');
+    await wrapper.get('[data-testid="screenless-sound"]').trigger('click');
+    expect(wrapper.get('[data-testid="toggle-sound"]').attributes('aria-pressed')).toBe('false');
+    wrapper.unmount();
   });
 
   it('se reconstruye en vivo cuando cambia el manifiesto (Live Preview)', async () => {

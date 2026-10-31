@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import type { SpatialAudioEngine } from '@/runtime/audio/SpatialAudioEngine';
 import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, assetFolderFor, assetUsages } from '@/core/assets/usages';
 import { useProjectStore, type AssetAssignment } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 import { STUDIO_AUDIO } from '../services/audio';
 import Modal from './Modal.vue';
+import { useAiStore } from '../stores/ai';
+import { generateImage } from '../services/ai';
+import { AI_PROVIDER_LABELS, CLOUD_USAGE_NOTICE, IMAGE_MODELS, CLOUDFLARE_IMAGE_MODELS } from '@/core/ai/catalog';
+import type { GeneratedMedia } from '@/core/ai/types';
 
 const emit = defineEmits<{ close: [] }>();
 const project = useProjectStore();
 const studio = useStudioStore();
+const ai = useAiStore();
 const audio = inject<SpatialAudioEngine | null>(STUDIO_AUDIO, null);
 
 const ACCEPT = [...AUDIO_EXTENSIONS, ...IMAGE_EXTENSIONS].map((e) => `.${e}`).join(',');
@@ -21,6 +26,10 @@ const present = ref<Set<string>>(new Set());
 const probing = ref(true);
 const assigning = ref<string | null>(null);
 const confirmRemove = ref<string | null>(null);
+const imagePrompt = ref('');
+const imageBusy = ref(false);
+const imageModels = computed(() => ai.image.provider === 'cloudflare' ? CLOUDFLARE_IMAGE_MODELS : IMAGE_MODELS);
+const generatedImage = shallowRef<{ media: GeneratedMedia; url: string; prompt: string; nodeId: string; storage: typeof project.storage } | null>(null);
 const form = ref({ kind: 'scene_sound' as AssetAssignment['kind'], nodeId: project.selectedNodeId ?? '', characterId: project.characters[0]?.id ?? '', mood: 'neutral', itemId: project.items[0]?.id ?? '', loop: false });
 
 const usages = computed(() => assetUsages(project.manifest));
@@ -48,13 +57,49 @@ async function probe() {
   probing.value = false;
 }
 
-onMounted(probe);
+onMounted(() => { void probe(); void ai.initialize(); });
+function discardImage() { if (generatedImage.value) URL.revokeObjectURL(generatedImage.value.url); generatedImage.value = null; }
+onBeforeUnmount(discardImage);
+async function createImage() {
+  error.value = message.value = '';
+  const storage = project.storage;
+  const nodeId = project.selectedNodeId;
+  if (!nodeId) { error.value = 'Crea o selecciona una escena para ilustrarla.'; return; }
+  if (!imagePrompt.value.trim()) { error.value = 'Describe la ilustración que quieres crear.'; return; }
+  imageBusy.value = true;
+  try {
+    await ai.requireKey(ai.image.provider);
+    const prompt = imagePrompt.value.trim();
+    const media = await generateImage({ provider: ai.image.provider, model: ai.image.model, accountId: ai.image.accountId, prompt });
+    if (project.storage !== storage) throw new Error('La obra cambió durante la generación. Vuelve a generar para la obra abierta.');
+    discardImage();
+    generatedImage.value = { media, prompt, nodeId, storage, url: URL.createObjectURL(new Blob([media.data.slice().buffer], { type: media.mimeType })) };
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { imageBusy.value = false; }
+}
+async function acceptImage() {
+  const result = generatedImage.value;
+  if (!result) return;
+  busy.value = true; error.value = '';
+  try {
+    if (project.storage !== result.storage || !project.nodes.some(node => node.node_id === result.nodeId)) throw new Error('La escena cambió. Vuelve a generar la ilustración para la obra abierta.');
+    const ext = /jpe?g/.test(result.media.mimeType) ? 'jpg' : /webp/.test(result.media.mimeType) ? 'webp' : 'png';
+    const path = await project.addGeneratedAsset({ name: `ilustracion-${result.nodeId}-${Date.now()}.${ext}`, data: result.media.data }, { provider: `${result.media.provider} · ${result.media.model}`, prompt: result.prompt });
+    project.assignAsset(path, { kind: 'illustration', nodeId: result.nodeId, alt: result.prompt.slice(0, 300) });
+    await project.save();
+    present.value = new Set([...present.value, path]);
+    studio.previewNonce++;
+    discardImage(); message.value = 'Ilustración guardada y colocada en la escena. Se incluirá al exportar la obra.';
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { busy.value = false; }
+}
 
 async function upload(files: FileList | File[] | null, replacePath?: string) {
   if (!files?.length) return;
   busy.value = true;
   error.value = '';
   const added: string[] = [];
+  const failures: string[] = [];
   for (const file of Array.from(files)) {
     try {
       const path = await project.addAsset({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }, replacePath ? { replacePath } : {});
@@ -62,15 +107,25 @@ async function upload(files: FileList | File[] | null, replacePath?: string) {
       present.value = new Set([...present.value, path]);
       added.push(path);
     } catch (e) {
-      error.value = e instanceof Error ? e.message : `No se pudo añadir «${file.name}».`;
+      failures.push(e instanceof Error ? e.message : `No se pudo añadir «${file.name}».`);
     }
   }
+  // Con varios archivos soltados a la vez, cada fallo se nombra (antes solo quedaba el último).
+  error.value = failures.join(' ');
   busy.value = false;
   if (added.length) {
     message.value = added.length === 1 ? `Añadido: ${nameOf(added[0]!)}` : `${added.length} recursos añadidos.`;
     studio.previewNonce++;
     if (!replacePath && added.length === 1) openAssign(added[0]!);
   }
+}
+
+/** Vacía el selector tras leerlo: así se puede volver a elegir el mismo archivo. */
+function pick(event: Event, replacePath?: string) {
+  const input = event.target as HTMLInputElement;
+  const files = input.files ? Array.from(input.files) : null;
+  input.value = '';
+  void upload(files, replacePath);
 }
 
 function onDrop(event: DragEvent) {
@@ -123,6 +178,33 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
 <template>
   <Modal title="Recursos de la obra" wide @close="emit('close')">
     <div class="space-y-5 text-sm" data-testid="assets-dialog">
+      <section class="space-y-3 rounded border border-dv-border p-4" aria-label="Crear una ilustración" data-testid="image-generation">
+        <h3 class="dv-section-title">Crear una ilustración</h3>
+        <p class="text-xs text-dv-muted">Para la escena «{{ project.selectedNode?.title ?? 'selecciona una escena' }}». Primero verás el resultado y decidirás si usarlo.</p>
+        <label class="block text-xs">Proveedor de imágenes
+          <select v-model="ai.image.provider" class="dv-select mt-1 w-full" :disabled="imageBusy" data-testid="image-provider" @change="ai.selectImage(ai.image.provider)"><option value="gemini">Gemini</option><option value="cloudflare">Cloudflare Workers AI · cuota gratuita limitada</option></select>
+        </label>
+        <label v-if="ai.image.provider === 'cloudflare'" class="block text-xs">Identificador de cuenta de Cloudflare<input v-model="ai.image.accountId" class="dv-input mt-1 w-full" data-testid="image-account" :disabled="imageBusy" /></label>
+        <label class="block text-xs">Modelo
+          <input v-model="ai.image.model" list="asset-image-models" class="dv-input mt-1 w-full" :disabled="imageBusy" data-testid="image-model" />
+        </label>
+        <datalist id="asset-image-models"><option v-for="model in imageModels" :key="model.id" :value="model.id">{{ model.label }}</option></datalist>
+        <label class="block">Describe la imagen y su estilo
+          <textarea v-model="imagePrompt" rows="3" maxlength="8000" class="dv-input mt-1 w-full" data-testid="image-prompt" placeholder="Una biblioteca junto al mar, cómic lofi en tinta índigo y cobre…" :disabled="imageBusy" />
+        </label>
+        <p class="text-xs text-dv-muted">Se envía esta descripción a {{ AI_PROVIDER_LABELS[ai.image.provider] }}. {{ CLOUD_USAGE_NOTICE }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="dv-btn-accent" data-testid="image-generate" :disabled="imageBusy || busy || !imagePrompt.trim() || !project.selectedNodeId" @click="createImage">{{ imageBusy ? 'Creando ilustración…' : 'Generar vista previa' }}</button>
+          <button type="button" class="dv-btn-ghost" @click="studio.settingsOpen = true; emit('close')">Configurar mi proveedor</button>
+        </div>
+        <div v-if="generatedImage" class="space-y-2" data-testid="image-preview">
+          <img :src="generatedImage.url" :alt="generatedImage.prompt" class="max-h-80 w-full rounded object-contain" />
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="dv-btn-accent" data-testid="image-accept" :disabled="busy || imageBusy" @click="acceptImage">Usar esta ilustración en la escena</button>
+            <button type="button" class="dv-btn-ghost" :disabled="busy" @click="discardImage">Descartar vista previa</button>
+          </div>
+        </div>
+      </section>
       <label
         class="dv-dropzone"
         :class="{ 'is-dragging': dragging }"
@@ -133,7 +215,7 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
       >
         <span class="font-prose text-base">Arrastra aquí tus sonidos e imágenes</span>
         <span class="text-xs text-dv-muted">o haz clic para elegirlos · voces, efectos, música, retratos, ilustraciones (hasta 50 MB cada uno)</span>
-        <input type="file" multiple :accept="ACCEPT" class="sr-only" data-testid="asset-input" @change="upload(($event.target as HTMLInputElement).files)" />
+        <input type="file" multiple :accept="ACCEPT" class="sr-only" data-testid="asset-input" @change="pick($event)" />
       </label>
       <p v-if="busy" class="text-dv-muted">Guardando…</p>
       <p v-if="message" role="status" data-testid="assets-message">{{ message }}</p>
@@ -150,7 +232,7 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
             </span>
             <label class="dv-btn-ghost shrink-0 cursor-pointer">
               Aportar archivo
-              <input type="file" :accept="ACCEPT" class="sr-only" data-testid="provide-input" @change="upload(($event.target as HTMLInputElement).files, path)" />
+              <input type="file" :accept="ACCEPT" class="sr-only" data-testid="provide-input" @change="pick($event, path)" />
             </label>
           </li>
         </ul>

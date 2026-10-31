@@ -23,8 +23,12 @@ export function matches(event: KeyboardEvent, keys: string): boolean {
 /** Atajos globales accesibles con una mano (doc 04 §6). */
 export function useShortcuts(shortcuts: () => Shortcut[]) {
   const handler = (event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.isComposing) return;
     for (const shortcut of shortcuts()) {
       if (matches(event, shortcut.keys)) {
+        const editable = event.target instanceof Element && event.target.closest('input, textarea, [contenteditable="true"]');
+        if (editable && ['mod+z', 'mod+shift+z'].includes(shortcut.keys)) return;
+        if (document.querySelector('[aria-modal="true"]') && shortcut.keys !== 'mod+s') { event.preventDefault(); return; }
         event.preventDefault();
         shortcut.run();
         return;

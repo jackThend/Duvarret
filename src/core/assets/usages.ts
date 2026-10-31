@@ -14,6 +14,7 @@ export function assetUsages(manifest: StoryManifest): AssetUsages {
     usages.set(clean, [...(usages.get(clean) ?? []), where]);
   };
   add(manifest.acoustic_environment.ambience_bed, 'Ambiente de fondo de la obra');
+  manifest.global_settings.narration_voice?.clips.forEach(clip => add(clip.asset, `Voz de la obra: ${clip.text.slice(0, 70)}`));
   for (const c of Object.values(manifest.character_registry)) {
     for (const [mood, path] of Object.entries(c.sprites)) add(path, `Retrato de ${c.name} (${mood})`);
     add(c.voice_profile?.locution_sample, `Voz de ${c.name}`);

@@ -74,6 +74,8 @@ export interface FlowNode {
   row: number;
   reachable: boolean;
   ending: boolean;
+  /** Final por no tener salida, sin que la autora lo haya marcado como tal. */
+  implicitEnding: boolean;
 }
 
 export interface FlowGraph {
@@ -81,6 +83,18 @@ export interface FlowGraph {
   edges: FlowEdge[];
   start: string | null;
   columns: number;
+}
+
+/** La escena conduce a alguna parte (o es un final elegido). Misma regla que la validación. */
+export function hasExit(node: StoryManifest['nodes'][number]): boolean {
+  const nav = node.navigation;
+  return (
+    nav.is_ending ||
+    nav.default_next_node !== undefined ||
+    nav.choices.length > 0 ||
+    node.gameplay_overlay?.on_success.transition_to_node !== undefined ||
+    (node.screenless_mode?.voice_prompts.length ?? 0) > 0
+  );
 }
 
 export function flowGraph(manifest: StoryManifest): FlowGraph {
@@ -124,13 +138,15 @@ export function flowGraph(manifest: StoryManifest): FlowGraph {
     const row = rows.get(column) ?? 0;
     rows.set(column, row + 1);
     const nav = n.navigation;
+    const implicitEnding = !nav.is_ending && !hasExit(n);
     return {
       id: n.node_id,
       title: n.title ?? n.node_id,
       column,
       row,
       reachable,
-      ending: nav.is_ending || (!nav.default_next_node && !nav.choices.length && !n.gameplay_overlay),
+      ending: nav.is_ending || implicitEnding,
+      implicitEnding,
     };
   });
   return { nodes, edges, start, columns: Math.max(1, ...nodes.map((n) => n.column + 1)) };

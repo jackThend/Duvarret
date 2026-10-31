@@ -69,7 +69,14 @@ export function loadProject(root: string): ProjectOnDisk {
 /** Runtime base del reproductor; se compila si aún no existe. */
 export function ensurePlayerRuntime(): FileMap {
   const dist = join(REPO_ROOT, 'dist-player');
-  if (!existsSync(join(dist, 'index.html'))) {
+  const index = join(dist, 'index.html');
+  const builtAt = existsSync(index) ? statSync(index).mtimeMs : 0;
+  const newer = (path: string): boolean => {
+    if (!existsSync(path)) return false;
+    if (statSync(path).isDirectory()) return readdirSync(path).some(entry => newer(join(path, entry)));
+    return statSync(path).mtimeMs > builtAt;
+  };
+  if (!builtAt || ['src', 'player.html', 'vite.config.ts', 'package-lock.json'].some(path => newer(join(REPO_ROOT, path)))) {
     runLocalCli('vite', ['build', '--mode', 'player']);
   }
   return readTree(dist);

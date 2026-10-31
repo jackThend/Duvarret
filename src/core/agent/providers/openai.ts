@@ -34,14 +34,18 @@ export function toOpenAiMessages(request: CompletionRequest): OpenAiMessage[] {
 }
 
 export class OpenAiProvider implements LlmProvider {
-  readonly kind = 'openai' as const;
+  readonly kind: 'openai' | 'zen' | 'compatible';
   readonly model: string;
   constructor(private readonly config: ProviderConfig) {
+    this.kind = config.kind === 'zen' || config.kind === 'compatible' ? config.kind : 'openai';
     this.model = config.model ?? 'gpt-4o';
   }
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
-    const url = `${(this.config.baseUrl ?? 'https://api.openai.com/v1').replace(/\/$/, '')}/chat/completions`;
+    const base = this.config.baseUrl ?? (this.kind === 'zen' ? 'https://opencode.ai/inference/openai/v1' : this.kind === 'compatible' ? '' : 'https://api.openai.com/v1');
+    if (this.kind === 'zen' && /^(gpt-|muse-|jev-)/i.test(this.model)) throw new Error('Ese modelo de OpenCode usa un protocolo distinto. Elige un modelo compatible con chat y herramientas y comprueba la conexión.');
+    if (!base) throw new Error('Configura la dirección del proveedor compatible.');
+    const url = `${base.replace(/\/$/, '')}/chat/completions`;
     const data = await postJson<OpenAiResponse>(
       this.config.fetch,
       this.kind,

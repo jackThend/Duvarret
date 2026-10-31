@@ -90,6 +90,16 @@ self.addEventListener('fetch', (e) => {
 `;
 }
 
+/** La caché cambia también al editar texto, sustituir audio o actualizar el reproductor. */
+function contentFingerprint(files: FileMap): string {
+  let hash = 2166136261;
+  for (const [path, data] of files) {
+    for (const byte of enc(path)) hash = Math.imul(hash ^ byte, 16777619);
+    for (const byte of data) hash = Math.imul(hash ^ byte, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 /** Guion accesible: la obra completa en texto, con sus opciones, para lectores de pantalla y braille. */
 export function accessibleScript(m: StoryManifest): string {
   const lines = [`${m.metadata.title}`, `${m.metadata.author}`, '', 'Guion accesible del audio-drama.', ''];
@@ -165,11 +175,15 @@ export async function compileBundle(input: CompileInput, target: ExportTarget): 
     manifest = rewriteAssetPaths(manifest, renames);
   }
 
+  if (manifest.global_settings.narration_voice && missingAssets.some(path => manifest.global_settings.narration_voice!.clips.some(clip => clip.asset === path))) {
+    return { ...empty, missingAssets, blocking: [{ severity: 'error', code: 'missing_narration', path: 'global_settings.narration_voice', message: 'Faltan archivos de la voz de la obra. Actualiza las grabaciones antes de publicar.' }] };
+  }
+
   files.set('manifest/story_manifest.json', enc(JSON.stringify(manifest)));
 
   if (target === 'web' || target === 'audio_drama') {
     files.set('manifest.webmanifest', enc(webManifest(manifest)));
-    const version = `${workSlug(manifest)}-${manifest.metadata.version}-${files.size}`;
+    const version = `${workSlug(manifest)}-${manifest.metadata.version}-${contentFingerprint(files)}`;
     files.set('sw.js', enc(serviceWorker([...files.keys()].filter((f) => f !== 'sw.js'), version)));
   }
   if (target === 'audio_drama') {

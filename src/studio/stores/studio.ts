@@ -2,7 +2,7 @@
  * Estado de la estación de trabajo: tema, paneles, co-director (chat y Pitch Cards) y vista previa.
  */
 import { defineStore } from 'pinia';
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, ref, shallowRef, toRaw, watch } from 'vue';
 import type { StoryManifest } from '@/core/manifest';
 import {
   createProvider,
@@ -16,6 +16,8 @@ import {
 import { OfflineSynthesizer } from '@/core/assets/registry';
 import type { StudioTheme } from '@/core/project';
 import { useProjectStore } from './project';
+import { useAiStore } from './ai';
+import { generateImage, providerFetch } from '../services/ai';
 
 export interface ChatEntry {
   id: number;
@@ -32,6 +34,8 @@ export interface PitchCard {
   calls: PitchSuggestion['calls'];
   /** Borrador de la obra si se aplica la propuesta. */
   draft?: StoryManifest;
+  /** Estado de la obra sobre el que se preparó el borrador. */
+  baseManifest?: StoryManifest;
   executions?: ToolExecution[];
   status: 'open' | 'applied' | 'dismissed';
   source: 'proactive' | 'chat';
@@ -46,6 +50,14 @@ export interface ProviderSettings {
 }
 
 const SETTINGS_KEY = 'duvarret:studio-settings';
+function safeEndpoint(value: string | undefined) {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) return undefined;
+    return value;
+  } catch { return undefined; }
+}
 
 function loadSettings(): { theme: StudioTheme; provider: ProviderSettings; leftCollapsed: boolean } {
   const fallback = { theme: 'nordic' as StudioTheme, provider: { kind: 'local' as ProviderKind }, leftCollapsed: false };
@@ -59,11 +71,36 @@ function loadSettings(): { theme: StudioTheme; provider: ProviderSettings; leftC
 
 export const useStudioStore = defineStore('duvarret-studio', () => {
   const project = useProjectStore();
+  const ai = useAiStore();
   const initial = loadSettings();
 
   const theme = ref<StudioTheme>(initial.theme);
   const leftCollapsed = ref(initial.leftCollapsed);
-  const provider = ref<ProviderSettings>(initial.provider);
+  const legacyKey = initial.provider.apiKey;
+  const provider = ref<ProviderSettings>({ kind: initial.provider.kind, ...(initial.provider.model ? { model: initial.provider.model } : {}), ...(safeEndpoint(initial.provider.baseUrl) ? { baseUrl: safeEndpoint(initial.provider.baseUrl) } : {}) });
+  const credentialError = ref('');
+  let migratingCredentials = Boolean(legacyKey);
+  function persistSettings() {
+    if (migratingCredentials) return;
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ theme: theme.value, leftCollapsed: leftCollapsed.value, provider: { kind: provider.value.kind, model: provider.value.model, baseUrl: safeEndpoint(provider.value.baseUrl) } })); } catch { /* sin almacenamiento */ }
+  }
+  const credentialsReady = (async () => {
+    try {
+      // La copia legacy solo se retira del almacenamiento después de guardarla con éxito.
+      if (legacyKey && initial.provider.kind !== 'local') await ai.saveKey(initial.provider.kind, legacyKey);
+      migratingCredentials = false;
+      persistSettings();
+      await ai.initialize();
+      const kind = provider.value.kind;
+      if ((kind === 'compatible' || kind === 'ollama') && provider.value.baseUrl) {
+        // Una dirección guardada en Conexiones es la fuente vigente. Solo se migra
+        // la preferencia antigua cuando todavía no existe una dirección central.
+        if (!ai.endpoints[kind]) await ai.saveEndpoint(kind, provider.value.baseUrl);
+        delete provider.value.baseUrl;
+        persistSettings();
+      }
+    } catch (cause) { credentialError.value = cause instanceof Error ? cause.message : 'No se pudo proteger la clave existente. La copia anterior se conserva para reintentar.'; }
+  })();
   const chat = ref<ChatEntry[]>([]);
   const history = shallowRef<ChatMessage[]>([]);
   const pitches = ref<PitchCard[]>([]);
@@ -84,26 +121,40 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   const lastPulse = ref<string | null>(null);
   let chatCounter = 0;
 
+  const serviceEndpoint = computed(() => {
+    const kind = provider.value.kind;
+    return kind === 'compatible' || kind === 'ollama' ? ai.endpoints[kind] ?? safeEndpoint(provider.value.baseUrl) : safeEndpoint(provider.value.baseUrl);
+  });
+  const providerIdentity = computed(() => JSON.stringify([provider.value.kind, provider.value.model, serviceEndpoint.value]));
+  async function ensureProviderReady() {
+    await credentialsReady;
+    const kind = provider.value.kind;
+    if ((kind === 'compatible' || kind === 'ollama') && provider.value.baseUrl) {
+      // Compatibilidad con configuraciones antiguas y llamadas programáticas.
+      // La interfaz nueva modifica directamente Conexiones, sin una segunda copia.
+      await ai.saveEndpoint(kind, provider.value.baseUrl);
+      delete provider.value.baseUrl;
+    }
+  }
+
   const orchestrator = computed(
     () =>
       new DirectorOrchestrator({
         provider: createProvider({
           kind: provider.value.kind,
           ...(provider.value.model ? { model: provider.value.model } : {}),
-          ...(provider.value.apiKey ? { apiKey: provider.value.apiKey } : {}),
-          ...(provider.value.baseUrl ? { baseUrl: provider.value.baseUrl } : {}),
+          ...(serviceEndpoint.value ? { baseUrl: serviceEndpoint.value } : {}),
+          ...(provider.value.kind !== 'local' ? { fetch: providerFetch(provider.value.kind) } : {}),
         }),
       }),
   );
 
+  watch(providerIdentity, () => { history.value = []; }, { flush: 'sync' });
+
   watch(
     [theme, leftCollapsed, provider],
     () => {
-      try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify({ theme: theme.value, leftCollapsed: leftCollapsed.value, provider: provider.value }));
-      } catch {
-        /* sin almacenamiento local */
-      }
+      persistSettings();
       if (typeof document !== 'undefined') document.documentElement.dataset.theme = theme.value;
     },
     { deep: true, immediate: true },
@@ -118,11 +169,23 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   }
 
   function toolContext() {
+    const work = project.workIdentity();
     return {
       ...(project.lore ? { lore: project.lore } : {}),
       ...(project.supervisor ? { supervisor: project.supervisor } : {}),
       assets: project.assets,
-      synthesizer: new OfflineSynthesizer(),
+      synthesizer: {
+        provider: 'Imagen en la nube',
+        async synthesize(request: import('@/core/assets/registry').SynthesisRequest) {
+          if ((request.type !== 'portrait' && request.type !== 'background') || !await ai.refresh(ai.image.provider)) return new OfflineSynthesizer().synthesize(request);
+          const prompt = `${request.prompt}\nEstilo: ${request.style_preset}`;
+          const result = await generateImage({ provider: ai.image.provider, model: ai.image.model, accountId: ai.image.accountId, prompt });
+          if (work !== project.workIdentity()) throw new Error('La obra cambió durante la creación de la imagen. La propuesta se ha descartado.');
+          const extension = /jpe?g/.test(result.mimeType) ? 'jpg' : /webp/.test(result.mimeType) ? 'webp' : 'png';
+          const path = await project.addGeneratedAsset({ name: `ilustracion-${Date.now()}.${extension}`, data: result.data }, { provider: `${result.provider} · ${result.model}`, prompt });
+          return { path, status: 'ready' as const, provider: `${result.provider} · ${result.model}` };
+        },
+      },
       timestamp: (project.selectedIndex + 1) * 1000,
     };
   }
@@ -153,29 +216,51 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   async function ask(message: string) {
     const text = message.trim();
     if (!text || busy.value) return null;
+    const work = project.workIdentity();
     say('author', text);
+    const selectedNodeId = project.selectedNodeId;
     const thinking = say('director', 'Pensando la puesta en escena…', true);
     busy.value = true;
     try {
+      await ensureProviderReady();
+      if (work !== project.workIdentity()) return null;
+      const providerAtStart = providerIdentity.value;
+      const baseManifest = toRaw(project.manifest);
       const turn = await orchestrator.value.run({
         message: text,
-        manifest: project.manifest,
+        manifest: baseManifest,
         history: history.value,
         context: directorContext(),
         tools: toolContext(),
       });
+      if (work !== project.workIdentity()) {
+        thinking.pending = false;
+        thinking.text = 'La obra cambió durante la petición. La propuesta se ha descartado.';
+        return null;
+      }
+      if (providerAtStart !== providerIdentity.value) {
+        thinking.pending = false;
+        thinking.text = 'El modelo cambió durante la petición. Inicia una nueva conversación con el modelo elegido.';
+        return null;
+      }
+      if (baseManifest !== toRaw(project.manifest)) {
+        thinking.pending = false;
+        thinking.text = 'La obra cambió desde esta propuesta. Genera otra para conservar tus cambios.';
+        return null;
+      }
       history.value = turn.history;
       thinking.pending = false;
       thinking.text = turn.reply || (turn.mutated ? 'He preparado una propuesta.' : 'Entendido.');
       project.touchAssets();
-      if (turn.mutated && project.selectedNodeId) {
+      if (turn.mutated && selectedNodeId) {
         pitches.value.push({
           id: `chat:${Date.now()}:${chatCounter}`,
-          nodeId: project.selectedNodeId,
+          nodeId: selectedNodeId,
           title: 'Propuesta del Agente Director',
           rationale: turn.executions.map((e) => e.outcome.summary).filter(Boolean).join(' '),
           calls: turn.executions.map((e) => e.call),
           draft: turn.draft,
+          baseManifest,
           executions: turn.executions,
           status: 'open',
           source: 'chat',
@@ -185,6 +270,11 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
         if (notes.length) say('director', notes.join(' '));
       }
       return turn;
+    } catch (error) {
+      // Los fallos del proveedor ya llegan como respuesta; esto cubre lo inesperado (p. ej. una herramienta).
+      thinking.pending = false;
+      thinking.text = `No pude completar la petición: ${error instanceof Error ? error.message : String(error)}`;
+      return null;
     } finally {
       busy.value = false;
     }
@@ -193,11 +283,23 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   async function applyPitch(id: string) {
     const card = pitches.value.find((p) => p.id === id);
     if (!card || card.status !== 'open') return false;
+    const work = project.workIdentity();
+    const baseManifest = toRaw(project.manifest);
+    function rejectStaleDraft() {
+      card!.status = 'dismissed';
+      say('system', 'La obra cambió desde esta propuesta. Genera otra para conservar tus cambios.');
+      return false;
+    }
     let draft = card.draft;
+    if (draft && card.baseManifest && toRaw(card.baseManifest) !== baseManifest) return rejectStaleDraft();
     if (!draft) {
-      const result = await orchestrator.value.applyCalls(card.calls, project.manifest, toolContext());
+      const result = await orchestrator.value.applyCalls(card.calls, baseManifest, toolContext());
       draft = result.draft;
     }
+    // La herramienta puede devolver un borrador anterior incluso si el generador
+    // falló al detectar el cambio de obra. Nunca se integra sobre la nueva obra.
+    if (work !== project.workIdentity() || card.status !== 'open') return false;
+    if (baseManifest !== toRaw(project.manifest)) return rejectStaleDraft();
     project.applyDraft(draft);
     card.status = 'applied';
     lastPulse.value = id;
@@ -250,6 +352,10 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     theme,
     leftCollapsed,
     provider,
+    credentialsReady,
+    credentialError,
+    ensureProviderReady,
+    serviceEndpoint,
     chat,
     pitches,
     openPitches,

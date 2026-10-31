@@ -20,6 +20,13 @@ tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+base64 = "0.23"
+# TLS del sistema (Schannel en Windows), sin incorporar una segunda biblioteca criptográfica.
+# https://docs.rs/reqwest/latest/reqwest/#optional-features
+reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
 
 [dev-dependencies]
 tempfile = "3"

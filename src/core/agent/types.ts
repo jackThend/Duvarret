@@ -58,7 +58,7 @@ export interface CompletionResponse {
   model?: string;
 }
 
-export type ProviderKind = 'anthropic' | 'openai' | 'gemini' | 'ollama' | 'local';
+export type ProviderKind = 'anthropic' | 'openai' | 'gemini' | 'ollama' | 'local' | 'zen' | 'compatible';
 
 export interface LlmProvider {
   readonly kind: ProviderKind;

@@ -7,7 +7,7 @@ const props = defineProps<{ parameters: Record<string, unknown>; title?: string 
 const emit = defineEmits<{ success: []; failure: []; feedback: [kind: 'click' | 'error' | 'ok'] }>();
 
 const PALETTE: Record<string, string> = {
-  rojo: '#ef4444', azul: '#3b82f6', amarillo: '#eab308', verde: '#22c55e', blanco: '#e5e7eb', naranja: '#f97316', violeta: '#a855f7', cian: '#06b6d4',
+  rojo: '#ef4444', azul: '#3b82f6', amarillo: '#eab308', verde: '#22c55e', blanco: '#e5e7eb', naranja: '#f97316', violeta: '#a855f7', cian: '#06b6d4', cobre: '#b98051', marfil: '#eadfc6',
 };
 
 const config = computed(() => CircuitParams.parse(props.parameters));

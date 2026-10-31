@@ -5,14 +5,18 @@ import { THEMES, THEME_LABELS } from '@/core/project';
 import { useProjectStore } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 import Modal from './Modal.vue';
+import AiConnections from './AiConnections.vue';
+import { useAiStore } from '../stores/ai';
 
 const emit = defineEmits<{ close: [] }>();
 const studio = useStudioStore();
 const project = useProjectStore();
+const ai = useAiStore();
 const kinds = Object.keys(PROVIDER_LABELS) as ProviderKind[];
 const needsKey = computed(() => providerNeedsKey(studio.provider.kind));
 const probing = ref(false);
 const probe = ref<ProbeReport | null>(null);
+const probeError = ref('');
 
 function setKind(kind: ProviderKind) {
   studio.provider = { kind };
@@ -25,8 +29,13 @@ watch(() => studio.provider, () => (probe.value = null), { deep: true });
 async function testProvider() {
   probing.value = true;
   probe.value = null;
+  probeError.value = '';
   try {
+    await studio.ensureProviderReady();
+    if (needsKey.value && studio.provider.kind !== 'local') await ai.requireKey(studio.provider.kind);
     probe.value = await probeProvider(studio.orchestrator.provider, project.manifest, project.selectedNodeId ? { nodeId: project.selectedNodeId } : {});
+  } catch (cause) {
+    probeError.value = cause instanceof Error ? cause.message : String(cause);
   } finally {
     probing.value = false;
   }
@@ -43,7 +52,9 @@ async function testProvider() {
         </label>
       </fieldset>
       <fieldset class="space-y-2">
-        <legend class="dv-section-title">Cerebro del co-director</legend>
+        <legend class="dv-section-title">Asistente de escritura</legend>
+        <p class="text-xs text-dv-muted">Es opcional: puedes escribir, narrar y exportar sin configurar un servicio de IA.</p>
+        <p v-if="studio.provider.kind === 'local'" class="text-xs text-dv-muted">El asistente básico usa reglas para sugerir recursos; no incluye un modelo de lenguaje. Para conversar con IA elige un proveedor, o conecta tu modelo de Ollama o LM Studio. La voz natural local sí está incluida.</p>
         <select class="dv-select w-full" :value="studio.provider.kind" data-testid="provider-kind" @change="setKind(($event.target as HTMLSelectElement).value as ProviderKind)">
           <option v-for="k in kinds" :key="k" :value="k">{{ PROVIDER_LABELS[k] }}</option>
         </select>
@@ -51,14 +62,10 @@ async function testProvider() {
           <span class="text-dv-muted">Modelo</span>
           <input v-model="studio.provider.model" class="dv-input w-full" :placeholder="DEFAULT_MODELS[studio.provider.kind]" />
         </label>
-        <label v-if="needsKey" class="block">
-          <span class="text-dv-muted">Clave personal</span>
-          <input v-model="studio.provider.apiKey" type="password" autocomplete="off" class="dv-input w-full" data-testid="provider-key" />
-          <span class="text-xs text-dv-muted">Se guarda solo en este dispositivo, nunca dentro de la obra.</span>
-        </label>
-        <label v-if="studio.provider.kind === 'ollama' || studio.provider.kind === 'openai'" class="block">
+        <p v-if="needsKey" class="text-xs text-dv-muted">Usa la clave guardada para este proveedor en Conexiones de IA, más abajo.</p>
+        <label v-if="studio.provider.kind === 'ollama' || studio.provider.kind === 'compatible'" class="block">
           <span class="text-dv-muted">Dirección del servicio (opcional)</span>
-          <input v-model="studio.provider.baseUrl" class="dv-input w-full" :placeholder="studio.provider.kind === 'ollama' ? 'http://localhost:11434' : 'https://api.openai.com/v1'" />
+          <input :value="studio.serviceEndpoint" class="dv-input w-full" :placeholder="studio.provider.kind === 'ollama' ? 'http://localhost:11434' : 'http://localhost:1234/v1'" @change="ai.saveEndpoint(studio.provider.kind as 'ollama' | 'compatible', ($event.target as HTMLInputElement).value).catch(error => probeError = String(error))" />
         </label>
         <p v-if="studio.provider.kind === 'local' || studio.provider.kind === 'ollama'" class="text-xs text-dv-muted">Funciona sin conexión a internet.</p>
         <div class="flex items-center gap-3 pt-1">
@@ -74,7 +81,9 @@ async function testProvider() {
           </ul>
           <p class="text-xs text-dv-muted">{{ probe.model }} · {{ (probe.latencyMs / 1000).toFixed(1) }} s</p>
         </div>
+        <p v-if="probeError || studio.credentialError" role="alert" class="text-dv-danger">{{ probeError || studio.credentialError }}</p>
       </fieldset>
+      <AiConnections />
       <fieldset class="space-y-2">
         <legend class="dv-section-title">Sonido 3D</legend>
         <div class="flex items-center gap-3">

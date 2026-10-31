@@ -146,3 +146,19 @@ describe('useStudioStore', () => {
     expect(JSON.parse(localStorage.getItem('duvarret:studio-settings')!).theme).toBe('sepia');
   });
 });
+
+describe('AgentChat', () => {
+  it('conserva el borrador si se pulsa Enter mientras el director piensa', async () => {
+    const { mount } = await import('@vue/test-utils');
+    const { default: AgentChat } = await import('../components/AgentChat.vue');
+    await opened();
+    const studio = useStudioStore();
+    studio.busy = true;
+    const w = mount(AgentChat);
+    const input = w.get('[data-testid="agent-input"]');
+    await input.setValue('Un grito detrás');
+    await input.trigger('keydown', { key: 'Enter' });
+    expect((input.element as HTMLTextAreaElement).value).toBe('Un grito detrás');
+    expect(studio.chat).toHaveLength(0);
+  });
+});

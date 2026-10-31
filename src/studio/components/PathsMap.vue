@@ -81,7 +81,7 @@ const short = (t: string, n = 22) => (t.length > n ? `${t.slice(0, n - 1)}…` :
             :class="{ 'is-selected': n.id === project.selectedNodeId, 'is-orphan': !n.reachable, 'is-start': n.id === graph.start }"
             tabindex="0"
             role="button"
-            :aria-label="`${n.title}${n.id === graph.start ? ', inicio' : ''}${n.ending ? ', final' : ''}${!n.reachable ? ', ningún camino llega aquí' : ''}`"
+            :aria-label="`${n.title}${n.id === graph.start ? ', inicio' : ''}${n.implicitEnding ? ', final sin marcar: no lleva a ninguna escena' : n.ending ? ', final' : ''}${!n.reachable ? ', ningún camino llega aquí' : ''}`"
             :data-testid="`flow-node-${n.id}`"
             @click="open(n.id)"
             @keydown.enter="open(n.id)"
@@ -89,7 +89,7 @@ const short = (t: string, n = 22) => (t.length > n ? `${t.slice(0, n - 1)}…` :
             <rect :x="pos.get(n.id)!.x" :y="pos.get(n.id)!.y" :width="W" :height="H" rx="10" />
             <text :x="pos.get(n.id)!.x + 12" :y="pos.get(n.id)!.y + 21" class="dv-flow-title">{{ short(n.title) }}</text>
             <text :x="pos.get(n.id)!.x + 12" :y="pos.get(n.id)!.y + 38" class="dv-flow-sub">
-              {{ n.id === graph.start ? 'Inicio' : n.ending ? 'Final' : !n.reachable ? 'Sin camino de llegada' : '' }}
+              {{ n.id === graph.start ? 'Inicio' : n.implicitEnding ? 'Final sin marcar' : n.ending ? 'Final' : !n.reachable ? 'Sin camino de llegada' : '' }}
             </text>
           </g>
         </svg>

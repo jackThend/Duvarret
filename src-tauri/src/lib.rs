@@ -2,6 +2,8 @@
 
 pub mod player;
 pub mod project;
+pub mod narration;
+pub mod ai;
 
 use std::path::PathBuf;
 
@@ -62,6 +64,21 @@ fn project_list_assets(root: String) -> Result<Vec<String>, String> {
     project::list_assets(&PathBuf::from(root)).map_err(to_msg)
 }
 
+/// Abre únicamente la carpeta de publicaciones de una obra guardada.
+#[tauri::command]
+fn project_show_exports(root: String) -> Result<(), String> {
+    let root = PathBuf::from(root).canonicalize().map_err(|e| e.to_string())?;
+    if !root.join(project::PROJECT_FILE).is_file() { return Err("Abre una obra guardada antes de buscar sus publicaciones.".into()); }
+    let folder = root.join("export");
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let program = if cfg!(windows) { "explorer.exe" } else if cfg!(target_os = "macos") { "open" } else { "xdg-open" };
+    let mut command = std::process::Command::new(program);
+    command.arg(folder);
+    #[cfg(windows)] { use std::os::windows::process::CommandExt; command.creation_flags(0x08000000); }
+    command.spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Copia el reproductor de escritorio (recurso del Studio) junto a la carpeta `obra/` exportada.
 #[tauri::command]
 fn export_player_binary(app: tauri::AppHandle, root: String, relative_dir: String, name: String) -> Result<String, String> {
@@ -119,8 +136,17 @@ pub fn run() {
             project_write_bytes,
             project_read_bytes,
             project_list_assets,
+            project_show_exports,
             project_delete_asset,
-            export_player_binary
+            export_player_binary,
+            narration::narration_generate,
+            narration::narration_status,
+            ai::ai_credential_status,
+            ai::ai_credential_set,
+            ai::ai_credential_remove,
+            ai::ai_open_provider_docs,
+            ai::ai_endpoint_set,
+            ai::ai_request
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar Duvarret");

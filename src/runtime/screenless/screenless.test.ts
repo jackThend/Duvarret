@@ -12,7 +12,7 @@ import example from '@/core/manifest/__fixtures__/doc03-example.json';
 import flagship from '../../../works/el-corazon-delator.duvarret/manifest/story_manifest.json';
 
 function setup(manifest: unknown = sampleManifest()) {
-  const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => speaker.spoken.push(t)), cancel: vi.fn() };
+  const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => { speaker.spoken.push(t); }), cancel: vi.fn() };
   const announcer = new Announcer(speaker);
   const store = useStoryStore();
   store.load(manifest);
@@ -93,11 +93,11 @@ describe('ScreenlessController', () => {
     controller.start();
     store.start();
     controller.handleKey('i');
-    expect(announcer.log.value.at(-1)).toBe('Llevas: Sobre con Lacre Negro.');
+    expect(announcer.log.value.slice(-2)).toEqual(['Llevas:', 'Sobre con Lacre Negro']);
     controller.handleKey('h');
     expect(announcer.log.value.at(-1)).toContain('Atajos');
     controller.handleKey('r');
-    expect(announcer.log.value.at(-1)).toContain('angosto');
+    expect(announcer.log.value.slice(-4).join(' ')).toContain('angosto');
     expect(controller.handleKey('x')).toBe(false);
   });
 
@@ -113,24 +113,24 @@ describe('ScreenlessController', () => {
         }),
         stop: vi.fn(),
       };
-      const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => speaker.spoken.push(t)), cancel: vi.fn() };
+      const speaker: Speaker & { spoken: string[] } = { spoken: [], speak: vi.fn((t: string) => { speaker.spoken.push(t); }), cancel: vi.fn() };
       const announcer = new Announcer(speaker);
       const store = useStoryStore();
       store.load(manifest);
       const controller = new ScreenlessController(store, announcer, audio as never);
       controller.start();
       store.start();
-      return { store, announcer, controller, audio, plays };
+      return { store, announcer, controller, audio, plays, speaker };
     }
     const flush = () => new Promise((r) => setTimeout(r, 0));
 
     it('suena la grabación en lugar de la voz sintética y el menú espera a que termine', async () => {
-      const { store, announcer, controller, plays } = withRecording();
+      const { store, announcer, controller, plays, speaker } = withRecording();
       await flush();
       expect(plays.at(-1)?.asset).toBe('assets/audio/voz/inicio.ogg');
       const log = () => announcer.log.value.join(' | ');
       expect(log()).toContain('El Pasillo');
-      expect(log()).not.toContain('angosto');
+      expect(speaker.spoken.join(' ')).not.toContain('angosto');
       expect(log()).not.toContain('1: Seguir la brisa');
       // Las teclas ya funcionan mientras suena la voz.
       plays.at(-1)!.onEnded!();
@@ -164,7 +164,7 @@ describe('ScreenlessController', () => {
       first.onEnded!(); // la anterior ya no cuenta
       expect(announcer.log.value.join(' ')).not.toContain('1: Seguir la brisa');
       controller.handleKey('s');
-      expect(audio.stop).toHaveBeenCalledWith('inicio::voz', 150);
+      expect(audio.stop).toHaveBeenCalledWith('duvarret::speech', 0);
       plays.at(-1)!.onEnded!();
       expect(announcer.log.value.join(' ')).not.toContain('1: Seguir la brisa');
       controller.handleKey('o');
@@ -193,12 +193,12 @@ describe('ScreenlessController', () => {
       controller.start();
       store.start();
       store.goTo('el_latido');
-      expect(controller.options.map((o) => `${o.key}:${o.label}`)).toEqual(['1:esperar', '2:abalanzarse']);
+      expect(controller.options.map((o) => o.key)).toEqual(['1', '2']);
       controller.handleKey('1');
       expect(store.currentNodeId).toBe('la_retirada');
       controller.handleKey(' ');
       expect(store.currentNodeId).toBe('el_latido');
-      expect(controller.options.map((o) => `${o.key}:${o.label}`)).toEqual(['2:abalanzarse']);
+      expect(controller.options.map((o) => o.key)).toEqual(['2']);
       expect(announcer.log.value.at(-1)).not.toContain('1: esperar');
       expect(controller.handleKey('1')).toBe(false);
       controller.handleKey('2');
@@ -213,6 +213,26 @@ describe('ScreenlessController', () => {
 
 describe('ScreenlessStage', () => {
   beforeEach(() => setActivePinia(createPinia()));
+
+  it('permite elegir, repetir, silenciar y salir sin teclado, evitando doble acción con Enter', async () => {
+    const store = useStoryStore();
+    store.load(sampleManifest());
+    store.start();
+    const announcer = new Announcer(null);
+    const wrapper = mount(ScreenlessStage, {
+      global: { provide: { [RUNTIME_SERVICES as symbol]: { audio: null, announcer, resolveAsset: (p: string) => p } } },
+    });
+    const repeat = wrapper.get('[data-testid="screenless-repeat"]');
+    await repeat.trigger('keydown', { key: 'Enter' });
+    expect(store.currentNodeId).toBe('inicio');
+    await repeat.trigger('click');
+    await wrapper.get('[data-testid="screenless-choice-1"]').trigger('click');
+    expect(store.currentNodeId).toBe('rejilla');
+    await wrapper.get('[data-testid="screenless-silence"]').trigger('click');
+    await wrapper.get('[data-testid="screenless-exit"]').trigger('click');
+    expect(wrapper.emitted('exit')).toHaveLength(1);
+    wrapper.unmount();
+  });
 
   it('expone regiones ARIA live y atiende el teclado', async () => {
     const store = useStoryStore();

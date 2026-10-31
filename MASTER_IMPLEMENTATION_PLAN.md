@@ -5,6 +5,12 @@
 
 ## Convenciones globales
 
+Publicación web comprobada (2026-10-19): **https://jackthend.github.io/el-ultimo-minuto/**, repositorio público separado `jackThend/el-ultimo-minuto`. Solo cuento exportado, voz e imágenes; GitHub Pages en `codex/publicacion`. Controles táctiles añadidos al modo audio y probados en el enlace real con Pixel 7 emulado, ambos finales, voz sin solapamientos y recorrido offline. Evidencias y guía de futuras publicaciones en `terminados/el-ultimo-minuto/PUBLICACION.md` y `VERIFICACION-GITHUB-PAGES.txt`.
+
+Entrega del cuento 1.3.0 (2026-10-19): actualización integrada en **Narración y voz**, con síntesis local, progreso, integración sobre las ediciones actuales y guardados serializados. Interpretación dulce persistente, narración directa sin eco, cuatro ilustraciones de cómic lofi y ejecutables renovados en `terminados/el-ultimo-minuto`. Botón probado en el .exe real: WAV nuevo, guardado y publicación desbloqueada sin cerrar; segunda pasada sin frases nuevas. Resultados y decisiones en `terminados/MEMORIA.md`.
+
+Entrega nativa comprobada (2026-10-19): `terminados/el-ultimo-minuto/Duvarret-Studio.exe`, reproductor `player/` y cuento `portable/`. Build release real mediante `scripts/build-windows.ps1 -SinInstalador`. Prueba WebView2 de apertura, edición, guardado, voz persistente, bloqueo de publicación pendiente y audio nativo sin solapamientos. Compatibilidad CSP: WASM habilitado, Zod jitless y sustitución estática del noop dinámico de Resonance. Sincronización de prosa/narración centralizada en ManifestEditor. Detalles y resultados de verificación en `terminados/MEMORIA.md` y los informes Windows junto a la obra.
+
 | Comando | Propósito |
 | :--- | :--- |
 | `npm run typecheck` | `vue-tsc --noEmit` — cero errores, sin `any` injustificado |
@@ -232,3 +238,36 @@ Pendiente / limitaciones conocidas:
 - El `.exe` de Windows y el `.app` de macOS solo se compilan en CI; en este entorno solo se verificó el binario Linux.
 - La RAM se midió en la oleada 8 (ver `docs/06_VALIDACION.md`): RNF-02 se cumple en Windows y macOS (60–65 MB) y no en Linux, por la base de WebKitGTK.
 - La transcodificación a Ogg/WebP depende de que `ffmpeg` esté instalado; sin él, los assets se empaquetan tal cual.
+
+## Corrección de narración uniforme · 2026-10-19
+
+- [x] Cola única para títulos, prosa, opciones y avisos, con cancelación al cambiar de escena. Archivos: runtime/screenless y audio. Verificación: regresiones de concurrencia y cancelación en Vitest; ninguna voz anterior puede continuar.
+- [x] Voz natural persistida en la obra, catálogo por texto y comprobación de grabaciones pendientes tras editar. Archivos: manifest, compiler, assets, Studio. Verificación: tipos, esquema, exportación e invalidación; nunca sustituir silenciosamente una voz natural.
+- [x] Generación local reutilizable con la misma voz para todas las frases y futuras ediciones. Archivos: scripts de narración y documentación. Verificación: regeneración incremental sin enviar texto a servicios externos.
+- [x] Actualizar El último minuto y comprobar títulos → prosa → opciones, repetición y ambos finales en Chrome. Archivos: terminados. Criterio: cero intervenciones de speechSynthesis y cero solapamientos de voz, proyecto editable conservado.
+
+Resultado: 333 pruebas / 40 archivos en verde (`npm test -- --maxWorkers=2`); `npm run build` (incluye vue-tsc) y `npm run lint` correctos. Chrome verifica las cuatro escenas, ayudas y controles, ambos finales y escucha sin conexión. Edición 1.2.0 en `terminados/el-ultimo-minuto` con 18 intervenciones de la misma voz; publicación de 35 archivos / 6.98 MB y ZIP de 4.64 MB. Incluye regresión del motor envuelto por Vue y caché PWA dependiente del contenido.
+
+## Autoría sin fricción y segunda demo · 2026-10-20
+
+- [x] Guardado automático recuperable, estado de guardado, deshacer/rehacer visibles, foco en diálogos y vistas compactas para escribir.
+- [x] Publicación guiada: guardar antes, reparar voz desde el aviso, comprobar recursos y explicar cómo compartir cada formato. Auditoría: `docs/08_AUDITORIA_UX_DEMO.md`.
+- [x] Sonido global apagado por defecto, silencio inmediato y persistente entre escenas, código táctil y voz de opciones condicionales.
+- [x] El archivo de las mareas: 15 escenas, tres finales, cuatro módulos, cinco ilustraciones lofi y 78 grabaciones de la misma voz dulce. Editable, Web/PWA, ZIP y lector portátil en `terminados`.
+- [x] Chrome: tres finales, fallos con continuación, inventario, condiciones, reanudación, modo táctil y PWA offline; lector portátil real probado con WebView2.
+- [x] Entregar Studio recompilado y comprobar guardado automático, actualización de voz y exportación en el ejecutable final. WebView2: cierre nativo guarda el último cambio; ZIP real, foco, deshacer/rehacer y vista de 390 px correctos. Informes y capturas junto a El último minuto.
+
+Registro detallado y límites de la entrega en `terminados/MEMORIA.md`. No se publica automáticamente la nueva obra en internet ni se actualiza el enlace público anterior.
+
+Publicación posterior autorizada · 2026-10-20: El archivo de las mareas disponible en https://jackthend.github.io/el-archivo-de-las-mareas/ . Repositorio público separado, 97 archivos; despliegue de Pages correcto y tres finales, voz, móvil y lectura sin conexión comprobados sobre el enlace real. Detalles en `terminados/el-archivo-de-las-mareas/PUBLICACION.md`.
+
+Evaluación para 1.0 · 2026-10-20: las demos no demuestran una instalación autocontenida. La voz aún requiere recursos externos preparados y la generación de imágenes del director reserva recursos pendientes. Se redactó `docs/09_PLAN_VERSION_1_0_SIN_FRICCION.md` con opciones de producto, evidencia y aceptación por fases. Es un plan propuesto, pendiente de implementación; no marcar las integraciones multimedia ni la instalación limpia como completadas por haber terminado los cuentos.
+
+## Instalador híbrido de Windows · 2026-10-21
+
+- Empaquetado de voz local autocontenida completado: Kokoro, intérprete y runtime privados, modelos, fuentes/licencias, CRT y WebView2 offline. eSpeak corregido para rutas Unicode reubicables. Sin Python/Codex externos en el flujo de generación del usuario.
+- BYOK por capacidades: texto OpenAI/Anthropic/Gemini/Zen/compatible y opciones locales existentes; imágenes Gemini/Cloudflare; voz Gemini/OpenAI/ElevenLabs/compatible. Claves DPAPI separadas de obras y exportaciones. Pruebas cloud con mocks, sin claves reales.
+- Protección de propuestas IA frente a ediciones concurrentes: 17 pruebas correctas; tipos y lint globales correctos. Reproductor ya aceptado reutilizado sin cambiar su SHA256.
+- NSIS final real y QA completo PASS sobre instalación aislada persistente: voz nueva, escuchar, editar, regeneración incremental, cero regeneración al repetir, lector exportado y grabaciones sin voz del sistema. Instalador en `terminados/instalador-hibrido/Duvarret-0.1.0-voz-local-setup.exe`, 592.265.712 bytes, SHA256 `E52D1E90D5B91DC273C64C8761733C7D33E11CE9A5223AEA337A44C034D27C1E`. Informe final `prueba con tilde á-ExGGZ7/VERIFICACION-INSTALACION.json`.
+
+Se conserva 0.1.0: no se certificó VM limpia ni 1.0, no hay firma digital propia, servicio gestionado ni publicación integrada. El avance por fases y los límites están actualizados en `docs/09_PLAN_VERSION_1_0_SIN_FRICCION.md`; detalles de uso, procedencia y evidencias en LEEME/MEMORIA de la entrega. Sin commits, push ni publicaciones nuevas.

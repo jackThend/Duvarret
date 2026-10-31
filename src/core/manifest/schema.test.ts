@@ -1,8 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import example from './__fixtures__/doc03-example.json';
 import { StoryManifestSchema, StoryNodeSchema, TolerantSchemas } from './schema';
 
 describe('StoryManifestSchema (estricto)', () => {
+  it('valida la obra completa cuando la política nativa prohíbe crear funciones dinámicas', () => {
+    const dynamic = vi.spyOn(globalThis, 'Function').mockImplementation(() => { throw new Error('CSP estricta'); });
+    let parsed;
+    let attempts: number;
+    try {
+      parsed = StoryManifestSchema.safeParse(example);
+      attempts = dynamic.mock.calls.length;
+    } finally {
+      dynamic.mockRestore();
+    }
+    expect(parsed?.success).toBe(true);
+    expect(attempts).toBe(0);
+  });
   it('valida sin pérdidas el ejemplo exhaustivo del doc 03', () => {
     const parsed = StoryManifestSchema.safeParse(example);
     expect(parsed.success, JSON.stringify(parsed.error?.issues, null, 2)).toBe(true);

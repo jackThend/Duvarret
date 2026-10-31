@@ -8,9 +8,9 @@ import type { ParsedManuscript } from '../ingest/sceneParser';
 export const WORK_MODES = ['exegesis', 'injerto', 'taller'] as const;
 export type WorkMode = (typeof WORK_MODES)[number];
 export const WORK_MODE_LABELS: Record<WorkMode, string> = {
-  exegesis: 'Exégesis',
-  injerto: 'Injerto',
-  taller: 'Taller',
+  exegesis: 'Adaptar una obra',
+  injerto: 'Continuar un manuscrito',
+  taller: 'Escribir desde cero',
 };
 
 export const THEMES = ['nordic', 'sepia'] as const;

@@ -5,7 +5,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'dist-player/**', 'src-tauri/target/**', 'src-tauri/gen/**', 'node_modules/**', 'export/**', '**/export/**', 'playwright-report/**', 'test-results/**', 'schemas/**'],
+    ignores: ['dist/**', 'dist-player/**', 'dist-voice/**', '.cache/**', 'terminados/**/web/**', 'terminados/**/portable/**', 'src-tauri/target/**', 'src-tauri/gen/**', 'node_modules/**', 'export/**', '**/export/**', 'playwright-report/**', 'test-results/**', 'schemas/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

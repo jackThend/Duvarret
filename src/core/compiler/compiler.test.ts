@@ -3,6 +3,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { accessibleScript, collectAssetReferences, compileBundle, rewriteAssetPaths, zipBundle, type FileMap } from './index';
 import { validateManifest } from '../manifest';
 import { sampleManifest } from '@/runtime/__fixtures__/sample';
+import { speechTexts } from '../narration/script';
 
 const runtime: FileMap = new Map([
   ['index.html', new TextEncoder().encode('<html></html>')],
@@ -30,6 +31,26 @@ describe('collectAssetReferences', () => {
 });
 
 describe('compileBundle', () => {
+  it('empaqueta todos los títulos y avisos de voz, y bloquea un archivo ausente', async () => {
+    const manifest = validateManifest({ metadata: { title: 'Voz' }, nodes: [{ node_id: 'uno', title: 'Hola', text_payload: 'Relato.', navigation: { is_ending: true } }] }).manifest;
+    manifest.global_settings.narration_voice = { voice_id: 'kokoro:ef_dora', label: 'Dora', clips: speechTexts(manifest).map((text, i) => ({ text, asset: `assets/audio/voz/${i}.wav` })) };
+    const result = await compileBundle({ manifest, readAsset: async () => new Uint8Array(30), runtime }, 'web');
+    expect(result.ok).toBe(true);
+    for (const clip of manifest.global_settings.narration_voice.clips) expect(result.files.has(clip.asset)).toBe(true);
+    const absent = await compileBundle({ manifest, readAsset: async () => null, runtime }, 'web');
+    expect(absent.ok).toBe(false);
+    expect(absent.blocking[0]?.code).toBe('missing_narration');
+    manifest.nodes[0]!.title = 'Nuevo título';
+    const stale = await compileBundle({ manifest, readAsset, runtime }, 'web');
+    expect(stale.blocking.some(issue => issue.code === 'narration_outdated')).toBe(true);
+  });
+
+  it('renueva la caché si cambia un audio aunque se mantengan versión, ruta y cantidad de archivos', async () => {
+    const input = { manifest: sampleManifest(), runtime };
+    const first = await compileBundle({ ...input, readAsset: async () => new Uint8Array([1, 2]) }, 'web');
+    const second = await compileBundle({ ...input, readAsset: async () => new Uint8Array([1, 3]) }, 'web');
+    expect(strFromU8(first.files.get('sw.js')!)).not.toBe(strFromU8(second.files.get('sw.js')!));
+  });
   it('Web/PWA: runtime + manifiesto + assets + service worker', async () => {
     const result = await compileBundle({ manifest: sampleManifest(), readAsset, runtime }, 'web');
     expect(result.ok).toBe(true);

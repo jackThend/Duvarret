@@ -1,7 +1,7 @@
 import { newCallId, safeJsonObject, type CompletionRequest, type CompletionResponse, type JsonSchema, type LlmProvider, type ProviderConfig } from '../types';
 import { contextAsText, postJson } from './http';
 
-type Part = { text?: string; functionCall?: { name: string; args?: Record<string, unknown> }; functionResponse?: { name: string; response: Record<string, unknown> } };
+type Part = { text?: string; thought?: boolean; thoughtSignature?: string; functionCall?: { name: string; args?: Record<string, unknown>; id?: string }; functionResponse?: { name: string; response: Record<string, unknown> } };
 interface GeminiResponse {
   modelVersion?: string;
   candidates?: { finishReason?: string; content?: { parts?: Part[] } }[];
@@ -24,7 +24,7 @@ export class GeminiProvider implements LlmProvider {
   readonly kind = 'gemini' as const;
   readonly model: string;
   constructor(private readonly config: ProviderConfig) {
-    this.model = config.model ?? 'gemini-2.5-pro';
+    this.model = config.model ?? 'gemini-3.5-flash-lite';
   }
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
@@ -43,8 +43,14 @@ export class GeminiProvider implements LlmProvider {
     for (const m of request.messages) {
       if (m.role === 'user') push('user', { text: m.content });
       else if (m.role === 'assistant') {
-        if (m.content) push('model', { text: m.content });
-        for (const call of m.toolCalls ?? []) push('model', { functionCall: { name: call.name, args: call.arguments } });
+        // Gemini firma partes concretas; reconstruirlas o fusionarlas elimina el estado
+        // requerido en el siguiente turno. https://ai.google.dev/gemini-api/docs/thinking
+        if (m.provider === 'gemini' && Array.isArray(m.providerContent)) {
+          for (const part of m.providerContent as Part[]) push('model', part);
+        } else {
+          if (m.content) push('model', { text: m.content });
+          for (const call of m.toolCalls ?? []) push('model', { functionCall: { name: call.name, args: call.arguments } });
+        }
       } else if (m.role === 'tool') push('user', { functionResponse: { name: m.name, response: { result: safeJsonObject(m.content), text: m.content } } });
     }
 
@@ -62,10 +68,11 @@ export class GeminiProvider implements LlmProvider {
     );
     const candidate = data.candidates?.[0];
     const parts = candidate?.content?.parts ?? [];
-    const toolCalls = parts.filter((p) => p.functionCall).map((p) => ({ id: newCallId('gemini'), name: p.functionCall!.name, arguments: safeJsonObject(p.functionCall!.args) }));
+    const toolCalls = parts.filter((p) => p.functionCall).map((p) => ({ id: p.functionCall!.id ?? newCallId('gemini'), name: p.functionCall!.name, arguments: safeJsonObject(p.functionCall!.args) }));
     const blocked = !!data.promptFeedback?.blockReason || candidate?.finishReason === 'SAFETY';
     return {
-      content: parts.map((p) => p.text ?? '').join(''),
+      content: parts.filter(p => !p.thought).map((p) => p.text ?? '').join(''),
+      providerContent: parts,
       toolCalls,
       stopReason: blocked ? 'refusal' : toolCalls.length ? 'tool_calls' : candidate?.finishReason === 'MAX_TOKENS' ? 'length' : 'stop',
       ...(data.modelVersion ? { model: data.modelVersion } : {}),

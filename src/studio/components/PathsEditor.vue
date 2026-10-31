@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { describeCondition, flagId, flagLabel, knownFlags, knownStats, type Choice, type ChoiceCondition } from '@/core/manifest';
+import { describeCondition, flagId, flagLabel, hasExit, knownFlags, knownStats, type Choice, type ChoiceCondition } from '@/core/manifest';
 import { useProjectStore } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 
@@ -23,6 +23,9 @@ const CONDITION_LABELS: Record<ConditionKind, string> = {
 const node = computed(() => project.selectedNode);
 const nav = computed(() => node.value?.navigation);
 const scenes = computed(() => project.nodes.map((n) => ({ id: n.node_id, label: n.title ?? n.node_id })));
+/** Una continuación hacia sí misma dejaría al lector atrapado: solo se muestra si ya estaba elegida. */
+const nextScenes = computed(() => scenes.value.filter((s) => s.id !== node.value?.node_id || s.id === nav.value?.default_next_node));
+const optionLabel = (s: { id: string; label: string }) => (s.id === node.value?.node_id ? `${s.label} (esta misma escena)` : s.label);
 const sceneIds = computed(() => new Set(project.nodes.map((n) => n.node_id)));
 const flags = computed(() => knownFlags(project.manifest));
 const stats = computed(() => knownStats(project.manifest));
@@ -163,7 +166,7 @@ function removeMark(index: number, flag: string) {
         <span class="text-dv-muted">Continuación natural</span>
         <select class="dv-select" :value="nav.default_next_node ?? ''" :disabled="nav.is_ending" data-testid="paths-next" @change="setNext(($event.target as HTMLSelectElement).value)">
           <option value="">— Ninguna —</option>
-          <option v-for="s in scenes" :key="s.id" :value="s.id">{{ s.label }}</option>
+          <option v-for="s in nextScenes" :key="s.id" :value="s.id">{{ optionLabel(s) }}</option>
           <option :value="NEW_SCENE">＋ Escena nueva</option>
         </select>
       </label>
@@ -172,6 +175,11 @@ function removeMark(index: number, flag: string) {
         Esta escena es un final
       </label>
     </div>
+    <p v-if="node && !hasExit(node)" class="text-xs text-dv-muted" data-testid="paths-implicit-ending">
+      Esta escena no lleva a ninguna otra, así que la historia terminará aquí.
+      <button type="button" class="dv-link" data-testid="paths-mark-ending" @click="setEnding(true)">Marcarla como final</button>
+      o elige una continuación.
+    </p>
     <p v-if="nav.default_next_node && !sceneIds.has(nav.default_next_node)" role="alert" class="text-xs text-dv-danger">La continuación lleva a una escena que ya no existe.</p>
 
     <ol class="space-y-3">
@@ -188,7 +196,7 @@ function removeMark(index: number, flag: string) {
           <span class="text-dv-muted" aria-hidden="true">→</span>
           <select class="dv-select max-w-[12rem]" :value="choice.target_node" :aria-label="`Destino de la elección ${i + 1}`" data-testid="choice-target" @change="setTarget(i, ($event.target as HTMLSelectElement).value)">
             <option v-if="!sceneIds.has(choice.target_node)" :value="choice.target_node">«{{ choice.target_node }}» (no existe)</option>
-            <option v-for="s in scenes" :key="s.id" :value="s.id">{{ s.label }}</option>
+            <option v-for="s in scenes" :key="s.id" :value="s.id">{{ optionLabel(s) }}</option>
             <option :value="NEW_SCENE">＋ Escena nueva</option>
           </select>
           <button type="button" class="dv-icon-btn" :disabled="i === 0" :aria-label="`Subir la elección ${i + 1}`" @click="moveChoice(i, -1)">↑</button>
