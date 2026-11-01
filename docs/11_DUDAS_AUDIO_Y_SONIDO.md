@@ -274,6 +274,19 @@ sencillas (pasos, pasos, disparo, silencio) con varios eventos y retardos distin
 de escena antes. Con prueba unitaria del caso de cancelación.
 
 ### Tarea 7 — Marca en el texto: `on_text_marker`
+> **Estado (31-10-2026): hecha** (decisión §4.1: el libro contemplativo sigue el desplazamiento).
+> `src/core/manifest/markers.ts` analiza `⟦nombre⟧`; el evento usa `trigger: 'on_text_marker'` y
+> `trigger_marker`. En lugar de compilar la marca a un porcentaje fijo, **el reproductor la retira al
+> cargar** (`story.load`) y conserva su posición, así la vista previa del Studio y la obra exportada
+> se comportan igual. En `multimedia` suena cuando el progreso de lectura llega a la marca; en
+> `contemplative_book`, `NodeView` observa anclas invisibles con `IntersectionObserver` y suena cuando
+> la marca sube a la parte de lectura de la pantalla (si un efecto tipográfico reordena las palabras,
+> vuelve al progreso estimado). La narración y el guion accesible nunca leen la marca, y un texto con
+> marcas reutiliza la misma grabación. En el lienzo, el fondo pinta la marca como ficha; «🎧 Sonido en
+> esta palabra» la inserta tras la palabra seleccionada y su ficha permite elegir sonido y retardo. El
+> director acepta `at_word` en `placeSpatialAudio` («justo en «disparó»»). Si una marca desaparece
+> del texto, la integridad avisa (`missing_text_marker`).
+
 **El problema que resuelve.** `on_text_reveal_percentage` es tosco: para que el disparo suene
 exactamente en la palabra «disparó» hay que calcular el porcentaje a mano, y se rompe en cuanto el
 autor edita el párrafo.
@@ -315,6 +328,7 @@ más prescindible de la lista; anotada para que no se pierda.
 **No inventar estas respuestas.** Preguntar antes de implementar lo que dependa de ellas.
 
 ### 4.1 La marca en el modo libro contemplativo (bloquea la tarea 7)
+**Decidido (31-10-2026): respaldarla con el scroll** (`IntersectionObserver`).
 En `contemplative_book` no hay tipeo, así que el progreso de lectura no avanza solo y la marca
 quedaría muda. Opciones: respaldarla con el scroll (`IntersectionObserver`), con un tiempo estimado
 por palabras por minuto, o aceptar que ese modo no tiene sonidos sincronizados.

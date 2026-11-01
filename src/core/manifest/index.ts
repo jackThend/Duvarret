@@ -6,3 +6,4 @@ export * from './integrity';
 export * from './loader';
 export * from './jsonSchema';
 export * from './navigation';
+export * from './markers';

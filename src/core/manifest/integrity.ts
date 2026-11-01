@@ -7,6 +7,7 @@ import type { ManifestIssue } from './diagnostics';
 import type { StoryManifest } from './schema';
 import { hasExit } from './navigation';
 import { missingSpeech } from '../narration/script';
+import { parseTextMarkers } from './markers';
 
 export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
   const issues: ManifestIssue[] = [];
@@ -141,6 +142,23 @@ export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
         nodeId: id,
       });
     }
+  });
+
+  // Un sonido atado a una marca `⟦…⟧` que ya no está en el texto no sonaría nunca.
+  manifest.nodes.forEach((node, index) => {
+    const names = new Set(parseTextMarkers(node.text_payload).markers.map((m) => m.name));
+    node.acoustic_events.forEach((event, e) => {
+      if (event.trigger !== 'on_text_marker' || (event.trigger_marker && names.has(event.trigger_marker))) return;
+      issues.push({
+        severity: 'warning',
+        path: `nodes.${index}.acoustic_events.${e}.trigger_marker`,
+        code: 'missing_text_marker',
+        message: event.trigger_marker
+          ? `El sonido «${event.label ?? event.event_id}» espera la marca «${event.trigger_marker}», que ya no está en el texto; no sonará.`
+          : `El sonido «${event.label ?? event.event_id}» debe sonar en una marca del texto, pero no dice cuál.`,
+        nodeId: node.node_id,
+      });
+    });
   });
 
   return issues;

@@ -180,6 +180,9 @@ function soundRequest(message: string, t = normalizeText(message)) {
   const reading = parseSpatialDescription(message);
   const noun = SOUND_NOUNS.find(([re]) => re.test(t));
   if (!noun && !(reading.understood && /suen|oig|escuch|sonido|ruido|audio|pon /.test(t))) return null;
+  // «justo en «disparó»», «cuando lea «disparó»»: el sonido espera a esa palabra del texto.
+  const quoted = message.match(/[«"“]([^»"”]{1,40})[»"”]/)?.[1]?.trim();
+  const atWord = quoted && /palabra|justo en|cuando lea|al leer|al llegar a|cuando llegue/.test(t) ? quoted : undefined;
   return {
     query: noun ? noun[1].replace(/_/g, ' ') : null,
     /** Ruta reservada de siempre si no hay generador que lo busque. */
@@ -189,6 +192,7 @@ function soundRequest(message: string, t = normalizeText(message)) {
       position_description: message,
       loop: /bucle|constante|sin parar|goteo|gotera/.test(t),
       trigger_event: /cuando lea|al leer|a mitad/.test(t) ? 'on_text_reveal' : 'on_enter',
+      ...(atWord ? { at_word: atWord } : {}),
       ...(delayFrom(t) ? { delay_ms: delayFrom(t) } : {}),
     },
   };

@@ -3,7 +3,7 @@
  * declarativos sobre el manifiesto o consultas al grafo; ninguna ejecuta código.
  */
 import { z } from 'zod';
-import { ACOUSTIC_MATERIALS, LAYOUT_LABELS, MODULE_LABELS, ROOM_LABELS, ROOM_PRESETS, type RoomPreset } from '../../manifest';
+import { ACOUSTIC_MATERIALS, LAYOUT_LABELS, MODULE_LABELS, ROOM_LABELS, ROOM_PRESETS, markerName, parseTextMarkers, type RoomPreset } from '../../manifest';
 import { describePosition } from '../../../runtime/audio/coordinates';
 import { parseSpatialDescription } from '../spatialLanguage';
 import { defineTool, type AgentTool } from './registry';
@@ -203,6 +203,7 @@ export const placeSpatialAudio = defineTool({
     trigger_event: z.enum(Object.keys(TRIGGER_ALIASES) as [keyof typeof TRIGGER_ALIASES, ...(keyof typeof TRIGGER_ALIASES)[]]).default('on_enter'),
     trigger_value: z.number().min(0).max(100).optional(),
     delay_ms: z.number().min(0).max(120000).optional().describe('espera tras el disparador, p. ej. 2000 = «dos segundos después de entrar»'),
+    at_word: z.string().min(1).max(40).optional().describe('palabra del texto de la escena en la que debe sonar, p. ej. «disparó»; tiene prioridad sobre trigger_event'),
     loop: z.boolean().default(false),
     gain: z.number().min(0).max(1).default(0.8),
     label: z.string().optional(),
@@ -219,13 +220,31 @@ export const placeSpatialAudio = defineTool({
       .normalize('NFD')
       .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '_');
-    const existing = ctx.editor.node(args.node_id)?.acoustic_events ?? [];
+    const node = ctx.editor.node(args.node_id);
+    const existing = node?.acoustic_events ?? [];
+    // «Justo en la palabra «disparó»»: se inserta una marca invisible tras ella y el sonido la espera.
+    let marker: string | undefined;
+    if (args.at_word) {
+      marker = markerName(args.at_word);
+      const text = node?.text_payload ?? '';
+      if (!parseTextMarkers(text).markers.some((m) => m.name === marker)) {
+        const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        const at = fold(text).indexOf(fold(args.at_word.trim()));
+        if (!marker || at < 0) {
+          const reason = `La palabra «${args.at_word}» no está en el texto de la escena; elige otra que sí aparezca.`;
+          return { result: { error: reason }, summary: reason, mutates: false, error: 'word_not_found' };
+        }
+        const end = at + args.at_word.trim().length;
+        ctx.editor.patchNode(args.node_id, { text_payload: `${text.slice(0, end)}⟦${marker}⟧${text.slice(end)}` });
+      }
+    }
     const event = {
       event_id: eventId,
       asset: args.asset_path,
       label: args.label ?? eventId.replace(/_/g, ' '),
-      trigger,
-      ...(trigger === 'on_text_reveal_percentage' ? { trigger_value: args.trigger_value ?? 50 } : {}),
+      trigger: marker ? ('on_text_marker' as const) : trigger,
+      ...(marker ? { trigger_marker: marker } : {}),
+      ...(!marker && trigger === 'on_text_reveal_percentage' ? { trigger_value: args.trigger_value ?? 50 } : {}),
       ...(args.delay_ms ? { delay_ms: args.delay_ms } : {}),
       loop: args.loop,
       coordinates,
@@ -238,7 +257,7 @@ export const placeSpatialAudio = defineTool({
     if (ctx.assets && !ctx.assets.get(args.asset_path) && !ctx.isDraftAsset?.(args.asset_path)) ctx.assets.register({ path: args.asset_path, origin: 'author', status: 'missing' });
     return {
       result: { ok: true, event_id: eventId, coordinates, room_preset: room },
-      summary: `«${event.label}» ${describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}${args.delay_ms ? `, ${String(args.delay_ms / 1000).replace('.', ',')} s después` : ''}.`,
+      summary: `«${event.label}» ${describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}${marker ? `, justo al leer «${args.at_word}»` : ''}${args.delay_ms ? `, ${String(args.delay_ms / 1000).replace('.', ',')} s después` : ''}.`,
       mutates: true,
       issues: patch.issues,
       nodeId: args.node_id,

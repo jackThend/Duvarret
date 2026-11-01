@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { StoryNode } from '@/core/manifest';
 import { useStoryStore } from '../stores/story';
 import { useRuntimeServices } from '../services';
@@ -17,6 +17,32 @@ const { resolveAsset, audio } = useRuntimeServices();
 const text = computed(() => props.node.text_payload);
 const speed = computed(() => props.readingSpeed);
 const progress = useReadingProgress(text, (p) => store.setRevealProgress(p), { speed });
+const markers = computed(() => store.textMarkers.get(props.node.node_id) ?? []);
+
+/**
+ * Libro contemplativo (decisión §4.1 de docs/11): no hay tipeo, así que cada marca `⟦…⟧` suena
+ * cuando su ancla sube a la parte de lectura de la pantalla. Sin anclas visibles (efectos que
+ * reordenan las palabras) o sin IntersectionObserver, se sigue el progreso de lectura estimado.
+ */
+const root = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+function observeMarkers() {
+  observer?.disconnect();
+  observer = null;
+  const contemplative = store.manifest?.global_settings.default_mode === 'contemplative_book';
+  const anchors = root.value ? [...root.value.querySelectorAll<HTMLElement>('[data-marker]')] : [];
+  const scroll = contemplative && anchors.length > 0 && typeof IntersectionObserver !== 'undefined';
+  store.useScrollMarkers(scroll);
+  if (!scroll) return;
+  observer = new IntersectionObserver(
+    (entries) => { for (const entry of entries) if (entry.isIntersecting) store.reachMarker((entry.target as HTMLElement).dataset.marker!); },
+    { root: root.value, rootMargin: '0px 0px -35% 0px' },
+  );
+  for (const anchor of anchors) observer.observe(anchor);
+}
+onMounted(observeMarkers);
+watch(() => [props.node.node_id, markers.value], () => void nextTick(observeMarkers));
+onBeforeUnmount(() => { observer?.disconnect(); store.useScrollMarkers(false); });
 const dialogueDone = ref(false);
 watch(
   () => props.node.node_id,
@@ -39,13 +65,13 @@ const pct = (p: number) => `${Math.round(p * 100)}%`;
 </script>
 
 <template>
-  <article class="dv-node" :data-node="node.node_id" data-testid="node-view" @scroll.passive="progress.onScroll($event.target as HTMLElement)">
+  <article ref="root" class="dv-node" :data-node="node.node_id" data-testid="node-view" @scroll.passive="progress.onScroll($event.target as HTMLElement)">
     <figure v-if="node.illustration?.asset" class="dv-illustration" :class="`dv-illustration-${node.illustration.placement}`">
       <img :src="resolveAsset(node.illustration.asset)" :alt="node.illustration.alt" />
     </figure>
     <h2 v-if="node.title" class="dv-node-title">{{ node.title }}</h2>
 
-    <ErgodicText :text="node.text_payload" :engine="node.typographic_engine" :extra-texts="store.revealedExtraTexts" />
+    <ErgodicText :text="node.text_payload" :engine="node.typographic_engine" :extra-texts="store.revealedExtraTexts" :markers="markers" />
 
     <dl v-if="glossary.length" class="dv-glossary" aria-label="Glosario">
       <template v-for="entry in glossary" :key="entry.term">

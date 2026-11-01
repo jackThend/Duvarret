@@ -1,19 +1,48 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { TypographicEngine } from '@/core/manifest';
+import type { TextMarker, TypographicEngine } from '@/core/manifest';
 import { computeTypographyFrame, createFallWorld, isWorldAtRest, stepFallWorld, type FallWorld } from '../typography/effects';
 import { useAnimationClock, usePrefersReducedMotion } from '../composables/useAnimationClock';
 import MeltCanvas from './MeltCanvas.vue';
 import FlashlightMask from './FlashlightMask.vue';
 
-const props = defineProps<{ text: string; engine?: TypographicEngine; extraTexts?: string[] }>();
+const props = defineProps<{ text: string; engine?: TypographicEngine; extraTexts?: string[]; markers?: TextMarker[] }>();
 
 const reducedMotion = usePrefersReducedMotion();
 const animated = computed(() => !!props.engine && props.engine.layout_mode !== 'standard' || !!props.engine?.heartbeat_sync?.enabled || !!props.engine?.flicker_effect);
 const { time } = useAnimationClock(animated);
 const frame = computed(() => computeTypographyFrame(props.engine, time.value, { reducedMotion: reducedMotion.value }));
 
-const paragraphs = computed(() => props.text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean));
+/**
+ * Párrafos en trozos, con un ancla invisible donde el autor puso cada marca `⟦…⟧`: el libro
+ * contemplativo dispara el sonido cuando esa ancla aparece al desplazarse.
+ */
+const paragraphs = computed(() => {
+  const out: { text: string; marker?: string }[][] = [];
+  const pending = [...(props.markers ?? [])].sort((a, b) => a.index - b.index);
+  let offset = 0;
+  for (const raw of props.text.split(/(\n{2,})/)) {
+    const lead = raw.length - raw.trimStart().length;
+    const body = raw.trim();
+    const start = offset + lead;
+    offset += raw.length;
+    if (!body) continue;
+    const parts: { text: string; marker?: string }[] = [];
+    let cursor = 0;
+    while (pending.length && pending[0]!.index <= start + body.length) {
+      const marker = pending.shift()!;
+      const at = Math.max(cursor, Math.min(body.length, marker.index - start));
+      if (at > cursor) parts.push({ text: body.slice(cursor, at) });
+      parts.push({ text: '', marker: marker.name });
+      cursor = at;
+    }
+    parts.push({ text: body.slice(cursor) });
+    out.push(parts);
+  }
+  // Una marca tras el último párrafo queda al final del texto.
+  if (pending.length && out.length) out.at(-1)!.push(...pending.map((m) => ({ text: '', marker: m.name })));
+  return out;
+});
 const words = computed(() => props.text.split(/\s+/).filter(Boolean));
 
 // Licuado: WebGL si está disponible; si no, animación CSS equivalente.
@@ -76,7 +105,7 @@ function meltDelay(index: number) {
         >{{ `${word} ` }}</span>
       </p>
       <template v-else>
-        <p v-for="(paragraph, i) in paragraphs" :key="i">{{ paragraph }}</p>
+        <p v-for="(parts, i) in paragraphs" :key="i"><template v-for="(part, j) in parts" :key="j"><span v-if="part.marker" class="dv-text-marker" :data-marker="part.marker" aria-hidden="true"></span>{{ part.text }}</template></p>
       </template>
       <p v-for="(extra, i) in extraTexts ?? []" :key="`extra-${i}`" class="dv-extra" data-testid="extra-text">{{ extra }}</p>
     </div>

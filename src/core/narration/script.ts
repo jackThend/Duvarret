@@ -1,11 +1,13 @@
 import type { StoryManifest } from '../manifest/schema';
+import { stripTextMarkers } from '../manifest/markers';
 
 export const HELP_TEXT = 'Atajos: números para elegir, Espacio o Intro para continuar, R para repetir, O para oír las opciones, I para el inventario, S para silenciar la voz, H para esta ayuda.';
 export const VOICE_UNAVAILABLE = 'El reconocimiento de voz no está disponible en este dispositivo; usa el teclado.';
 export const NOT_UNDERSTOOD = 'No entendí. Di «opciones» para escucharlas.';
 export const END_TEXT = 'Fin de la obra. Pulsa R para volver a escuchar.';
 export const CONTINUE_TEXT = 'Pulsa Espacio para continuar.';
-export const speechKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim();
+// Las marcas de sonido `⟦…⟧` no se leen: un texto con marcas suena igual que sin ellas.
+export const speechKey = (text: string) => stripTextMarkers(text).normalize('NFC').replace(/\s+/g, ' ').trim();
 export const optionText = (key: string, label: string) => `${key}: ${label}.`;
 // Algunos manuscritos ya enumeran las opciones en el aviso: no se leen dos veces.
 export const introductionText = (text?: string) => text && !/^\s*\d+\s*:/.test(text) ? text : '';
@@ -13,7 +15,7 @@ export const introductionText = (text?: string) => text && !/^\s*\d+\s*:/.test(t
 /** Frases que puede emitir el reproductor. Se comparte con el generador y el validador. */
 export function speechTexts(manifest: StoryManifest): string[] {
   const texts = new Map<string, string>();
-  const add = (text?: string) => { if (text?.trim()) texts.set(speechKey(text), text); };
+  const add = (text?: string) => { const clean = text && stripTextMarkers(text); if (clean?.trim()) texts.set(speechKey(clean), clean); };
   [HELP_TEXT, VOICE_UNAVAILABLE, NOT_UNDERSTOOD, END_TEXT, CONTINUE_TEXT, 'No llevas nada.', 'Llevas:'].forEach(add);
   Object.values(manifest.item_registry).forEach(item => add(item.name));
   for (const node of manifest.nodes) {

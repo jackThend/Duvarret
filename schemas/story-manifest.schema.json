@@ -641,13 +641,19 @@
                     "on_text_reveal_percentage",
                     "on_text_complete",
                     "on_choice_hover",
-                    "on_puzzle_solve"
+                    "on_puzzle_solve",
+                    "on_text_marker"
                   ]
                 },
                 "trigger_value": {
                   "type": "number",
                   "minimum": 0,
                   "maximum": 100
+                },
+                "trigger_marker": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
                 },
                 "loop": {
                   "default": false,

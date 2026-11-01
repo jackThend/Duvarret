@@ -582,6 +582,28 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   }
 
   /**
+   * Ata un sonido a una marca `⟦…⟧` del texto (o cambia el que tenía, o su retardo). El evento se
+   * llama como la marca y empieza delante del oyente; después se ajusta en el radar.
+   */
+  function setMarkerSound(nodeId: string, marker: string, asset: string, delayMs = 0) {
+    const node = nodes.value.find((n) => n.node_id === nodeId);
+    if (!node) return;
+    const existing = node.acoustic_events.find((e) => e.trigger === 'on_text_marker' && e.trigger_marker === marker);
+    const base = marker.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'marca';
+    const taken = new Set(node.acoustic_events.filter((e) => e !== existing).map((e) => e.event_id));
+    let eventId = existing?.event_id ?? base;
+    for (let n = 2; !existing && taken.has(eventId); n++) eventId = `${base}_${n}`;
+    const delay = Math.max(0, Math.min(120000, Math.round(delayMs)));
+    const event = {
+      ...(existing ?? { coordinates: { x: 0, y: 0, z: 2 }, gain: 0.8, loop: false }),
+      event_id: eventId, asset, label: existing?.label ?? marker, trigger: 'on_text_marker' as const, trigger_marker: marker,
+      delay_ms: delay || undefined,
+    };
+    const events = existing ? node.acoustic_events.map((e) => (e === existing ? event : e)) : [...node.acoustic_events, event];
+    patchNode(nodeId, { acoustic_events: events }, { undoable: true });
+  }
+
+  /**
    * Crea una escena. Por defecto queda enlazada como continuación de la escena de referencia;
    * con `link: false` solo se crea (p. ej. como destino de una elección nueva).
    */
@@ -722,6 +744,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     setMetadata,
     applyDraft,
     moveAcousticEvent,
+    setMarkerSound,
     addNode,
     updateNavigation,
     removeNode,

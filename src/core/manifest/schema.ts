@@ -202,6 +202,8 @@ function build(tolerant: boolean) {
     label: o(z.string()),
     trigger: d(z.enum(ACOUSTIC_TRIGGERS), 'on_node_enter'),
     trigger_value: o(z.number().min(0).max(100)),
+    /** Con `on_text_marker`: nombre de la marca `⟦…⟧` del texto donde suena. */
+    trigger_marker: o(z.string().min(1).max(40)),
     loop: d(z.boolean(), false),
     coordinates: d(coordinates, { x: 0, y: 0, z: 0 }),
     room_preset: o(z.enum(ROOM_PRESETS)),

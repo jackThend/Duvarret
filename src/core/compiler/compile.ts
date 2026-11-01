@@ -6,7 +6,7 @@
  *  4. Genera la salida Web/PWA, el paquete de audio-drama o el escenario del binario nativo.
  */
 import { zipSync, strToU8 } from 'fflate';
-import { checkIntegrity, validateManifest, type ManifestIssue, type StoryManifest } from '../manifest';
+import { checkIntegrity, stripTextMarkers, validateManifest, type ManifestIssue, type StoryManifest } from '../manifest';
 import { collectAssetReferences } from './assets';
 
 export type ExportTarget = 'web' | 'audio_drama' | 'native';
@@ -104,7 +104,7 @@ function contentFingerprint(files: FileMap): string {
 export function accessibleScript(m: StoryManifest): string {
   const lines = [`${m.metadata.title}`, `${m.metadata.author}`, '', 'Guion accesible del audio-drama.', ''];
   for (const node of m.nodes) {
-    lines.push(`## ${node.title ?? node.node_id}`, '', node.screenless_mode?.narration_text ?? node.text_payload, '');
+    lines.push(`## ${node.title ?? node.node_id}`, '', stripTextMarkers(node.screenless_mode?.narration_text ?? node.text_payload), '');
     const vn = node.visual_novel_overlay;
     if (vn?.enabled) {
       for (const l of vn.lines.length ? vn.lines : [{ speaker: vn.active_speaker, text: vn.dialogue_text }]) {

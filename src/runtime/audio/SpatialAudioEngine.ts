@@ -428,6 +428,7 @@ export class SpatialAudioEngine {
       for (const acoustic of node.acoustic_events) {
         if (acoustic.trigger !== event.type) continue;
         if (event.type === 'on_text_reveal_percentage' && (acoustic.trigger_value ?? 50) !== event.value) continue;
+        if (event.type === 'on_text_marker' && acoustic.trigger_marker !== event.marker) continue;
         if (!acoustic.delay_ms) {
           void this.playEvent(acoustic, node.node_id);
           continue;
