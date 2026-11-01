@@ -163,6 +163,7 @@ A continuación se muestra un ejemplo exhaustivo de un nodo que combina **Litera
       "asset": "assets/audio/sfx/heavy_footsteps.ogg",
       "trigger": "on_text_reveal_percentage",
       "trigger_value": 60, // Se dispara cuando el lector ha leído el 60% del texto
+      "delay_ms": 1500, // Opcional: espera tras el disparador; se cancela si el lector sale antes de la escena
       "loop": false,
       "coordinates": { "x": 0.0, "y": 0.0, "z": -12.0 }, // 12 metros a la espalda
       "room_preset": "narrow_concrete_corridor"

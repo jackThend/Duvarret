@@ -208,6 +208,8 @@ function build(tolerant: boolean) {
     acoustic_material: o(z.enum(ACOUSTIC_MATERIALS)),
     gain: d(z.number().min(0).max(1), 1),
     fade_in_ms: d(z.number().min(0).max(30000), 0),
+    /** Espera tras el disparador («dos segundos después de entrar»); se cancela si el lector sale antes. */
+    delay_ms: o(z.number().min(0).max(120000)),
   });
 
   const dialogueLine = obj({

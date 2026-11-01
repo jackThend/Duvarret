@@ -710,6 +710,11 @@
                   "type": "number",
                   "minimum": 0,
                   "maximum": 30000
+                },
+                "delay_ms": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 120000
                 }
               },
               "required": [

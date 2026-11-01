@@ -358,6 +358,18 @@ describe('DirectorOrchestrator', () => {
     expect(turn.executions[0]!.outcome.summary).toBe('No pude crear la voz: Añade tu clave de Gemini.');
   });
 
+  it('entiende «dos segundos después» y lo deja como retardo del sonido', async () => {
+    const turn = await new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({
+      message: 'Pon unos pasos por detrás, dos segundos después de entrar',
+      manifest: manifest(),
+      context: { nodeId: 'rejilla' },
+    });
+    const event = turn.draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(event).toMatchObject({ label: 'pasos', delay_ms: 2000 });
+    expect(event.coordinates.z).toBeLessThan(0);
+    expect(turn.executions.at(-1)!.outcome.summary).toContain('2 s después');
+  });
+
   it('aplica las llamadas de una Pitch Card', async () => {
     const [pitch] = suggestForBeat('inicio', 'El pasillo angosto; las paredes aplastaban, no podía respirar, estrecho y encerrado.');
     expect(pitch?.title).toBe('Estrechar la página');

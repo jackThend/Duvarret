@@ -202,6 +202,7 @@ export const placeSpatialAudio = defineTool({
     acoustic_material: z.enum(ACOUSTIC_MATERIALS).default('stone'),
     trigger_event: z.enum(Object.keys(TRIGGER_ALIASES) as [keyof typeof TRIGGER_ALIASES, ...(keyof typeof TRIGGER_ALIASES)[]]).default('on_enter'),
     trigger_value: z.number().min(0).max(100).optional(),
+    delay_ms: z.number().min(0).max(120000).optional().describe('espera tras el disparador, p. ej. 2000 = «dos segundos después de entrar»'),
     loop: z.boolean().default(false),
     gain: z.number().min(0).max(1).default(0.8),
     label: z.string().optional(),
@@ -225,6 +226,7 @@ export const placeSpatialAudio = defineTool({
       label: args.label ?? eventId.replace(/_/g, ' '),
       trigger,
       ...(trigger === 'on_text_reveal_percentage' ? { trigger_value: args.trigger_value ?? 50 } : {}),
+      ...(args.delay_ms ? { delay_ms: args.delay_ms } : {}),
       loop: args.loop,
       coordinates,
       room_preset: room,
@@ -236,7 +238,7 @@ export const placeSpatialAudio = defineTool({
     if (ctx.assets && !ctx.assets.get(args.asset_path) && !ctx.isDraftAsset?.(args.asset_path)) ctx.assets.register({ path: args.asset_path, origin: 'author', status: 'missing' });
     return {
       result: { ok: true, event_id: eventId, coordinates, room_preset: room },
-      summary: `«${event.label}» ${describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}.`,
+      summary: `«${event.label}» ${describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}${args.delay_ms ? `, ${String(args.delay_ms / 1000).replace('.', ',')} s después` : ''}.`,
       mutates: true,
       issues: patch.issues,
       nodeId: args.node_id,

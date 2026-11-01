@@ -244,6 +244,11 @@ aviso con la escena nombrada y permite salvar la situación desde ahí.
 **A decidir con el autor:** ¿bloquea la exportación (`error`) o solo advierte? Ver §4.3.
 
 ### Tarea 5 — Que el aviso del motor de audio llegue al Studio
+> **Estado (31-10-2026): hecha.** `onWarning` lleva ahora un detalle (`AudioWarning`: voz, archivo y
+> etiqueta). El motor del Studio (`StudioApp.vue`) lo envía a `studio.notePreviewAudio`, y
+> `LivePreview.vue` muestra las notas de la escena que se está leyendo («Falta el sonido «viento»;
+> oyes un tono de prueba») con un enlace para aportarlo. Se vacían al recargar la vista previa.
+
 `onWarning` del `SpatialAudioEngine` solo está conectado en `RuntimePlayer.vue`, que lo emite como
 evento. En la vista previa del Studio ese aviso debería aparecer como una nota sobre la escena:
 «Falta el sonido "disparo"; oyes un tono de prueba».
@@ -252,6 +257,12 @@ evento. En la vista previa del Studio ese aviso debería aparecer como una nota 
 la lectura.
 
 ### Tarea 6 — Retardo propio en los eventos acústicos (`delay_ms`)
+> **Estado (31-10-2026): hecha.** Campo opcional en el esquema (0–120 000 ms, JSON Schema
+> regenerado, `docs/03` actualizado). `bind()` lo programa y lo cancela al salir de la escena o al
+> desconectar el motor. `placeSpatialAudio` lo acepta y el director local entiende «dos segundos
+> después», «al cabo de 3 segundos», «tras medio segundo». Aún no hay control en la interfaz para
+> editarlo a mano: se pide al director.
+
 Un campo nuevo en `acoustic_event` aplicable a cualquier disparador: «dos segundos después de
 entrar». Es un campo en el esquema y un temporizador en `SpatialAudioEngine.bind()`, **cancelado en
 `node_exit`** para que no suene en la escena siguiente.

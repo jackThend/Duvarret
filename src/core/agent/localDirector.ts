@@ -164,6 +164,17 @@ function spokenLine(message: string): { text: string; manner: string } | null {
   return { text: quoted, manner };
 }
 
+const SECOND_WORDS: Record<string, number> = { medio: 0.5, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, quince: 15, veinte: 20, treinta: 30 };
+
+/** «dos segundos después», «al cabo de 3 segundos», «tras medio segundo» → milisegundos. */
+function delayFrom(t: string): number | undefined {
+  const match = t.match(/\b(?:al cabo de |tras |pasados |a los )?(\d+(?:[.,]\d+)?|[a-z]+) segundos?(?: (?:despues|mas tarde|luego))?/);
+  if (!match || !/(al cabo de|tras|pasados|a los|despues|mas tarde|luego)/.test(match[0])) return undefined;
+  const raw = match[1]!;
+  const seconds = /\d/.test(raw) ? Number(raw.replace(',', '.')) : SECOND_WORDS[raw];
+  return seconds && seconds > 0 && seconds <= 120 ? Math.round(seconds * 1000) : undefined;
+}
+
 /** Qué sonido pide el autor y cómo colocarlo; `query` es lo que se busca en el banco libre (en inglés, su idioma más rico). */
 function soundRequest(message: string, t = normalizeText(message)) {
   const reading = parseSpatialDescription(message);
@@ -178,6 +189,7 @@ function soundRequest(message: string, t = normalizeText(message)) {
       position_description: message,
       loop: /bucle|constante|sin parar|goteo|gotera/.test(t),
       trigger_event: /cuando lea|al leer|a mitad/.test(t) ? 'on_text_reveal' : 'on_enter',
+      ...(delayFrom(t) ? { delay_ms: delayFrom(t) } : {}),
     },
   };
 }
@@ -264,6 +276,7 @@ function placeCreatedAsset(request: CompletionRequest): ToolCall | null {
       ...(parseSpatialDescription(where).understood ? { position_description: where } : { coordinates: { x: 0, y: 0, z: 0.6 } }),
       room_preset: 'small_study',
       acoustic_material: 'curtains',
+      ...(delayFrom(normalizeText(where)) ? { delay_ms: delayFrom(normalizeText(where)) } : {}),
     });
   }
   return null;
