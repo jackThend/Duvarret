@@ -2,6 +2,7 @@
 import { compileBundle, workSlug, zipBundle, type CompileResult, type ExportTarget, type FileMap } from '@/core/compiler';
 import type { StoryManifest } from '@/core/manifest';
 import { isTauri } from '@/core/lore/tauriDriver';
+import { writeProjectBytes } from './nativeBytes';
 
 export type Fetcher = (url: string) => Promise<Response>;
 
@@ -72,7 +73,7 @@ export async function saveExport(result: CompileResult, projectRoot: string | nu
   const zip = zipBundle(result.files, slug);
   if (isTauri() && projectRoot) {
     const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('project_write_bytes', { root: projectRoot, relative: `export/${name}`, contents: Array.from(zip) });
+    await writeProjectBytes(projectRoot, `export/${name}`, zip, invoke);
     return { location: `export/${name}` };
   }
   download(name, zip);
@@ -86,7 +87,7 @@ export async function savePortable(result: CompileResult, projectRoot: string): 
   const dir = `export/${slug}-escritorio`;
   for (const [path, data] of result.files) {
     if (!path.startsWith('manifest/') && !path.startsWith('assets/')) continue;
-    await invoke('project_write_bytes', { root: projectRoot, relative: `${dir}/obra/${path}`, contents: Array.from(data) });
+    await writeProjectBytes(projectRoot, `${dir}/obra/${path}`, data, invoke);
   }
   const binary = await invoke<string>('export_player_binary', { root: projectRoot, relativeDir: dir, name: slug });
   return { location: binary };

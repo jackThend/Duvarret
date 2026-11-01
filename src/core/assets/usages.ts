@@ -28,6 +28,7 @@ export function assetUsageList(manifest: StoryManifest): AssetUsage[] {
     for (const e of node.acoustic_events) add(e.asset, `Sonido «${e.label ?? e.event_id}» en ${scene}`, id);
     add(node.gameplay_overlay?.on_success.play_sfx, `Sonido de acierto en ${scene}`, id);
     add(node.gameplay_overlay?.on_failure.play_sfx, `Sonido de fallo en ${scene}`, id);
+    if (node.gameplay_overlay?.type === 'room_search' && typeof node.gameplay_overlay.parameters.image === 'string') add(node.gameplay_overlay.parameters.image, `Habitación para registrar en ${scene}`, id);
     add(node.screenless_mode?.voice_over_asset, `Narración de ${scene}`, id);
     add(node.screenless_mode?.foley_bed, `Fondo sonoro de ${scene} (sin pantalla)`, id);
   }

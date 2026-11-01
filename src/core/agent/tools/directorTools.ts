@@ -139,14 +139,14 @@ export const setVisualNovelSegment = defineTool({
   },
 });
 
-const MODULE_ALIASES = { crt_terminal: 'crt_terminal', fictional_desktop: 'fictional_desktop', circuit_puzzle: 'circuit_wiring', circuit_wiring: 'circuit_wiring', cipher_lock: 'cipher_lock' } as const;
+const MODULE_ALIASES = { crt_terminal: 'crt_terminal', fictional_desktop: 'fictional_desktop', circuit_puzzle: 'circuit_wiring', circuit_wiring: 'circuit_wiring', cipher_lock: 'cipher_lock', lockpick: 'lockpick', room_search: 'room_search' } as const;
 
 export const mountSimulatedModule = defineTool({
   name: 'mountSimulatedModule',
-  description: 'Monta un minijuego aislado en una escena (terminal retro, escritorio simulado, puzle de circuitos, cerradura de combinación).',
+  description: 'Monta un minijuego aislado en una escena (terminal retro, escritorio simulado, puzle de circuitos, cerradura de combinación, ganzúa, habitación con linterna).',
   schema: z.object({
     node_id: nodeId,
-    module_type: z.enum(['crt_terminal', 'fictional_desktop', 'circuit_puzzle', 'circuit_wiring', 'cipher_lock']),
+    module_type: z.enum(['crt_terminal', 'fictional_desktop', 'circuit_puzzle', 'circuit_wiring', 'cipher_lock', 'lockpick', 'room_search']),
     config: looseParams,
   }),
   async run({ node_id, module_type, config }, ctx) {

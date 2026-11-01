@@ -3,7 +3,9 @@
 //! Todas las rutas relativas se validan para impedir escapar del directorio del proyecto.
 
 use serde::{Deserialize, Serialize};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::fs;
+use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
 /// Subdirectorios canónicos de un proyecto (doc 02 §3).
@@ -131,6 +133,64 @@ pub fn read_bytes(root: &Path, relative: &str) -> Result<Vec<u8>, ProjectError> 
     Ok(fs::read(target)?)
 }
 
+const MAX_CHUNK_BYTES: usize = 256 * 1024;
+const MAX_TRANSFER_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Recibe partes secuenciales; conserva el destino hasta publicar la última con rename.
+/// Una transferencia por ruta: el cliente mantiene el mismo total y espera cada llamada.
+pub fn write_bytes_chunk(
+    root: &Path,
+    relative: &str,
+    encoded: &str,
+    offset: u64,
+    total: u64,
+) -> Result<(), ProjectError> {
+    let target = resolve_inside(root, relative)?;
+    let temporary = resolve_inside(root, &format!("{relative}.part"))?;
+    let invalid = |message: &str| ProjectError::Io(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput, message,
+    ));
+    if total > MAX_TRANSFER_BYTES || offset > total {
+        return Err(invalid("total u offset fuera del límite permitido"));
+    }
+    // Limita también la asignación antes de decodificar el mensaje IPC.
+    if encoded.len() > MAX_CHUNK_BYTES.div_ceil(3) * 4 {
+        return Err(invalid("parte base64 demasiado grande"));
+    }
+    let bytes = STANDARD.decode(encoded)
+        .map_err(|_| invalid("base64 inválido"))?;
+    if bytes.len() > MAX_CHUNK_BYTES {
+        return Err(invalid("la parte supera 256 KiB"));
+    }
+    let end = offset.checked_add(bytes.len() as u64)
+        .filter(|end| *end <= total)
+        .ok_or_else(|| invalid("la parte excede el total declarado"))?;
+    if bytes.is_empty() && total != 0 {
+        return Err(invalid("parte vacía en una transferencia no vacía"));
+    }
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut options = fs::OpenOptions::new();
+    options.write(true);
+    if offset == 0 {
+        options.create(true).truncate(true);
+    } else {
+        options.append(true);
+    }
+    let mut file = options.open(&temporary)?;
+    if offset > 0 && file.metadata()?.len() != offset {
+        return Err(invalid("offset distinto de la longitud de la parte temporal"));
+    }
+    file.write_all(&bytes)?;
+    if end == total {
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temporary, &target)?;
+    }
+    Ok(())
+}
+
 /// Retira un recurso aportado por la autora. Solo se permite dentro de `assets/`
 /// y nunca sobre el catálogo de procedencia.
 pub fn delete_asset(root: &Path, relative: &str) -> Result<(), ProjectError> {
@@ -181,6 +241,62 @@ fn walk(dir: &Path, root: &Path, out: &mut Vec<String>) -> Result<(), ProjectErr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chunked_write_preserves_destination_until_completion() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("export/obra.bin");
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(&target, b"anterior").unwrap();
+        write_bytes_chunk(dir.path(), "export/obra.bin", &STANDARD.encode(b"hola"), 0, 9).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"anterior");
+        assert_eq!(fs::read(dir.path().join("export/obra.bin.part")).unwrap(), b"hola");
+        write_bytes_chunk(dir.path(), "export/obra.bin", &STANDARD.encode(b"mundo"), 4, 9).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"holamundo");
+        assert!(!dir.path().join("export/obra.bin.part").exists());
+    }
+
+    #[test]
+    fn chunked_write_rejects_wrong_offsets_without_changing_files() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("destino"), b"original").unwrap();
+        write_bytes_chunk(dir.path(), "destino", &STANDARD.encode(b"ab"), 0, 4).unwrap();
+        for offset in [1, 3, 5, u64::MAX] {
+            assert!(write_bytes_chunk(dir.path(), "destino", "Yw==", offset, 4).is_err());
+            assert_eq!(fs::read(dir.path().join("destino")).unwrap(), b"original");
+            assert_eq!(fs::read(dir.path().join("destino.part")).unwrap(), b"ab");
+        }
+    }
+
+    #[test]
+    fn chunked_write_rejects_traversal() {
+        let dir = tempfile::tempdir().unwrap();
+        for relative in ["../fuera", "assets/../../fuera", "/fuera", ""] {
+            assert!(write_bytes_chunk(dir.path(), relative, "YQ==", 0, 1).is_err());
+        }
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn chunked_write_validates_base64_and_limits_before_truncating() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("destino"), b"original").unwrap();
+        fs::write(dir.path().join("destino.part"), b"parcial").unwrap();
+        let oversized = STANDARD.encode(vec![0; MAX_CHUNK_BYTES + 1]);
+        for (encoded, total) in [
+            ("%%%", 3), ("YQ", 1), (oversized.as_str(), MAX_TRANSFER_BYTES),
+            ("YQ==", MAX_TRANSFER_BYTES + 1), ("YWI=", 1), ("", 1),
+        ] {
+            assert!(write_bytes_chunk(dir.path(), "destino", encoded, 0, total).is_err());
+            assert_eq!(fs::read(dir.path().join("destino")).unwrap(), b"original");
+            assert_eq!(fs::read(dir.path().join("destino.part")).unwrap(), b"parcial");
+        }
+        let maximum = vec![7; MAX_CHUNK_BYTES];
+        write_bytes_chunk(dir.path(), "destino", &STANDARD.encode(&maximum), 0, MAX_CHUNK_BYTES as u64).unwrap();
+        assert_eq!(fs::read(dir.path().join("destino")).unwrap(), maximum);
+        write_bytes_chunk(dir.path(), "vacio", "", 0, 0).unwrap();
+        assert_eq!(fs::metadata(dir.path().join("vacio")).unwrap().len(), 0);
+    }
 
     #[test]
     fn rejects_traversal_and_absolute_paths() {

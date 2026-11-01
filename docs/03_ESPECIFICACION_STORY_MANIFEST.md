@@ -296,3 +296,20 @@ El runtime de Duvarret incorpora un **Middleware de Validación Estricta**:
 
 ---
 *Fin de la Especificación del Manifiesto Declarativo*
+
+
+### Módulos de exploración y ganzúa (aceptación de terror, 01-11-2026)
+
+El catálogo de `gameplay_overlay.type` incluye `room_search` y `lockpick`. Ambos devuelven el
+mismo resultado aislado del sandbox y usan `on_success` / `on_failure` para entregar objetos,
+conceder marcas y cambiar de escena.
+
+- `room_search`: parámetros `image` (ruta local que se incluye en la exportación), `item_label`,
+  `item_x` / `item_y` (porcentajes 5–95) y `radius_px` (50–250). El objeto solo se recoge iluminado;
+  ratón, tacto y flechas desplazan el haz, Intro lo recoge. El inventario procede del desenlace, no
+  de código arbitrario dentro del módulo.
+- `lockpick`: `pin_heights` contiene tres alturas enteras 0–4 y `max_attempts` limita los fallos.
+  Se ajusta cada perno con deslizador o teclado y se fija con un botón. Los aciertos se conservan
+  dentro del intento. El resultado se emite una sola vez.
+
+La aceptación reproducible, fuentes y límites se describen en `docs/12_ACEPTACION_CUENTO_TERROR.md`.

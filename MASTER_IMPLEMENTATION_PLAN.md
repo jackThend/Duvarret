@@ -280,3 +280,19 @@ Studio y del reproductor); los saltos rápidos recogen las marcas atravesadas, u
 El tiempo estimado no dispara marcas en este modo. Seguimiento en el PR #6, rama
 `feat/audio-validacion`. Las cinco comprobaciones de CI del estado previo del PR pasaron, incluido
 Rust y los ejecutables de Windows, macOS y Linux.
+
+### Aceptación con cuento de terror — 01-11-2026
+
+- Relato original «La casa que aprendió mi nombre»: 12 escenas, dos finales, cubierta, novela visual,
+  inventario, ambientes reales CC0, música y foley originales, narrador y personajes con Kokoro local.
+- Añadidos `room_search` (linterna y recogida) y `lockpick` (pernos con teclado), disponibles para
+  el director y exportados con sus assets. Corregido el falso callejón sin salida de puzles con elecciones.
+- La prueba del ejecutable encontró y corrigió pasos ausentes en la preparación, exportación IPC de
+  archivos grandes y desaparición prematura del expediente. La escritura nativa usa bloques y temporal.
+- El lector Windows recompilado supera ambos finales, fracaso de ganzúa, abandono de búsqueda,
+  inventario, expediente, efectos de texto y marca por scroll con retardo real. Informe local:
+  `terminados/la-casa-que-aprendio-mi-nombre/verificacion-corregida/VERIFICACION.json`.
+- Generación nativa de 60 intervenciones, regeneración incremental y reapertura se comprobaron en
+  los intentos previos. Detalles, fuentes y límites: `docs/12_ACEPTACION_CUENTO_TERROR.md`.
+- No fusionar ni publicar automáticamente. Las suites generales repetidas durante la compilación
+  sufrieron tiempos de espera y el umbral de rendimiento; repetir sin carga y comprobar la nueva CI.

@@ -852,7 +852,9 @@
                   "crt_terminal",
                   "fictional_desktop",
                   "cipher_lock",
-                  "circuit_wiring"
+                  "circuit_wiring",
+                  "lockpick",
+                  "room_search"
                 ]
               },
               "is_mandatory_to_advance": {

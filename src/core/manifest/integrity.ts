@@ -95,7 +95,7 @@ export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
       }
       const clue = gp.parameters.clue_reference_item;
       if (typeof clue === 'string') requireItem(clue, `${base}.gameplay_overlay.parameters.clue_reference_item`, id);
-      if (gp.is_mandatory_to_advance && !gp.on_success.transition_to_node && !nav.default_next_node && !nav.is_ending) {
+      if (gp.is_mandatory_to_advance && !gp.on_success.transition_to_node && !nav.default_next_node && !nav.choices.length && !nav.is_ending) {
         issues.push({
           severity: 'warning',
           path: `${base}.gameplay_overlay`,
