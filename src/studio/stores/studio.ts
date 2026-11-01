@@ -18,7 +18,7 @@ import type { StudioTheme } from '@/core/project';
 import type { AudioWarning } from '@/runtime/audio/SpatialAudioEngine';
 import { useProjectStore } from './project';
 import { useAiStore } from './ai';
-import { generateImage, providerFetch } from '../services/ai';
+import { generateImage, generateSoundEffect, providerFetch } from '../services/ai';
 import { searchSoundBank } from '@/core/assets/freesound';
 
 export interface ChatEntry {
@@ -194,12 +194,22 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
             return { path, status: 'draft', provider };
           }
           if (request.type === 'sfx') {
-            // Primero el banco libre (CC0); sin clave o sin resultados, queda reservado para que el autor lo aporte.
-            if (!await ai.refresh('freesound')) return new OfflineSynthesizer().synthesize(request);
-            const [sound] = await searchSoundBank(providerFetch('freesound'), request.prompt, { pageSize: 5 });
-            if (!sound) return new OfflineSynthesizer().synthesize(request);
-            const path = await project.draftBankSound(sound, request.prompt);
-            return { path, status: 'draft', provider: `Freesound · ${sound.author} · CC0` };
+            // Primero el banco libre (CC0); después, si la autora lo activó, un efecto generado (de pago);
+            // si no hay nada, queda reservado para que lo aporte.
+            if (await ai.refresh('freesound')) {
+              const [sound] = await searchSoundBank(providerFetch('freesound'), request.prompt, { pageSize: 5 });
+              if (sound) {
+                const path = await project.draftBankSound(sound, request.prompt);
+                return { path, status: 'draft', provider: `Freesound · ${sound.author} · CC0` };
+              }
+            }
+            if (ai.generateEffects && await ai.refresh('elevenlabs')) {
+              const media = await generateSoundEffect({ text: request.prompt });
+              if (work !== project.workIdentity()) throw new Error('La obra cambió durante la creación del sonido. La propuesta se ha descartado.');
+              const path = project.stageGeneratedAsset({ name: `efecto ${request.prompt.slice(0, 32)}.mp3`, data: media.data }, { provider: 'elevenlabs · sound-generation', prompt: request.prompt, title: `Efecto: «${request.prompt}»` });
+              return { path, status: 'draft', provider: 'ElevenLabs · efecto generado' };
+            }
+            return new OfflineSynthesizer().synthesize(request);
           }
           if ((request.type !== 'portrait' && request.type !== 'background') || !await ai.refresh(ai.image.provider)) return new OfflineSynthesizer().synthesize(request);
           const prompt = `${request.prompt}\nEstilo: ${request.style_preset}`;

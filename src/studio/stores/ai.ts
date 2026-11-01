@@ -26,12 +26,14 @@ export const useAiStore = defineStore('duvarret-ai', () => {
   const rawVoice = initial.speech as Partial<NarrationSelection> | undefined;
   const speech = ref<NarrationSelection>(rawVoice?.provider && rawVoice.provider in defaultsForVoice ? { provider: rawVoice.provider, ...defaultsForVoice[rawVoice.provider], ...(rawVoice.model ? { model: rawVoice.model } : {}), ...(rawVoice.voice ? { voice: rawVoice.voice } : {}) } : { ...speechDefault });
   const endpoints = ref<Partial<Record<AiProviderId, string>>>({});
+  /** El director solo genera efectos de pago (ElevenLabs) si la autora lo activa expresamente. */
+  const generateEffects = ref(initial.generateEffects === true);
   const configured = ref<Partial<Record<AiProviderId, boolean>>>({});
   const error = ref('');
   const ready = ref(false);
-  watch([image, speech, endpoints], () => {
+  watch([image, speech, endpoints, generateEffects], () => {
     // Selección explícita de campos: ni una migración legacy puede persistir apiKey aquí.
-    try { localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify({ image: { provider: image.value.provider, model: image.value.model, accountId: image.value.accountId }, speech: { provider: speech.value.provider, model: speech.value.model, voice: speech.value.voice }, endpoints: endpoints.value })); } catch { /* sin almacenamiento */ }
+    try { localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify({ image: { provider: image.value.provider, model: image.value.model, accountId: image.value.accountId }, speech: { provider: speech.value.provider, model: speech.value.model, voice: speech.value.voice }, endpoints: endpoints.value, generateEffects: generateEffects.value })); } catch { /* sin almacenamiento */ }
   }, { deep: true });
   async function refresh(provider: AiProviderId) {
     configured.value[provider] = (await credentialStatus(provider)).configured;
@@ -72,5 +74,5 @@ export const useAiStore = defineStore('duvarret-ai', () => {
     }
     if (!await refresh(provider)) throw new Error(`Añade tu clave de ${AI_PROVIDER_LABELS[provider]} en Preferencias → Conexiones de IA.`);
   }
-  return { image, speech, endpoints, configured, ready, error, initialize, refresh, saveKey, forgetKey, saveEndpoint, selectSpeech, selectImage, requireKey };
+  return { image, speech, endpoints, generateEffects, configured, ready, error, initialize, refresh, saveKey, forgetKey, saveEndpoint, selectSpeech, selectImage, requireKey };
 });

@@ -133,7 +133,7 @@ El orden está pensado para que cada tarea deje algo usable y no bloquee a la si
 y 2 son las de mayor efecto por línea escrita.
 
 ### Tarea 1 — Voz y efectos en el sintetizador del Studio
-> **Estado (31-10-2026): voz y efectos del banco libre hechos; falta la generación remota (tarea 9).** El sintetizador de
+> **Estado (31-10-2026): hecha** (voz, banco libre y, con la tarea 9, efectos generados). El sintetizador de
 > `toolContext()` devuelve ahora **borradores** (`status: 'draft'`): `project.draftSpokenLine` crea la
 > réplica con Kokoro (escritorio) o con el servicio de voz elegido, la valida y la deja en memoria con
 > su URL de vista previa (`stageGeneratedAsset`). La tarjeta de propuesta la muestra con «▶ Escuchar»;
@@ -312,6 +312,14 @@ en el registro de procedencia (`prompt`) y el archivo colocado como evento norma
 necesita volver a sintetizar la réplica al cambiar la voz de la obra.
 
 ### Tarea 9 — Generación remota de efectos
+> **Estado (31-10-2026): hecha.** `generateSoundEffectWith` (`src/core/ai/media.ts`) llama a
+> `/v1/sound-generation` y valida el MP3 recibido. Va al final de la cadena del director (banco libre →
+> efecto generado → reservado como pendiente) y **solo si la autora lo activa** en Conexiones de IA →
+> ElevenLabs, porque gasta créditos; viene apagado. En el diálogo de recursos, si el banco no tiene el
+> sonido, «Crear «…» con ElevenLabs» lo genera, se escucha y solo entra en la obra al aceptarlo
+> (`origin: 'synthetic'`, `provider: 'elevenlabs · sound-generation'`). **Sin verificar** con una clave
+> real; la §4.5 (derechos de distribución) sigue siendo cosa del autor.
+
 ElevenLabs `POST https://api.elevenlabs.io/v1/sound-generation`, cabecera `xi-api-key`. Es el
 proveedor que ya se soporta para voz, así que la misma clave sirve. Es de pago por crédito, así que
 va **al final de la cadena**: solo cuando el banco libre no tiene lo que la escena pide.

@@ -1,8 +1,8 @@
 import { isTauri } from '@tauri-apps/api/core';
 import type { FetchLike } from '@/core/agent/types';
-import { decodeBase64, generateImageWith, generateSpeechWith } from '@/core/ai/media';
+import { decodeBase64, generateImageWith, generateSoundEffectWith, generateSpeechWith } from '@/core/ai/media';
 import { isFreesoundPreview } from '@/core/assets/freesound';
-import type { AiProviderId, GeneratedMedia, ImageGenerationRequest, SpeechGenerationRequest } from '@/core/ai/types';
+import type { AiProviderId, GeneratedMedia, ImageGenerationRequest, SoundEffectRequest, SpeechGenerationRequest } from '@/core/ai/types';
 
 // Solo la sesión web conserva temporalmente las claves en memoria; nunca localStorage ni obras.
 const sessionKeys = new Map<AiProviderId, string>();
@@ -123,4 +123,8 @@ export async function generateSpeech(request: SpeechGenerationRequest): Promise<
     } catch { throw new Error('La grabación recibida no se puede reproducir. Reintenta la generación.'); }
   }
   return result;
+}
+
+export function generateSoundEffect(request: SoundEffectRequest): Promise<GeneratedMedia> {
+  return generateSoundEffectWith(providerFetch('elevenlabs'), request);
 }

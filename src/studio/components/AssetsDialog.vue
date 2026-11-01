@@ -8,7 +8,7 @@ import { STUDIO_AUDIO } from '../services/audio';
 import { presentAssets } from '../services/assetProbe';
 import Modal from './Modal.vue';
 import { useAiStore } from '../stores/ai';
-import { generateImage, providerFetch } from '../services/ai';
+import { generateImage, generateSoundEffect, providerFetch } from '../services/ai';
 import { searchSoundBank, type BankSound } from '@/core/assets/freesound';
 import { AI_PROVIDER_LABELS, CLOUD_USAGE_NOTICE, IMAGE_MODELS, CLOUDFLARE_IMAGE_MODELS } from '@/core/ai/catalog';
 import type { GeneratedMedia } from '@/core/ai/types';
@@ -37,6 +37,8 @@ const bankBusy = ref(false);
 const bankSearched = ref(false);
 const bankResults = shallowRef<BankSound[]>([]);
 const bankListening = ref<number | null>(null);
+const effectBusy = ref(false);
+const generatedEffect = shallowRef<{ media: GeneratedMedia; url: string; prompt: string; storage: typeof project.storage } | null>(null);
 const form = ref({ kind: 'scene_sound' as AssetAssignment['kind'], nodeId: project.selectedNodeId ?? '', characterId: project.characters[0]?.id ?? '', mood: 'neutral', itemId: project.items[0]?.id ?? '', loop: false });
 
 const usages = computed(() => assetUsages(project.manifest));
@@ -53,7 +55,7 @@ async function probe() {
 
 onMounted(() => { void probe(); void ai.initialize(); });
 function discardImage() { if (generatedImage.value) URL.revokeObjectURL(generatedImage.value.url); generatedImage.value = null; }
-onBeforeUnmount(() => { discardImage(); player?.pause(); });
+onBeforeUnmount(() => { discardImage(); discardEffect(); player?.pause(); });
 async function createImage() {
   error.value = message.value = '';
   const storage = project.storage;
@@ -199,6 +201,40 @@ async function chooseBank(sound: BankSound) {
   finally { busy.value = false; }
 }
 
+/** Último recurso, de pago: crear el efecto con ElevenLabs, escucharlo y decidir si entra en la obra. */
+function discardEffect() { if (generatedEffect.value) URL.revokeObjectURL(generatedEffect.value.url); generatedEffect.value = null; }
+async function createEffect() {
+  const prompt = bankQuery.value.trim();
+  if (!prompt) return;
+  error.value = message.value = '';
+  effectBusy.value = true;
+  try {
+    await ai.requireKey('elevenlabs');
+    const storage = project.storage;
+    const media = await generateSoundEffect({ text: prompt });
+    if (project.storage !== storage) throw new Error('La obra cambió durante la creación. Vuelve a crear el sonido para la obra abierta.');
+    discardEffect();
+    generatedEffect.value = { media, prompt, storage, url: URL.createObjectURL(new Blob([media.data.slice().buffer], { type: media.mimeType })) };
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { effectBusy.value = false; }
+}
+async function acceptEffect() {
+  const effect = generatedEffect.value;
+  if (!effect) return;
+  busy.value = true; error.value = '';
+  try {
+    if (project.storage !== effect.storage) throw new Error('La obra cambió. Vuelve a crear el sonido para la obra abierta.');
+    const path = await project.addGeneratedAsset({ name: `efecto ${effect.prompt.slice(0, 32)}.mp3`, data: effect.media.data }, { provider: 'elevenlabs · sound-generation', prompt: effect.prompt, title: `Efecto: «${effect.prompt}»` });
+    audio?.invalidate(path);
+    present.value = new Set([...present.value, path]);
+    studio.previewNonce++;
+    discardEffect();
+    message.value = 'Efecto creado y guardado en la obra.';
+    openAssign(path);
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { busy.value = false; }
+}
+
 const seconds = (value: number) => (value < 10 ? value.toFixed(1) : Math.round(value).toString()).replace('.', ',');
 
 const nameOf = (path: string) => path.split('/').pop() ?? path;
@@ -247,6 +283,18 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
           <button v-if="!ai.configured.freesound" type="button" class="dv-btn-ghost" @click="studio.settingsOpen = true; emit('close')">Conectar Freesound</button>
         </form>
         <p v-if="bankSearched && !bankResults.length" class="text-dv-muted" data-testid="bank-empty">No hay sonidos CC0 para «{{ bankQuery }}». Prueba con otras palabras, mejor en inglés («crickets», «footsteps»).</p>
+        <div v-if="ai.configured.elevenlabs && bankQuery.trim() && (bankSearched || !ai.configured.freesound)" class="flex flex-wrap items-center gap-2 text-xs text-dv-muted" data-testid="effect-generation">
+          <span>¿No encuentras lo que buscas?</span>
+          <button type="button" class="dv-btn-ghost" data-testid="effect-generate" :disabled="effectBusy || busy" @click="createEffect">{{ effectBusy ? 'Creando…' : `Crear «${bankQuery.trim()}» con ElevenLabs` }}</button>
+          <span>Gasta créditos de tu cuenta. {{ CLOUD_USAGE_NOTICE }}</span>
+        </div>
+        <div v-if="generatedEffect" class="space-y-2" data-testid="effect-preview">
+          <audio :src="generatedEffect.url" controls class="w-full" />
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="dv-btn-accent" data-testid="effect-accept" :disabled="busy" @click="acceptEffect">Usar en la obra</button>
+            <button type="button" class="dv-btn-ghost" :disabled="busy" @click="discardEffect">Descartar</button>
+          </div>
+        </div>
         <ul v-if="bankResults.length" class="space-y-1" data-testid="bank-results">
           <li v-for="sound in bankResults" :key="sound.id" class="flex items-center gap-3 border-b border-dv-border py-1.5" :data-testid="`bank-${sound.id}`">
             <button type="button" class="dv-icon-btn shrink-0 border border-dv-border" :aria-label="`${bankListening === sound.id ? 'Detener' : 'Escuchar'} ${sound.name}`" :aria-pressed="bankListening === sound.id" data-testid="bank-listen" @click="listenBank(sound)">{{ bankListening === sound.id ? '■' : '▶' }}</button>

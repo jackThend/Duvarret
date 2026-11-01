@@ -1,5 +1,5 @@
 import type { FetchLike } from '../agent/types';
-import type { GeneratedMedia, ImageGenerationRequest, SpeechGenerationRequest } from './types';
+import type { GeneratedMedia, ImageGenerationRequest, SoundEffectRequest, SpeechGenerationRequest } from './types';
 
 const INTERACTIONS = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 const MAX_MEDIA_BYTES = 48 * 1024 * 1024;
@@ -247,4 +247,22 @@ export async function generateSpeechWith(fetcher: FetchLike, request: SpeechGene
   if (data.length < 44 || new TextDecoder().decode(data.slice(0, 4)) !== 'RIFF') throw new Error('El proveedor compatible no devolvió el WAV solicitado. Comprueba su compatibilidad con audio/speech.');
   validateGeneratedMedia(data, 'audio/wav');
   return { data, mimeType: 'audio/wav', provider: request.provider, model };
+}
+
+/**
+ * Efecto de sonido generado por ElevenLabs (tarea 9 de docs/11). Es de pago por crédito: Duvarret
+ * solo lo usa al final de la cadena, cuando el banco libre no tiene lo que la escena pide.
+ * API: https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert
+ */
+export async function generateSoundEffectWith(fetcher: FetchLike, request: SoundEffectRequest): Promise<GeneratedMedia> {
+  const text = nonempty(request.text, 'la descripción del sonido');
+  if (text.length > 1000) throw new Error('Describe el sonido en menos de 1000 caracteres.');
+  const seconds = request.durationSeconds;
+  if (seconds !== undefined && (!Number.isFinite(seconds) || seconds < 0.5 || seconds > 30)) throw new Error('La duración del efecto debe estar entre 0,5 y 30 segundos.');
+  const response = await checked(fetcher, 'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', {
+    text, ...(seconds !== undefined ? { duration_seconds: seconds } : {}), prompt_influence: 0.4,
+  }, request.signal);
+  const data = new Uint8Array(await response.arrayBuffer());
+  validateGeneratedMedia(data, 'audio/mpeg');
+  return { data, mimeType: 'audio/mpeg', provider: 'elevenlabs', model: 'sound-generation' };
 }

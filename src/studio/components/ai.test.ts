@@ -16,7 +16,7 @@ import PitchCards from './PitchCards.vue';
 const service = vi.hoisted(() => ({
   keys: new Map<string, string>(),
   credentialStatus: vi.fn(), setCredential: vi.fn(), removeCredential: vi.fn(), setProviderEndpoint: vi.fn(),
-  generateImage: vi.fn(), generateSpeech: vi.fn(), providerFetch: vi.fn(() => vi.fn()),
+  generateImage: vi.fn(), generateSpeech: vi.fn(), generateSoundEffect: vi.fn(), providerFetch: vi.fn(() => vi.fn()),
 }));
 vi.mock('../services/ai', () => service);
 const narration = vi.hoisted(() => ({ narrationStatus: vi.fn(), availableNarrationAssets: vi.fn(), synthesizeNarration: vi.fn() }));
@@ -424,5 +424,61 @@ describe('banco libre de sonidos', () => {
     const placed = useProjectStore().nodes[0]!.acoustic_events[0]!;
     expect(placed.label).toBe('grillos');
     expect(useProjectStore().assets.get(placed.asset)?.status).toBe('pending');
+  });
+});
+
+describe('efectos generados con ElevenLabs (último recurso, de pago)', () => {
+  const mp3 = () => { const data = new Uint8Array(256); data.set([255, 251, 144, 0]); return data; };
+  function emptyBank() {
+    service.keys.set('freesound', 'mock-key');
+    service.keys.set('elevenlabs', 'mock-key');
+    service.providerFetch.mockImplementation(() => vi.fn(async () => new Response(JSON.stringify({ results: [] }))));
+    service.generateSoundEffect.mockResolvedValue({ data: mp3(), mimeType: 'audio/mpeg', provider: 'elevenlabs', model: 'sound-generation' });
+  }
+
+  it('el director no gasta créditos si la autora no lo ha activado', async () => {
+    emptyBank();
+    const studio = useStudioStore();
+    await studio.ask('Pon unos grillos a lo lejos');
+    expect(service.generateSoundEffect).not.toHaveBeenCalled();
+    expect(useProjectStore().draftAssets.size).toBe(0);
+  });
+
+  it('activado, crea el efecto cuando el banco no tiene nada y solo lo guarda al aceptar', async () => {
+    emptyBank();
+    useAiStore().generateEffects = true;
+    const project = useProjectStore();
+    const studio = useStudioStore();
+    await studio.ask('Pon unos grillos a lo lejos');
+    expect(service.generateSoundEffect).toHaveBeenCalledWith({ text: 'crickets' });
+    const card = studio.pitches.at(-1)!;
+    const path = (card.executions![0]!.outcome.result as { path: string }).path;
+    expect(project.draftAssets.has(path)).toBe(true);
+    expect(card.rationale).toContain('ElevenLabs');
+    expect(await studio.applyPitch(card.id)).toBe(true);
+    expect(project.assets.get(path)).toMatchObject({ origin: 'synthetic', provider: 'elevenlabs · sound-generation', prompt: 'crickets' });
+    expect(JSON.parse(localStorage.getItem('duvarret:ai-settings')!).generateEffects).toBe(true);
+  });
+
+  it('desde el buscador vacío se crea, se escucha y se decide', async () => {
+    emptyBank();
+    const project = useProjectStore();
+    const w = mount(AssetsDialog);
+    await flushPromises();
+    await w.get('[data-testid="bank-query"]').setValue('puerta que chirría');
+    await w.get('[data-testid="sound-bank"] form').trigger('submit');
+    await flushPromises();
+    expect(w.find('[data-testid="bank-empty"]').exists()).toBe(true);
+    await w.get('[data-testid="effect-generate"]').trigger('click');
+    await flushPromises();
+    expect(service.generateSoundEffect).toHaveBeenCalledWith({ text: 'puerta que chirría' });
+    expect(w.find('[data-testid="effect-preview"] audio').exists()).toBe(true);
+    expect(project.assets.list()).toHaveLength(0);
+    await w.get('[data-testid="effect-accept"]').trigger('click');
+    await flushPromises();
+    const record = project.assets.list().find(r => r.provider === 'elevenlabs · sound-generation');
+    expect(record).toMatchObject({ origin: 'synthetic', prompt: 'puerta que chirría', title: 'Efecto: «puerta que chirría»' });
+    expect(w.find('[data-testid="assign-form"]').exists()).toBe(true);
+    w.unmount();
   });
 });
