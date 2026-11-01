@@ -15,6 +15,7 @@ import {
 } from '@/core/agent';
 import { OfflineSynthesizer, type SynthesisRequest, type SynthesisResult } from '@/core/assets/registry';
 import type { StudioTheme } from '@/core/project';
+import type { AudioWarning } from '@/runtime/audio/SpatialAudioEngine';
 import { useProjectStore } from './project';
 import { useAiStore } from './ai';
 import { generateImage, providerFetch } from '../services/ai';
@@ -42,6 +43,8 @@ export interface PitchCard {
   source: 'proactive' | 'chat';
   alternatives?: PitchSuggestion[];
 }
+
+export interface PreviewNote { nodeId: string | null; asset: string; message: string }
 
 export interface ProviderSettings {
   kind: ProviderKind;
@@ -119,6 +122,8 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   const previewScreenless = ref(false);
   const previewStartNode = ref<string | null>(null);
   const previewNonce = ref(0);
+  /** Avisos del motor de audio durante la vista previa («Falta el sonido "disparo"»), por escena. */
+  const previewNotes = ref<PreviewNote[]>([]);
   const lastPulse = ref<string | null>(null);
   let chatCounter = 0;
 
@@ -160,6 +165,9 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     },
     { deep: true, immediate: true },
   );
+
+  // Una vista previa nueva (p. ej. tras aportar el archivo que faltaba) vuelve a comprobarlo todo.
+  watch(previewNonce, () => { previewNotes.value = []; });
 
   const openPitches = computed(() => pitches.value.filter((p) => p.status === 'open' && p.nodeId === project.selectedNodeId));
 
@@ -381,6 +389,14 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     card.draft = undefined;
   }
 
+  /** El motor de audio del Studio avisa aquí; la vista previa lo muestra sin interrumpir la lectura. */
+  function notePreviewAudio(message: string, detail?: AudioWarning) {
+    if (detail?.kind !== 'missing_asset') return;
+    const nodeId = detail.id.includes('::') ? detail.id.split('::')[0]! : null;
+    if (previewNotes.value.some((n) => n.asset === detail.asset && n.nodeId === nodeId)) return;
+    previewNotes.value = [...previewNotes.value, { nodeId, asset: detail.asset, message }];
+  }
+
   function playFromHere() {
     previewStartNode.value = project.selectedNodeId;
     previewNonce.value++;
@@ -418,6 +434,8 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     previewScreenless,
     previewStartNode,
     previewNonce,
+    previewNotes,
+    notePreviewAudio,
     lastPulse,
     orchestrator,
     say,
