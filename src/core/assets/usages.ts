@@ -2,16 +2,17 @@
  * Dónde se usa cada recurso de la obra, descrito en lenguaje literario
  * («Retrato de Sancho Panza (alarmado)», «Sonido «gotera» en El Pasillo»).
  */
-import type { StoryManifest } from '../manifest';
+import type { ManifestIssue, StoryManifest } from '../manifest';
 
 export type AssetUsages = Map<string, string[]>;
 
-export function assetUsages(manifest: StoryManifest): AssetUsages {
-  const usages: AssetUsages = new Map();
-  const add = (path: string | undefined, where: string) => {
-    if (!path) return;
-    const clean = path.replace(/^\.\//, '');
-    usages.set(clean, [...(usages.get(clean) ?? []), where]);
+/** Un uso concreto de un recurso: dónde aparece, dicho para el autor, y su escena si la tiene. */
+export interface AssetUsage { path: string; where: string; nodeId?: string }
+
+export function assetUsageList(manifest: StoryManifest): AssetUsage[] {
+  const list: AssetUsage[] = [];
+  const add = (path: string | undefined, where: string, nodeId?: string) => {
+    if (path) list.push({ path: path.replace(/^\.\//, ''), where, ...(nodeId ? { nodeId } : {}) });
   };
   add(manifest.acoustic_environment.ambience_bed, 'Ambiente de fondo de la obra');
   manifest.global_settings.narration_voice?.clips.forEach(clip => add(clip.asset, `Voz de la obra: ${clip.text.slice(0, 70)}`));
@@ -22,14 +23,37 @@ export function assetUsages(manifest: StoryManifest): AssetUsages {
   for (const item of Object.values(manifest.item_registry)) add(item.icon, `Icono de «${item.name}»`);
   for (const node of manifest.nodes) {
     const scene = node.title ?? node.node_id;
-    add(node.illustration?.asset, `Ilustración de ${scene}`);
-    for (const e of node.acoustic_events) add(e.asset, `Sonido «${e.label ?? e.event_id}» en ${scene}`);
-    add(node.gameplay_overlay?.on_success.play_sfx, `Sonido de acierto en ${scene}`);
-    add(node.gameplay_overlay?.on_failure.play_sfx, `Sonido de fallo en ${scene}`);
-    add(node.screenless_mode?.voice_over_asset, `Narración de ${scene}`);
-    add(node.screenless_mode?.foley_bed, `Fondo sonoro de ${scene} (sin pantalla)`);
+    const id = node.node_id;
+    add(node.illustration?.asset, `Ilustración de ${scene}`, id);
+    for (const e of node.acoustic_events) add(e.asset, `Sonido «${e.label ?? e.event_id}» en ${scene}`, id);
+    add(node.gameplay_overlay?.on_success.play_sfx, `Sonido de acierto en ${scene}`, id);
+    add(node.gameplay_overlay?.on_failure.play_sfx, `Sonido de fallo en ${scene}`, id);
+    add(node.screenless_mode?.voice_over_asset, `Narración de ${scene}`, id);
+    add(node.screenless_mode?.foley_bed, `Fondo sonoro de ${scene} (sin pantalla)`, id);
   }
+  return list;
+}
+
+export function assetUsages(manifest: StoryManifest): AssetUsages {
+  const usages: AssetUsages = new Map();
+  for (const { path, where } of assetUsageList(manifest)) usages.set(path, [...(usages.get(path) ?? []), where]);
   return usages;
+}
+
+/**
+ * Avisos de exportación por cada uso de un archivo que no existe (decisión §4.3 de docs/11: avisa,
+ * no bloquea). Nombran la escena para poder ir a ella, como el resto de diagnósticos.
+ */
+export function missingAssetIssues(manifest: StoryManifest, missing: ReadonlySet<string>): ManifestIssue[] {
+  return assetUsageList(manifest)
+    .filter((usage) => missing.has(usage.path))
+    .map((usage) => ({
+      severity: 'warning' as const,
+      code: 'missing_asset',
+      path: usage.path,
+      message: `${usage.where}: falta el archivo «${usage.path.split('/').pop()}»; sonará un tono de prueba o se verá un marcador.`,
+      ...(usage.nodeId ? { nodeId: usage.nodeId } : {}),
+    }));
 }
 
 export const AUDIO_EXTENSIONS = ['ogg', 'opus', 'mp3', 'wav', 'flac', 'm4a'] as const;

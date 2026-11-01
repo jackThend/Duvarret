@@ -225,6 +225,12 @@ uno se descarga, se valida con la tarea 2 y se asigna en un solo paso.
 con `license` y `author` rellenos, sin que el autor haya visto una ruta ni una carpeta.
 
 ### Tarea 4 — Avisar al exportar de un archivo que no existe
+> **Estado (31-10-2026): hecha, como aviso** (decisión §4.3). Al abrir el panel de exportación,
+> `presentAssets` (`src/studio/services/assetProbe.ts`, la misma comprobación que el diálogo de
+> recursos) y `missingAssetIssues` (`src/core/assets/usages.ts`) nombran cada sonido o imagen ausente
+> con su escena; el nombre lleva a la escena y «Aportar archivo» lo sustituye ahí mismo, validado. No
+> bloquea: si se exporta con algo ausente, basta confirmar «Exportar igualmente».
+
 **Por qué.** `checkIntegrity` solo ve el manifiesto, no el disco. El único lugar que comprueba la
 existencia real es `probe()`, dentro del diálogo de recursos, **y hay que abrirlo a mano**. Hoy se
 puede publicar una obra en la que el disparo no suena y nada lo advierte.
@@ -308,6 +314,7 @@ Los previews en alta calidad se bajan con solo el token; el original exige imple
 efectos cortos el preview probablemente basta. ¿Vale la pena el OAuth?
 
 ### 4.3 Un archivo ausente bloquea o solo advierte (afecta a la tarea 4)
+**Decidido (31-10-2026): solo advierte.**
 ¿Severidad `error`, que impide exportar, o aviso que deja publicar bajo responsabilidad del autor?
 
 ### 4.4 Evaluación auditiva del español de Kokoro

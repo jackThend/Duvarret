@@ -50,7 +50,7 @@ async function run(target: ExportTarget) {
     pending.value = result.missingAssets;
     if (pending.value.length && !allowDraft.value) {
       failed.value = true;
-      message.value = 'Faltan sonidos o imágenes. Añádelos antes de compartir, o elige preparar un borrador de prueba.';
+      message.value = 'Faltan sonidos o imágenes. Aporta los que se nombran arriba o, si quieres compartirla así, confirma que se exporte con recursos de prueba.';
       return;
     }
     const root = storage.kind === 'tauri' ? storage.location : null;
@@ -98,7 +98,7 @@ function repairVoice() { emit('close'); studio.narrationOpen = true; }
       <div v-if="pending.length" class="mt-3 space-y-2 text-sm" data-testid="export-pending">
         <p>{{ pending.length }} recursos sin aportar. Un borrador usará sonidos o imágenes de prueba.</p>
         <button type="button" class="dv-btn-ghost" @click="repairAssets">Revisar sonidos e imágenes</button>
-        <label class="flex items-start gap-2"><input v-model="allowDraft" type="checkbox" data-testid="export-allow-draft" /> Preparar un borrador de prueba con recursos provisionales</label>
+        <label class="flex items-start gap-2"><input v-model="allowDraft" type="checkbox" data-testid="export-allow-draft" /> Exportar igualmente, con un tono de prueba o un marcador donde falte algo</label>
       </div>
       <section v-if="completed" class="mt-4 space-y-3 rounded-lg border border-dv-border p-4" aria-label="Cómo compartir la obra" data-testid="export-next-steps">
         <p class="break-all text-sm">Archivo: {{ location }}</p>

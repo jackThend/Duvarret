@@ -5,6 +5,7 @@ import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, assetFolderFor, assetUsages } from 
 import { useProjectStore, type AssetAssignment } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 import { STUDIO_AUDIO } from '../services/audio';
+import { presentAssets } from '../services/assetProbe';
 import Modal from './Modal.vue';
 import { useAiStore } from '../stores/ai';
 import { generateImage, providerFetch } from '../services/ai';
@@ -46,20 +47,7 @@ const available = computed(() => known.value.filter((p) => present.value.has(p))
 /** Comprueba qué archivos existen realmente (en disco, en el dispositivo o junto a la obra de ejemplo). */
 async function probe() {
   probing.value = true;
-  const found = new Set<string>();
-  await Promise.all(
-    known.value.map(async (path) => {
-      if (project.assetOverrides.has(path)) return void found.add(path);
-      try {
-        const response = await fetch(project.resolveAsset(path));
-        // Muchos servidores responden con la página principal (HTML) a cualquier archivo inexistente.
-        if (response.ok && !(response.headers.get('content-type') ?? '').includes('text/html')) found.add(path);
-      } catch {
-        /* no está */
-      }
-    }),
-  );
-  present.value = found;
+  present.value = await presentAssets(known.value, project.resolveAsset, project.assetOverrides);
   probing.value = false;
 }
 
