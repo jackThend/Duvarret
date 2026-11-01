@@ -271,3 +271,12 @@ Evaluación para 1.0 · 2026-10-20: las demos no demuestran una instalación aut
 - NSIS final real y QA completo PASS sobre instalación aislada persistente: voz nueva, escuchar, editar, regeneración incremental, cero regeneración al repetir, lector exportado y grabaciones sin voz del sistema. Instalador en `terminados/instalador-hibrido/Duvarret-0.1.0-voz-local-setup.exe`, 592.265.712 bytes, SHA256 `E52D1E90D5B91DC273C64C8761733C7D33E11CE9A5223AEA337A44C034D27C1E`. Informe final `prueba con tilde á-ExGGZ7/VERIFICACION-INSTALACION.json`.
 
 Se conserva 0.1.0: no se certificó VM limpia ni 1.0, no hay firma digital propia, servicio gestionado ni publicación integrada. El avance por fases y los límites están actualizados en `docs/09_PLAN_VERSION_1_0_SIN_FRICCION.md`; detalles de uso, procedencia y evidencias en LEEME/MEMORIA de la entrega. Sin commits, push ni publicaciones nuevas.
+
+### Continuidad de audio — 01-11-2026
+
+Decisión §4.1 de `docs/11`: el libro contemplativo dispara las marcas de sonido siguiendo el scroll.
+Tarea 7: corregida la ventana de lectura (65 % del área visible, respetando los contenedores del
+Studio y del reproductor); los saltos rápidos recogen las marcas atravesadas, una vez por visita.
+El tiempo estimado no dispara marcas en este modo. Seguimiento en el PR #6, rama
+`feat/audio-validacion`. Las cinco comprobaciones de CI del estado previo del PR pasaron, incluido
+Rust y los ejecutables de Windows, macOS y Linux.

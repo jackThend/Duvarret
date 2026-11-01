@@ -279,9 +279,10 @@ de escena antes. Con prueba unitaria del caso de cancelación.
 > `trigger_marker`. En lugar de compilar la marca a un porcentaje fijo, **el reproductor la retira al
 > cargar** (`story.load`) y conserva su posición, así la vista previa del Studio y la obra exportada
 > se comportan igual. En `multimedia` suena cuando el progreso de lectura llega a la marca; en
-> `contemplative_book`, `NodeView` observa anclas invisibles con `IntersectionObserver` y suena cuando
-> la marca sube a la parte de lectura de la pantalla (si un efecto tipográfico reordena las palabras,
-> vuelve al progreso estimado). La narración y el guion accesible nunca leen la marca, y un texto con
+> `contemplative_book`, las anclas invisibles se comparan con la zona realmente visible del lector
+> (ventana y contenedores que recortan el scroll). La marca suena al alcanzar el 65 % de esa zona;
+> también se recogen las marcas rebasadas por un salto rápido y no se repiten al volver atrás.
+> El tiempo estimado no dispara estas marcas. Las palabras animadas conservan sus anclas. La narración y el guion accesible nunca leen la marca, y un texto con
 > marcas reutiliza la misma grabación. En el lienzo, el fondo pinta la marca como ficha; «🎧 Sonido en
 > esta palabra» la inserta tras la palabra seleccionada y su ficha permite elegir sonido y retardo. El
 > director acepta `at_word` en `placeSpatialAudio` («justo en «disparó»»). Si una marca desaparece
@@ -393,3 +394,13 @@ y las capas de una escena se acumulan, nunca se excluyen (§1.3).
 - https://pixabay.com/api/docs/ (confirma que no hay endpoint de audio)
 - https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert.md
 - https://elevenlabs.io/docs/overview/capabilities/sound-effects
+
+## Verificación de la tarea 7 — 01-11-2026
+
+Se corrigió el seguimiento del scroll para que use la ventana de lectura real, incluida la vista
+previa incrustada del Studio. La prueba de integración verifica que el tiempo no dispara marcas,
+que el scroll sí lo hace y que se respeta el retardo sin repetir eventos. La E2E
+`e2e/markers.spec.ts` comprueba el arranque real de audio en el reproductor exportado.
+
+Verificación local: tipos y lint sin errores, 418 pruebas unitarias y 18 E2E correctas. La última
+revisión del PR anterior a esta corrección tenía las cinco comprobaciones de CI en verde.

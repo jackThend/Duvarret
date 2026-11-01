@@ -44,6 +44,17 @@ const paragraphs = computed(() => {
   return out;
 });
 const words = computed(() => props.text.split(/\s+/).filter(Boolean));
+// Los efectos que animan palabras también conservan las anclas en la línea correspondiente.
+const wordMarkers = computed(() => {
+  const pending = [...(props.markers ?? [])].sort((a, b) => a.index - b.index);
+  const groups = [...props.text.matchAll(/\S+/g)].map((word) => {
+    const names: string[] = [];
+    while (pending.length && pending[0]!.index <= word.index! + word[0].length) names.push(pending.shift()!.name);
+    return names;
+  });
+  groups.at(-1)?.push(...pending.map(m => m.name));
+  return groups;
+});
 
 // Licuado: WebGL si está disponible; si no, animación CSS equivalente.
 const meltFallback = ref(false);
@@ -102,7 +113,7 @@ function meltDelay(index: number) {
           :key="i"
           class="dv-word"
           :style="frame.layers.physics ? wordStyle(i) : meltDelay(i)"
-        >{{ `${word} ` }}</span>
+        >{{ word }}<span v-for="name in wordMarkers[i]" :key="name" class="dv-text-marker" :data-marker="name" aria-hidden="true"></span>{{ ' ' }}</span>
       </p>
       <template v-else>
         <p v-for="(parts, i) in paragraphs" :key="i"><template v-for="(part, j) in parts" :key="j"><span v-if="part.marker" class="dv-text-marker" :data-marker="part.marker" aria-hidden="true"></span>{{ part.text }}</template></p>

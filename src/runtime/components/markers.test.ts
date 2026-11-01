@@ -70,17 +70,16 @@ describe('marcas de sonido en el texto', () => {
   });
 
   describe('libro contemplativo: suena al desplazarse hasta la marca', () => {
-    const observed: { callback: IntersectionObserverCallback; targets: Element[] }[] = [];
+    let markerTop = 1000;
     beforeEach(() => {
-      observed.length = 0;
-      vi.stubGlobal('IntersectionObserver', class {
-        targets: Element[] = [];
-        constructor(public callback: IntersectionObserverCallback) { observed.push(this); }
-        observe(target: Element) { this.targets.push(target); }
-        disconnect() {}
+      markerTop = 1000;
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        return { top: this.hasAttribute('data-marker') ? markerTop : 0, bottom: 600, left: 0, right: 600, height: 600, width: 600 } as DOMRect;
       });
+      vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList);
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
     });
-    afterEach(() => vi.unstubAllGlobals());
+    afterEach(() => vi.restoreAllMocks());
 
     it('pinta anclas invisibles y dispara cada marca cuando entra en pantalla, no por el tiempo', async () => {
       vi.useFakeTimers();
@@ -98,9 +97,17 @@ describe('marcas de sonido en el texto', () => {
         await vi.advanceTimersByTimeAsync(20000);
         expect(play).not.toHaveBeenCalled();
 
-        const observer = observed.at(-1)!;
-        observer.callback([{ isIntersecting: true, target: observer.targets[0]! } as unknown as IntersectionObserverEntry], observer as unknown as IntersectionObserver);
+        markerTop = 300;
+        wrapper.element.dispatchEvent(new Event('scroll'));
+        await vi.advanceTimersByTimeAsync(30);
         expect(play.mock.calls.map(([e]) => e.event_id)).toEqual(['disparo']);
+        markerTop = 1000;
+        wrapper.element.dispatchEvent(new Event('scroll'));
+        await vi.advanceTimersByTimeAsync(30);
+        markerTop = -100; // salto rápido que rebasa las marcas
+        wrapper.element.dispatchEvent(new Event('scroll'));
+        await vi.advanceTimersByTimeAsync(600);
+        expect(play.mock.calls.map(([e]) => e.event_id)).toEqual(['disparo', 'eco']);
         wrapper.unmount();
       } finally {
         vi.useRealTimers();

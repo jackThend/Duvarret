@@ -4,6 +4,7 @@ import type { StoryNode } from '@/core/manifest';
 import { useStoryStore } from '../stores/story';
 import { useRuntimeServices } from '../services';
 import { useReadingProgress } from '../composables/useReadingProgress';
+import { observeReadingMarkers } from '../composables/observeReadingMarkers';
 import { successProbability } from '../engine/rng';
 import ErgodicText from './ErgodicText.vue';
 import ChoiceList from './ChoiceList.vue';
@@ -19,30 +20,18 @@ const speed = computed(() => props.readingSpeed);
 const progress = useReadingProgress(text, (p) => store.setRevealProgress(p), { speed });
 const markers = computed(() => store.textMarkers.get(props.node.node_id) ?? []);
 
-/**
- * Libro contemplativo (decisión §4.1 de docs/11): no hay tipeo, así que cada marca `⟦…⟧` suena
- * cuando su ancla sube a la parte de lectura de la pantalla. Sin anclas visibles (efectos que
- * reordenan las palabras) o sin IntersectionObserver, se sigue el progreso de lectura estimado.
- */
+/** En el libro contemplativo las marcas siguen exclusivamente el desplazamiento del lector. */
 const root = ref<HTMLElement | null>(null);
-let observer: IntersectionObserver | null = null;
+let stopMarkers: (() => void) | undefined;
 function observeMarkers() {
-  observer?.disconnect();
-  observer = null;
-  const contemplative = store.manifest?.global_settings.default_mode === 'contemplative_book';
-  const anchors = root.value ? [...root.value.querySelectorAll<HTMLElement>('[data-marker]')] : [];
-  const scroll = contemplative && anchors.length > 0 && typeof IntersectionObserver !== 'undefined';
+  stopMarkers?.();
+  const scroll = store.mode === 'visual' && store.manifest?.global_settings.default_mode === 'contemplative_book';
   store.useScrollMarkers(scroll);
-  if (!scroll) return;
-  observer = new IntersectionObserver(
-    (entries) => { for (const entry of entries) if (entry.isIntersecting) store.reachMarker((entry.target as HTMLElement).dataset.marker!); },
-    { root: root.value, rootMargin: '0px 0px -35% 0px' },
-  );
-  for (const anchor of anchors) observer.observe(anchor);
+  stopMarkers = scroll && root.value ? observeReadingMarkers(root.value, (name) => store.reachMarker(name)) : undefined;
 }
 onMounted(observeMarkers);
-watch(() => [props.node.node_id, markers.value], () => void nextTick(observeMarkers));
-onBeforeUnmount(() => { observer?.disconnect(); store.useScrollMarkers(false); });
+watch(() => [props.node.node_id, markers.value, store.mode, store.manifest?.global_settings.default_mode], () => void nextTick(observeMarkers));
+onBeforeUnmount(() => { stopMarkers?.(); store.useScrollMarkers(false); });
 const dialogueDone = ref(false);
 watch(
   () => props.node.node_id,
