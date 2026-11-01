@@ -75,6 +75,17 @@ Los informes `verificacion*/VERIFICACION.json` conservan cada intento, con `stat
 Los ejecutables, imágenes, grabaciones y capturas permanecen fuera de Git, conforme a las exclusiones
 del proyecto. El PR contiene código, guiones y este informe de aceptación.
 
+Validación del código `5c8bbb7`: 430 unitarias locales correctas (56 archivos), tipos y lint
+correctos; CI `41362029617` completa y verde, con 18 E2E, esquema, Clippy, pruebas Rust y
+ejecutables Windows/macOS/Linux. La última corrección del guion espera la pantalla inicial del
+lector antes de recargar: CDP podía descubrir todavía `about:blank`, sin ser un fallo del binario.
+El informe `verificacion-definitiva` confirma generación y caché de voces, guardado/reapertura y
+exportación con el Studio final; conserva el fallo de esa carrera del guion. El recorrido completo
+del lector corregido se conserva en `verificacion-corregida`. La repetición sobre los binarios
+finales termina en `passed`, sin errores, en `verificacion-entrega-final/VERIFICACION.json`.
+También se evita que la captura de página completa desplace la habitación bajo el puntero de la
+linterna: se captura el viewport y se vuelve a situar el puntero sobre el objeto antes de recogerlo.
+
 Esta prueba se ejecuta en el equipo de desarrollo. No certifica una VM Windows limpia, firma de
 editor, una instalación nueva ni aceptación auditiva humana. Offline de WebView2 no equivale a
 desconectar la red del sistema operativo. No publicar la obra ni fusionar el PR automáticamente.

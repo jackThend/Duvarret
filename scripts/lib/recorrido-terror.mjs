@@ -62,7 +62,9 @@ export async function playHorrorRoute(page, manifest, output, passed, root, endi
   assert.ok(rect);
   await page.mouse.move(rect.x + rect.width * .72, rect.y + rect.height * .64);
   assert.equal(await collect.isEnabled(), true);
-  await page.screenshot({ path: join(output, '07-linterna-objeto.png'), fullPage: true });
+  await page.screenshot({ path: join(output, '07-linterna-objeto.png') });
+  // La captura de página completa puede desplazar el cuarto bajo el puntero y apagar el objeto.
+  await collect.hover({ force: true });
   await collect.click();
   await visit('antes_puerta');
   await page.getByTestId('toggle-inventory').click();

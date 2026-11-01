@@ -219,6 +219,8 @@ try {
   passed('Studio exporta Web y lector portátil sin archivos pendientes; la exportación conserva marcas y retardo.');
   await close(child);
   ({ child, page } = await launch(portable, 'perfil-lector'));
+  // CDP puede descubrir la ventana aún en about:blank. No recargar ese documento inicial.
+  await page.getByTestId('begin').waitFor({ timeout: 60000 });
   await page.addInitScript(() => {
     window.__realAudioStarts = [];
     window.__systemSpeech = [];

@@ -294,5 +294,7 @@ Rust y los ejecutables de Windows, macOS y Linux.
   `terminados/la-casa-que-aprendio-mi-nombre/verificacion-corregida/VERIFICACION.json`.
 - Generación nativa de 60 intervenciones, regeneración incremental y reapertura se comprobaron en
   los intentos previos. Detalles, fuentes y límites: `docs/12_ACEPTACION_CUENTO_TERROR.md`.
-- No fusionar ni publicar automáticamente. Las suites generales repetidas durante la compilación
-  sufrieron tiempos de espera y el umbral de rendimiento; repetir sin carga y comprobar la nueva CI.
+- No fusionar ni publicar automáticamente. Las repeticiones concurrentes iniciales sufrieron tiempos
+  de espera; la suite local final pasa las 430 pruebas. CI `41362029617` de `5c8bbb7`: cinco trabajos
+  correctos, incluidos 18 E2E, Rust y compilaciones Windows/macOS/Linux. Se corrige además la carrera
+  del guion CDP que podía recargar `about:blank` antes del arranque del lector.
