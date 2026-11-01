@@ -370,6 +370,18 @@ describe('DirectorOrchestrator', () => {
     expect(turn.executions.at(-1)!.outcome.summary).toContain('2 s después');
   });
 
+  it('«se acercan por detrás» se convierte en un recorrido desde lejos hasta el oyente', async () => {
+    const run = (message: string) => new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({ message, manifest: manifest(), context: { nodeId: 'rejilla' } });
+    const near = (await run('Unos pasos se acercan por detrás a 2 metros')).draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(near.coordinates).toEqual({ x: 0, y: 0, z: -12 });
+    expect(near.motion).toEqual({ to: { x: 0, y: 0, z: -2 }, duration_ms: 4000 });
+    const turn = await run('Unos pasos se alejan por la derecha');
+    const away = turn.draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(away.coordinates).toEqual({ x: 4, y: 0, z: 0 });
+    expect(away.motion?.to).toEqual({ x: 12, y: 0, z: 0 });
+    expect(turn.executions.at(-1)!.outcome.summary).toContain('se aleja hasta quedar');
+  });
+
   it('aplica las llamadas de una Pitch Card', async () => {
     const [pitch] = suggestForBeat('inicio', 'El pasillo angosto; las paredes aplastaban, no podía respirar, estrecho y encerrado.');
     expect(pitch?.title).toBe('Estrechar la página');

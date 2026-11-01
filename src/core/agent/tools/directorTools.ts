@@ -203,6 +203,7 @@ export const placeSpatialAudio = defineTool({
     trigger_event: z.enum(Object.keys(TRIGGER_ALIASES) as [keyof typeof TRIGGER_ALIASES, ...(keyof typeof TRIGGER_ALIASES)[]]).default('on_enter'),
     trigger_value: z.number().min(0).max(100).optional(),
     delay_ms: z.number().min(0).max(120000).optional().describe('espera tras el disparador, p. ej. 2000 = «dos segundos después de entrar»'),
+    motion_duration_ms: z.number().min(100).max(120000).optional().describe('si la descripción dice «se acerca» o «se aleja», cuánto dura el recorrido (por defecto 4000)'),
     at_word: z.string().min(1).max(40).optional().describe('palabra del texto de la escena en la que debe sonar, p. ej. «disparó»; tiene prioridad sobre trigger_event'),
     loop: z.boolean().default(false),
     gain: z.number().min(0).max(1).default(0.8),
@@ -211,7 +212,17 @@ export const placeSpatialAudio = defineTool({
   }),
   async run(args, ctx) {
     const reading = args.position_description ? parseSpatialDescription(args.position_description) : null;
-    const coordinates = args.coordinates ?? reading?.coordinates ?? { x: 0, y: 0, z: 1 };
+    const target = args.coordinates ?? reading?.coordinates ?? { x: 0, y: 0, z: 1 };
+    // «Se acercan»: la fuente parte de lejos, en la misma dirección, y llega al punto descrito; «se alejan», al revés.
+    const motion = reading && reading.motion !== 'static' ? reading.motion : null;
+    const distant = (c: { x: number; y: number; z: number }) => {
+      const d = Math.hypot(c.x, c.y, c.z);
+      if (!d) return { x: 0, y: 0, z: 12 };
+      const k = Math.min(30, Math.max(12, d * 3)) / d;
+      return { x: Math.round(c.x * k * 100) / 100, y: Math.round(c.y * k * 100) / 100, z: Math.round(c.z * k * 100) / 100 };
+    };
+    const coordinates = motion === 'approaching' ? distant(target) : target;
+    const path = motion ? { to: motion === 'approaching' ? target : distant(target), duration_ms: args.motion_duration_ms ?? 4000 } : undefined;
     const room = ROOM_ALIASES[args.room_preset] ?? 'small_study';
     const trigger = TRIGGER_ALIASES[args.trigger_event];
     const base = args.event_id ?? args.label ?? args.asset_path.split('/').pop()!.replace(/\.[^.]+$/, '');
@@ -246,6 +257,7 @@ export const placeSpatialAudio = defineTool({
       ...(marker ? { trigger_marker: marker } : {}),
       ...(!marker && trigger === 'on_text_reveal_percentage' ? { trigger_value: args.trigger_value ?? 50 } : {}),
       ...(args.delay_ms ? { delay_ms: args.delay_ms } : {}),
+      ...(path ? { motion: path } : {}),
       loop: args.loop,
       coordinates,
       room_preset: room,
@@ -256,8 +268,8 @@ export const placeSpatialAudio = defineTool({
     const patch = ctx.editor.patchNode(args.node_id, { acoustic_events: events });
     if (ctx.assets && !ctx.assets.get(args.asset_path) && !ctx.isDraftAsset?.(args.asset_path)) ctx.assets.register({ path: args.asset_path, origin: 'author', status: 'missing' });
     return {
-      result: { ok: true, event_id: eventId, coordinates, room_preset: room },
-      summary: `«${event.label}» ${describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}${marker ? `, justo al leer «${args.at_word}»` : ''}${args.delay_ms ? `, ${String(args.delay_ms / 1000).replace('.', ',')} s después` : ''}.`,
+      result: { ok: true, event_id: eventId, coordinates, ...(path ? { motion: path } : {}), room_preset: room },
+      summary: `«${event.label}» ${path ? `${motion === 'approaching' ? 'se acerca' : 'se aleja'} hasta quedar ${describePosition(path.to)}` : describePosition(coordinates)}, con el eco de ${ROOM_LABELS[room].toLowerCase()}${marker ? `, justo al leer «${args.at_word}»` : ''}${args.delay_ms ? `, ${String(args.delay_ms / 1000).replace('.', ',')} s después` : ''}.`,
       mutates: true,
       issues: patch.issues,
       nodeId: args.node_id,

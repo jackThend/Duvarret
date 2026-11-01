@@ -721,6 +721,43 @@
                   "type": "number",
                   "minimum": 0,
                   "maximum": 120000
+                },
+                "motion": {
+                  "type": "object",
+                  "properties": {
+                    "to": {
+                      "default": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                      },
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "z"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "duration_ms": {
+                      "default": 4000,
+                      "type": "number",
+                      "minimum": 100,
+                      "maximum": 120000
+                    }
+                  },
+                  "additionalProperties": false
                 }
               },
               "required": [

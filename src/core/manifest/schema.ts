@@ -212,6 +212,8 @@ function build(tolerant: boolean) {
     fade_in_ms: d(z.number().min(0).max(30000), 0),
     /** Espera tras el disparador («dos segundos después de entrar»); se cancela si el lector sale antes. */
     delay_ms: o(z.number().min(0).max(120000)),
+    /** La fuente se desplaza de `coordinates` a `to` mientras suena («unos pasos se acercan por detrás»). */
+    motion: o(obj({ to: d(coordinates, { x: 0, y: 0, z: 1 }), duration_ms: d(z.number().min(100).max(120000), 4000) })),
   });
 
   const dialogueLine = obj({

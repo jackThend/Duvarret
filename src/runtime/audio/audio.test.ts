@@ -302,6 +302,33 @@ describe('integración con la máquina de estados', () => {
     }
   });
 
+  it('una fuente con motion se desplaza mientras suena y se detiene al salir de la escena', async () => {
+    vi.useFakeTimers();
+    try {
+      const manifest = sampleManifest();
+      const inicio = manifest.nodes![0]! as { acoustic_events: Record<string, unknown>[] };
+      inicio.acoustic_events = [{ event_id: 'pasos', asset: 'assets/audio/drip.ogg', loop: true, coordinates: { x: 0, y: 0, z: -12 }, motion: { to: { x: 0, y: 0, z: -1 }, duration_ms: 4000 } }];
+      const store = useStoryStore();
+      store.load(manifest);
+      const { e } = engine();
+      e.bind(store);
+      store.start();
+      await vi.advanceTimersByTimeAsync(10);
+      const z = () => e.active.find((v) => v.id === 'inicio::pasos')?.coordinates.z;
+      expect(z()).toBeCloseTo(-12, 0);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(z()).toBeCloseTo(-6.5, 0);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(z()).toBe(-1);
+      const move = vi.spyOn(e, 'move');
+      store.advance(); // el bucle se apaga al salir: el recorrido ya no mueve nada
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(move).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('el aviso de un sonido ausente lo nombra por su etiqueta e indica su escena', async () => {
     const details: unknown[] = [];
     const e = new SpatialAudioEngine({ contextFactory: fakeContextFactory(new FakeAudioContext()).factory, loadAsset: async () => null, onWarning: (_m, d) => details.push(d) });

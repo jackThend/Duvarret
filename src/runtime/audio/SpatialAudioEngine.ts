@@ -347,8 +347,8 @@ export class SpatialAudioEngine {
   }
 
   /** Reproduce un evento acústico declarado en el manifiesto. */
-  playEvent(event: AcousticEvent, nodeId: string) {
-    return this.play(event.asset, {
+  async playEvent(event: AcousticEvent, nodeId: string) {
+    const voice = await this.play(event.asset, {
       id: `${nodeId}::${event.event_id}`,
       loop: event.loop,
       gain: event.gain,
@@ -356,6 +356,26 @@ export class SpatialAudioEngine {
       fadeInMs: event.fade_in_ms,
       label: event.label ?? event.event_id,
     });
+    if (voice && event.motion) this.glide(voice.id, event.coordinates, event.motion.to, event.motion.duration_ms);
+    return voice;
+  }
+
+  /**
+   * Desplaza una fuente en línea recta mientras suena («se acerca», «se aleja»). Se detiene sola si
+   * la voz termina, se sustituye o se para al cambiar de escena.
+   */
+  private glide(id: string, from: Coordinates, to: Coordinates, durationMs: number) {
+    const voice = this.voices.get(id);
+    if (!voice) return;
+    const token = voice.token;
+    const start = Date.now();
+    const step = () => {
+      if (this.voices.get(id)?.token !== token) return clearInterval(timer);
+      const t = Math.min(1, (Date.now() - start) / durationMs);
+      this.move(id, { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, z: from.z + (to.z - from.z) * t });
+      if (t >= 1) clearInterval(timer);
+    };
+    const timer = setInterval(step, 50);
   }
 
   /** "Pop" espacial breve que confirma la ubicación de una fuente (microinteracción del Studio). */

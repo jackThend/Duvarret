@@ -303,6 +303,11 @@ extracción en `src/core/compiler/`; y `src/studio/components/WritingCanvas.vue`
 primero el camino de `multimedia` solo si esa decisión no cambia el diseño del campo.
 
 ### Tarea 8 — Réplicas habladas espaciales (`speech` en `acoustic_event`)
+> **Estado (01-11-2026): reevaluada; propuesta de descartarla.** La tarea 1 ya cubre la réplica
+> hablada: el texto queda en el registro (`prompt`) y el archivo colocado como evento normal. Solo
+> haría falta para volver a sintetizarla sola al cambiar la voz de la obra. Pendiente de que el autor
+> confirme.
+
 Un `acoustic_event` puede llevar `speech: { text, voice, delivery }`. El narrador lo sintetiza con el
 mismo motor y caché por hash que los clips (`assets/audio/voz-natural/<voz>/<hash>.wav`), pero el
 runtime lo reproduce por `playEvent`, con coordenadas y sala.
@@ -325,6 +330,14 @@ proveedor que ya se soporta para voz, así que la misma clave sirve. Es de pago 
 va **al final de la cadena**: solo cuando el banco libre no tiene lo que la escena pide.
 
 ### Tarea 10 — Movimiento de fuentes (`motion`)
+> **Estado (01-11-2026): hecha.** Campo opcional `motion: { to, duration_ms }` en `acoustic_event`
+> (JSON Schema y `docs/03` al día): la fuente va en línea recta de `coordinates` a `to` mientras
+> suena (`SpatialAudioEngine.glide`, pasos de 50 ms) y se detiene sola si la voz termina o se corta al
+> cambiar de escena. `placeSpatialAudio` traduce el `motion` que ya devolvía
+> `parseSpatialDescription`: «se acercan por detrás a 2 metros» parte de 12 m detrás y llega a 2 m;
+> «se alejan» hace el camino inverso (`motion_duration_ms`, 4 s por defecto). No hay todavía control en
+> el radar para dibujar el recorrido a mano.
+
 `parseSpatialDescription` ya devuelve `'approaching' | 'receding' | 'static'`, y el runtime lo
 ignora. «Unos pasos se acercan por detrás» debería interpolar la posición durante la escena. Es la
 más prescindible de la lista; anotada para que no se pierda.
