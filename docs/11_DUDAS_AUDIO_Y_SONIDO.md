@@ -303,10 +303,10 @@ extracción en `src/core/compiler/`; y `src/studio/components/WritingCanvas.vue`
 primero el camino de `multimedia` solo si esa decisión no cambia el diseño del campo.
 
 ### Tarea 8 — Réplicas habladas espaciales (`speech` en `acoustic_event`)
-> **Estado (01-11-2026): reevaluada; propuesta de descartarla.** La tarea 1 ya cubre la réplica
-> hablada: el texto queda en el registro (`prompt`) y el archivo colocado como evento normal. Solo
-> haría falta para volver a sintetizarla sola al cambiar la voz de la obra. Pendiente de que el autor
-> confirme.
+> **Estado (01-11-2026): descartada por el autor.** La tarea 1 ya cubre la réplica hablada: el texto
+> queda en el registro (`prompt`) y el archivo colocado como evento normal. Solo haría falta para
+> volver a sintetizarla sola al cambiar la voz de la obra; si algún día se necesita, se retoma desde
+> aquí.
 
 Un `acoustic_event` puede llevar `speech: { text, voice, delivery }`. El narrador lo sintetiza con el
 mismo motor y caché por hash que los clips (`assets/audio/voz-natural/<voz>/<hash>.wav`), pero el
