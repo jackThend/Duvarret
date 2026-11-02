@@ -1,0 +1,24 @@
+{
+  "name": "La casa que aprendió mi nombre",
+  "short_name": "La casa que aprendió mi ",
+  "description": "Una casa costera aprende a pronunciar a quienes la visitan.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0f12",
+  "theme_color": "#0d0f12",
+  "icons": [
+    {
+      "src": "icons/duvarret-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/duvarret-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
