@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { StoryNode } from '@/core/manifest';
 import { useStoryStore } from '../stores/story';
 import { useRuntimeServices } from '../services';
 import { useReadingProgress } from '../composables/useReadingProgress';
+import { observeReadingMarkers } from '../composables/observeReadingMarkers';
 import { successProbability } from '../engine/rng';
 import ErgodicText from './ErgodicText.vue';
 import ChoiceList from './ChoiceList.vue';
@@ -17,6 +18,20 @@ const { resolveAsset, audio } = useRuntimeServices();
 const text = computed(() => props.node.text_payload);
 const speed = computed(() => props.readingSpeed);
 const progress = useReadingProgress(text, (p) => store.setRevealProgress(p), { speed });
+const markers = computed(() => store.textMarkers.get(props.node.node_id) ?? []);
+
+/** En el libro contemplativo las marcas siguen exclusivamente el desplazamiento del lector. */
+const root = ref<HTMLElement | null>(null);
+let stopMarkers: (() => void) | undefined;
+function observeMarkers() {
+  stopMarkers?.();
+  const scroll = store.mode === 'visual' && store.manifest?.global_settings.default_mode === 'contemplative_book';
+  store.useScrollMarkers(scroll);
+  stopMarkers = scroll && root.value ? observeReadingMarkers(root.value, (name) => store.reachMarker(name)) : undefined;
+}
+onMounted(observeMarkers);
+watch(() => [props.node.node_id, markers.value, store.mode, store.manifest?.global_settings.default_mode], () => void nextTick(observeMarkers));
+onBeforeUnmount(() => { stopMarkers?.(); store.useScrollMarkers(false); });
 const dialogueDone = ref(false);
 watch(
   () => props.node.node_id,
@@ -39,13 +54,13 @@ const pct = (p: number) => `${Math.round(p * 100)}%`;
 </script>
 
 <template>
-  <article class="dv-node" :data-node="node.node_id" data-testid="node-view" @scroll.passive="progress.onScroll($event.target as HTMLElement)">
+  <article ref="root" class="dv-node" :data-node="node.node_id" data-testid="node-view" @scroll.passive="progress.onScroll($event.target as HTMLElement)">
     <figure v-if="node.illustration?.asset" class="dv-illustration" :class="`dv-illustration-${node.illustration.placement}`">
       <img :src="resolveAsset(node.illustration.asset)" :alt="node.illustration.alt" />
     </figure>
     <h2 v-if="node.title" class="dv-node-title">{{ node.title }}</h2>
 
-    <ErgodicText :text="node.text_payload" :engine="node.typographic_engine" :extra-texts="store.revealedExtraTexts" />
+    <ErgodicText :text="node.text_payload" :engine="node.typographic_engine" :extra-texts="store.revealedExtraTexts" :markers="markers" />
 
     <dl v-if="glossary.length" class="dv-glossary" aria-label="Glosario">
       <template v-for="entry in glossary" :key="entry.term">

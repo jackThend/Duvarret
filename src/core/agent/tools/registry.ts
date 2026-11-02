@@ -12,6 +12,8 @@ export interface ToolContext {
   supervisor?: ContinuitySupervisor;
   assets?: AssetRegistry;
   synthesizer?: AssetSynthesizer;
+  /** Rutas de recursos creados que esperan la aprobación del autor (no faltan: aún no se han guardado). */
+  isDraftAsset?: (path: string) => boolean;
   /** Momento narrativo actual (beat * 1000). */
   timestamp?: number;
 }

@@ -7,7 +7,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
 import type { AcousticTrigger, Choice, RpgCheck, StoryManifest, StoryNode } from '@/core/manifest';
-import { validateManifest } from '@/core/manifest';
+import { parseTextMarkers, stripTextMarkers, validateManifest, type TextMarker } from '@/core/manifest';
 import { hashString, roll2d6, successProbability } from '../engine/rng';
 import { applyOutcome, evaluateCondition, type GameState } from '../engine/state';
 
@@ -33,6 +33,8 @@ export interface RuntimeEvent {
   nodeId: string;
   value?: number;
   asset?: string;
+  /** Con `on_text_marker`: la marca `⟦…⟧` a la que ha llegado el lector. */
+  marker?: string;
 }
 
 export interface StorySnapshot {
@@ -63,6 +65,10 @@ export const useStoryStore = defineStore('duvarret-story', () => {
   const activeResults = ref<Record<number, CheckResult>>({});
   const warnings = ref<string[]>([]);
   const firedThresholds = new Set<string>();
+  /** Marcas `⟦…⟧` de cada escena, retiradas del texto visible al cargar (posición en el texto limpio). */
+  const textMarkers = shallowRef<Map<string, TextMarker[]>>(new Map());
+  /** En el libro contemplativo, las marcas las dispara el desplazamiento y no el progreso estimado. */
+  const scrollMarkers = ref(false);
   const listeners = new Set<Listener>();
 
   const nodeIndex = computed(() => {
@@ -140,7 +146,18 @@ export const useStoryStore = defineStore('duvarret-story', () => {
   /** Carga un manifiesto (se valida siempre, jamás se ejecuta código). */
   function load(input: StoryManifest | unknown) {
     const { manifest: validated } = validateManifest(input);
-    manifest.value = validated;
+    // Las marcas de sonido no se ven ni se leen: se guardan aparte con su posición.
+    const markers = new Map<string, TextMarker[]>();
+    const nodes = validated.nodes.map((node) => {
+      const parsed = parseTextMarkers(node.text_payload);
+      if (parsed.markers.length) markers.set(node.node_id, parsed.markers);
+      const narration = node.screenless_mode?.narration_text;
+      return parsed.markers.length || (narration && narration !== stripTextMarkers(narration))
+        ? { ...node, text_payload: parsed.visible, ...(node.screenless_mode && narration ? { screenless_mode: { ...node.screenless_mode, narration_text: stripTextMarkers(narration) } } : {}) }
+        : node;
+    });
+    textMarkers.value = markers;
+    manifest.value = markers.size || nodes.some((n, i) => n !== validated.nodes[i]) ? { ...validated, nodes } : validated;
     reset();
   }
 
@@ -246,7 +263,22 @@ export const useStoryStore = defineStore('duvarret-story', () => {
         emit({ type: 'on_text_reveal_percentage', nodeId: node.node_id, value: threshold });
       }
     }
+    if (!scrollMarkers.value) for (const marker of textMarkers.value.get(node.node_id) ?? []) if (value >= marker.percentage) reachMarker(marker.name);
     if (value >= 100) emit({ type: 'on_text_complete', nodeId: node.node_id });
+  }
+
+  /** El lector llega a una marca `⟦…⟧` (por el progreso de lectura o al verla en pantalla). Una vez por visita. */
+  function reachMarker(name: string) {
+    const node = currentNode.value;
+    if (!node) return;
+    const key = `${node.node_id}::marca::${name}`;
+    if (firedThresholds.has(key)) return;
+    firedThresholds.add(key);
+    emit({ type: 'on_text_marker', nodeId: node.node_id, marker: name });
+  }
+
+  function useScrollMarkers(enabled: boolean) {
+    scrollMarkers.value = enabled;
   }
 
   /** Resuelve el minijuego del nodo actual con la señal aislada del sandbox. */
@@ -335,6 +367,9 @@ export const useStoryStore = defineStore('duvarret-story', () => {
     advance,
     hoverChoice,
     setRevealProgress,
+    textMarkers,
+    reachMarker,
+    useScrollMarkers,
     resolvePuzzle,
     rollActiveCheck,
     pushDialogue,

@@ -184,10 +184,10 @@ describe('herramientas del director', () => {
     editor = new ManifestEditor(manifest());
   });
 
-  it('expone esquemas JSON estándar para las 8 herramientas nucleares', () => {
+  it('expone esquemas JSON estándar para las herramientas nucleares', () => {
     const specs = registry.specs();
     expect(specs.map((s) => s.name).sort()).toEqual(
-      ['mountSimulatedModule', 'placeSpatialAudio', 'queryLoreGraph', 'requestAssetSynthesis', 'setTypographicEffect', 'setVisualNovelSegment', 'updateLoreEntity', 'validateContinuity'].sort(),
+      ['listSceneCapabilities', 'defineInventoryItem', 'mountSimulatedModule', 'placeSpatialAudio', 'queryLoreGraph', 'requestAssetSynthesis', 'setTypographicEffect', 'setVisualNovelSegment', 'updateLoreEntity', 'validateContinuity'].sort(),
     );
     for (const spec of specs) expect(spec.parameters.type).toBe('object');
   });
@@ -327,6 +327,61 @@ describe('DirectorOrchestrator', () => {
     expect(turn.reply).toContain('Propuesta lista');
   });
 
+  it('crea una voz y después la coloca donde se pidió, sin registrarla mientras es un borrador', async () => {
+    const assets = new AssetRegistry();
+    const drafts = new Set<string>();
+    const synthesizer = {
+      provider: 'prueba',
+      synthesize: vi.fn(async () => { drafts.add('assets/audio/voz_no_mires_atras.wav'); return { path: 'assets/audio/voz_no_mires_atras.wav', status: 'draft' as const, provider: 'prueba' }; }),
+    };
+    const turn = await new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({
+      message: 'Ponme una voz que susurre «no mires atrás» a mi oído derecho',
+      manifest: manifest(),
+      context: { nodeId: 'rejilla' },
+      tools: { assets, synthesizer, isDraftAsset: (path) => drafts.has(path) },
+    });
+    expect(synthesizer.synthesize).toHaveBeenCalledWith({ type: 'voice', prompt: 'no mires atrás', style_preset: 'susurrando' });
+    expect(turn.executions.map((e) => e.call.name)).toEqual(['requestAssetSynthesis', 'placeSpatialAudio']);
+    const event = turn.draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(event).toMatchObject({ asset: 'assets/audio/voz_no_mires_atras.wav', label: 'voz «no mires atrás»', coordinates: { x: 0.25, y: 0, z: 0 } });
+    // Ni se da por creado ni por perdido: solo existe si el autor acepta.
+    expect(assets.get('assets/audio/voz_no_mires_atras.wav')).toBeUndefined();
+    expect(turn.executions[0]!.outcome.summary).toContain('solo entrará en la obra si aceptas');
+    // Lo que dice la voz no se confunde con indicaciones de puesta en escena.
+    expect(interpretInstruction('Que una voz diga «el corazón late en la oscuridad»', 'n1').map((c) => c.name)).toEqual(['requestAssetSynthesis']);
+  });
+
+  it('si no se puede crear la voz, el motivo llega al autor', async () => {
+    const synthesizer = { provider: 'prueba', synthesize: async () => { throw new Error('Añade tu clave de Gemini.'); } };
+    const turn = await new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({ message: 'Una voz que grite «¡fuera!»', manifest: manifest(), context: { nodeId: 'rejilla' }, tools: { synthesizer } });
+    expect(turn.mutated).toBe(false);
+    expect(turn.executions[0]!.outcome.summary).toBe('No pude crear la voz: Añade tu clave de Gemini.');
+  });
+
+  it('entiende «dos segundos después» y lo deja como retardo del sonido', async () => {
+    const turn = await new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({
+      message: 'Pon unos pasos por detrás, dos segundos después de entrar',
+      manifest: manifest(),
+      context: { nodeId: 'rejilla' },
+    });
+    const event = turn.draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(event).toMatchObject({ label: 'pasos', delay_ms: 2000 });
+    expect(event.coordinates.z).toBeLessThan(0);
+    expect(turn.executions.at(-1)!.outcome.summary).toContain('2 s después');
+  });
+
+  it('«se acercan por detrás» se convierte en un recorrido desde lejos hasta el oyente', async () => {
+    const run = (message: string) => new DirectorOrchestrator({ provider: new LocalDirectorProvider() }).run({ message, manifest: manifest(), context: { nodeId: 'rejilla' } });
+    const near = (await run('Unos pasos se acercan por detrás a 2 metros')).draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(near.coordinates).toEqual({ x: 0, y: 0, z: -12 });
+    expect(near.motion).toEqual({ to: { x: 0, y: 0, z: -2 }, duration_ms: 4000 });
+    const turn = await run('Unos pasos se alejan por la derecha');
+    const away = turn.draft.nodes.find((n) => n.node_id === 'rejilla')!.acoustic_events.at(-1)!;
+    expect(away.coordinates).toEqual({ x: 4, y: 0, z: 0 });
+    expect(away.motion?.to).toEqual({ x: 12, y: 0, z: 0 });
+    expect(turn.executions.at(-1)!.outcome.summary).toContain('se aleja hasta quedar');
+  });
+
   it('aplica las llamadas de una Pitch Card', async () => {
     const [pitch] = suggestForBeat('inicio', 'El pasillo angosto; las paredes aplastaban, no podía respirar, estrecho y encerrado.');
     expect(pitch?.title).toBe('Estrechar la página');
@@ -338,8 +393,9 @@ describe('DirectorOrchestrator', () => {
 
 describe('director local', () => {
   it('interpreta indicaciones del doc 04 (grito atrás a 5 metros)', () => {
+    // Un sonido reconocible se busca primero en el banco libre; se coloca cuando se conoce su ruta.
     const [c] = interpretInstruction('Pon el grito atrás a 5 metros', 'n1');
-    expect(c).toMatchObject({ name: 'placeSpatialAudio', arguments: { asset_path: 'assets/audio/sfx/scream.ogg', position_description: 'Pon el grito atrás a 5 metros' } });
+    expect(c).toMatchObject({ name: 'requestAssetSynthesis', arguments: { type: 'sfx', prompt: 'scream' } });
   });
 
   it('propone escenificar diálogos y enigmas', () => {

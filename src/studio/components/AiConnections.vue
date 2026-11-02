@@ -21,6 +21,7 @@ const providerLinks: Record<AiProviderId, string> = {
   anthropic: 'https://console.anthropic.com/settings/keys', zen: 'https://opencode.ai/zen',
   elevenlabs: 'https://elevenlabs.io/app/settings/api-keys', cloudflare: 'https://dash.cloudflare.com/profile/api-tokens',
   ollama: 'https://ollama.com/download', compatible: 'https://lmstudio.ai/',
+  freesound: 'https://freesound.org/apiv2/apply',
 };
 async function openProvider(event: Event) {
   if (!native) return;
@@ -66,6 +67,11 @@ function choose() { key.value = ''; endpoint.value = ai.endpoints[provider.value
     <a :href="providerLinks[provider]" target="_blank" rel="noopener noreferrer" class="dv-link inline-block" data-testid="ai-provider-link" @click="openProvider">{{ provider === 'ollama' || provider === 'compatible' ? 'Abrir sitio del proveedor' : 'Obtener mi clave en el proveedor' }}</a>
     <p v-if="provider === 'zen'" class="text-xs text-dv-muted">OpenCode Zen necesita su propia clave de API. Sus modelos gratuitos y límites dependen del catálogo vigente de tu cuenta.</p>
     <p v-if="provider === 'openai'" class="text-xs text-dv-muted">Una suscripción a ChatGPT no incluye automáticamente saldo para la API de OpenAI.</p>
+    <p v-if="provider === 'freesound'" class="text-xs text-dv-muted">Gratis con una cuenta de Freesound: pide una clave de API y pégala aquí. Duvarret solo busca sonidos CC0, que puedes usar en tus obras sin pedir permiso ni acreditar.</p>
+    <label v-if="provider === 'elevenlabs'" class="flex items-start gap-2 text-xs" data-testid="ai-generate-effects-label">
+      <input v-model="ai.generateEffects" type="checkbox" data-testid="ai-generate-effects" />
+      <span>Cuando el banco libre no tenga el sonido que pides al co-director, crearlo con ElevenLabs. Gasta créditos de tu cuenta; revisa sus condiciones de uso antes de publicar.</span>
+    </label>
     <p v-if="provider === 'cloudflare'" class="text-xs text-dv-muted">Crea un token con permiso de Workers AI para tu cuenta. El identificador de cuenta se configura debajo, en Ilustraciones.</p>
     <label v-if="provider !== 'ollama'" class="block">{{ ai.configured[provider] ? 'Sustituir clave personal' : 'Clave personal' }}
       <input v-model="key" type="password" autocomplete="off" class="dv-input mt-1 w-full" data-testid="provider-key" placeholder="Pega tu clave; no se volverá a mostrar" />

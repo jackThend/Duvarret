@@ -6,6 +6,11 @@ import { z } from 'zod';
 
 const screen = z.enum(['crt_green_phosphor', 'crt_amber', 'lcd_blue']).catch('crt_green_phosphor');
 
+export const LockpickParams = z.object({
+  pin_heights: z.array(z.number().int().min(0).max(4)).length(3).catch([1, 3, 2]),
+  max_attempts: z.number().int().min(1).max(99).catch(3),
+});
+
 export const CipherLockParams = z.object({
   prompt_text: z.string().catch('INTRODUZCA EL CÓDIGO:'),
   target_code: z.coerce.string().catch('0000'),

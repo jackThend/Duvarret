@@ -51,7 +51,7 @@ function toggleCompactStructure() {
 
 const audio =
   props.audioEngine === undefined
-    ? new SpatialAudioEngine({ preferred: 'resonance_3d', loadAsset: (p) => fetchAssetLoader(project.resolveAsset(p)) })
+    ? new SpatialAudioEngine({ preferred: 'resonance_3d', loadAsset: (p) => fetchAssetLoader(project.resolveAsset(p)), onWarning: studio.notePreviewAudio })
     : props.audioEngine;
 provide(STUDIO_AUDIO, audio);
 

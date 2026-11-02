@@ -50,6 +50,11 @@ fn project_write_bytes(root: String, relative: String, contents: Vec<u8>) -> Res
 }
 
 #[tauri::command]
+fn project_write_bytes_chunk(root: String, relative: String, encoded: String, offset: u64, total: u64) -> Result<(), String> {
+    project::write_bytes_chunk(&PathBuf::from(root), &relative, &encoded, offset, total).map_err(to_msg)
+}
+
+#[tauri::command]
 fn project_read_bytes(root: String, relative: String) -> Result<Vec<u8>, String> {
     project::read_bytes(&PathBuf::from(root), &relative).map_err(to_msg)
 }
@@ -134,6 +139,7 @@ pub fn run() {
             project_write_text,
             project_read_text,
             project_write_bytes,
+            project_write_bytes_chunk,
             project_read_bytes,
             project_list_assets,
             project_show_exports,

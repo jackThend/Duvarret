@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { generateImageWith, generateSpeechWith } from './media';
+import { generateImageWith, generateSoundEffectWith, generateSpeechWith } from './media';
 import type { FetchLike } from '../agent/types';
 import { encodeWav } from '../assets/wav';
 
@@ -57,6 +57,17 @@ describe('Medios de IA con proveedores propios', () => {
     expect(invalid.mock.calls[0]?.[0]).toBe('https://voz.example/v1/audio/speech');
     const valid = await generateSpeechWith(async () => new Response(wav.slice().buffer), request);
     expect(valid.mimeType).toBe('audio/wav');
+  });
+  it('ElevenLabs genera efectos de sonido en MP3 y rechaza lo que no lo es', async () => {
+    const mp3 = new Uint8Array(256); mp3.set([255, 251, 144, 0]);
+    const fetcher = vi.fn<FetchLike>(async () => new Response(mp3));
+    const result = await generateSoundEffectWith(fetcher, { text: 'grillos en una noche de verano', durationSeconds: 6 });
+    expect(fetcher.mock.calls[0]?.[0]).toBe('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128');
+    expect(JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string)).toMatchObject({ text: 'grillos en una noche de verano', duration_seconds: 6 });
+    expect(result).toMatchObject({ mimeType: 'audio/mpeg', provider: 'elevenlabs' });
+    await expect(generateSoundEffectWith(async () => new Response('<html>error</html>'), { text: 'grillos' })).rejects.toThrow('incompleto');
+    await expect(generateSoundEffectWith(fetcher, { text: 'grillos', durationSeconds: 45 })).rejects.toThrow('entre 0,5 y 30');
+    await expect(generateSoundEffectWith(async () => new Response('', { status: 401 }), { text: 'grillos' })).rejects.toThrow('no autorizó');
   });
   it('rechaza respuestas 200 con MIME correcto pero bytes de error o WAV truncado', async () => {
     await expect(generateImageWith(async () => rawInteraction('image', 'AQID'), { provider: 'gemini', model: 'editable', prompt: 'Mar' })).rejects.toThrow('incompleto');

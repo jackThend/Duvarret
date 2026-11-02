@@ -19,6 +19,13 @@
   margin-top: 1em;
 }
 
+/* Ancla invisible de una marca de sonido: ocupa una línea de alto y ningún ancho. */
+.dv-text-marker {
+  display: inline-block;
+  width: 0;
+  height: 1em;
+}
+
 .dv-layout-narrow-corridor {
   text-align: justify;
   hyphens: auto;

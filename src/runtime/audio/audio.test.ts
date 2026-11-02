@@ -255,6 +255,91 @@ describe('SpatialAudioEngine', () => {
 describe('integración con la máquina de estados', () => {
   beforeEach(() => setActivePinia(createPinia()));
 
+  it('un evento con delay_ms suena a su hora y nunca si el lector sale antes', async () => {
+    const delayed = () => {
+      const manifest = sampleManifest();
+      const inicio = manifest.nodes![0]! as { acoustic_events: Record<string, unknown>[] };
+      inicio.acoustic_events = [{ event_id: 'disparo', asset: 'assets/audio/drip.ogg', delay_ms: 2000 }];
+      return manifest;
+    };
+    vi.useFakeTimers();
+    try {
+      const store = useStoryStore();
+      store.load(delayed());
+      const { e } = engine();
+      e.bind(store);
+      store.start();
+      await vi.advanceTimersByTimeAsync(1900);
+      expect(e.active.map((v) => v.id)).not.toContain('inicio::disparo');
+      await vi.advanceTimersByTimeAsync(200);
+      expect(e.active.map((v) => v.id)).toContain('inicio::disparo');
+
+      setActivePinia(createPinia());
+      const again = useStoryStore();
+      again.load(delayed());
+      const second = engine().e;
+      const play = vi.spyOn(second, 'playEvent');
+      second.bind(again);
+      again.start();
+      await vi.advanceTimersByTimeAsync(500);
+      again.advance(); // el lector cambia de escena antes de los dos segundos
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(play.mock.calls.map(([event]) => event.event_id)).not.toContain('disparo');
+
+      // Desconectar el motor también cancela lo pendiente.
+      setActivePinia(createPinia());
+      const third = useStoryStore();
+      third.load(delayed());
+      const last = engine().e;
+      const lastPlay = vi.spyOn(last, 'playEvent');
+      const unbind = last.bind(third);
+      third.start();
+      unbind();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(lastPlay).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('una fuente con motion se desplaza mientras suena y se detiene al salir de la escena', async () => {
+    vi.useFakeTimers();
+    try {
+      const manifest = sampleManifest();
+      const inicio = manifest.nodes![0]! as { acoustic_events: Record<string, unknown>[] };
+      inicio.acoustic_events = [{ event_id: 'pasos', asset: 'assets/audio/drip.ogg', loop: true, coordinates: { x: 0, y: 0, z: -12 }, motion: { to: { x: 0, y: 0, z: -1 }, duration_ms: 4000 } }];
+      const store = useStoryStore();
+      store.load(manifest);
+      const { e } = engine();
+      e.bind(store);
+      store.start();
+      await vi.advanceTimersByTimeAsync(10);
+      const z = () => e.active.find((v) => v.id === 'inicio::pasos')?.coordinates.z;
+      expect(z()).toBeCloseTo(-12, 0);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(z()).toBeCloseTo(-6.5, 0);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(z()).toBe(-1);
+      const move = vi.spyOn(e, 'move');
+      store.advance(); // el bucle se apaga al salir: el recorrido ya no mueve nada
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(move).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('el aviso de un sonido ausente lo nombra por su etiqueta e indica su escena', async () => {
+    const details: unknown[] = [];
+    const e = new SpatialAudioEngine({ contextFactory: fakeContextFactory(new FakeAudioContext()).factory, loadAsset: async () => null, onWarning: (_m, d) => details.push(d) });
+    const store = useStoryStore();
+    store.load(sampleManifest());
+    e.bind(store);
+    store.start();
+    await vi.waitFor(() => expect(details.filter(Boolean)).toHaveLength(1));
+    expect(details.filter(Boolean)[0]).toEqual({ kind: 'missing_asset', id: 'inicio::gotera', asset: 'assets/audio/drip.ogg', label: 'gotera' });
+  });
+
   it('dispara los eventos declarados según el avance de la lectura', async () => {
     const store = useStoryStore();
     store.load(sampleManifest());

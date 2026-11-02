@@ -133,6 +133,18 @@ El orden está pensado para que cada tarea deje algo usable y no bloquee a la si
 y 2 son las de mayor efecto por línea escrita.
 
 ### Tarea 1 — Voz y efectos en el sintetizador del Studio
+> **Estado (31-10-2026): hecha** (voz, banco libre y, con la tarea 9, efectos generados). El sintetizador de
+> `toolContext()` devuelve ahora **borradores** (`status: 'draft'`): `project.draftSpokenLine` crea la
+> réplica con Kokoro (escritorio) o con el servicio de voz elegido, la valida y la deja en memoria con
+> su URL de vista previa (`stageGeneratedAsset`). La tarjeta de propuesta la muestra con «▶ Escuchar»;
+> solo `applyPitch` la guarda (`acceptGeneratedAsset`) con su procedencia, y descartar la olvida sin
+> rastro. Las imágenes del director siguen el mismo camino (antes se guardaban al generarse). El
+> director local entiende «una voz que susurre «…» a mi oído derecho»: crea la voz y, con la ruta ya
+> conocida, la coloca. Lo que no se ha podido comprobar aquí: la rama Kokoro en el ejecutable real
+> (usa `narration_generate` + `project_read_bytes`, sin cambios en Rust). `sfx` sigue cayendo en
+> `OfflineSynthesizer`. *Actualización:* `sfx` busca ahora en Freesound (tarea 3) y devuelve el primer
+> sonido CC0 como borrador; sin clave o sin resultados, sigue reservándolo como pendiente.
+
 **Por qué primero.** Es el único eslabón que impide que «ponme aquí una voz que susurre esto a mi
 derecha» sea una sola conversación. Toda la infraestructura existe; falta conectarla.
 
@@ -156,6 +168,11 @@ produce el WAV, lo deja escuchar, lo coloca como `acoustic_event` con sus coorde
 registrado con su procedencia; y el autor puede rechazarlo sin que nada se haya guardado.
 
 ### Tarea 2 — Validar el contenido de cada archivo, no su extensión
+> **Estado (31-10-2026): hecha.** `checkAssetContent` (`src/core/assets/content.ts`) se llama desde
+> `addAsset` y valida los bytes de WAV, MP3, OGG/Opus, FLAC, M4A, PNG, JPEG, WEBP, GIF, SVG y AVIF.
+> Nombra lo que parece el archivo («parece un vídeo, no un sonido») y acepta con su extensión real un
+> sonido válido mal nombrado (un WAV llamado `.mp3`).
+
 **Por qué.** Es el agujero de aviso más grave. `addAsset` (`src/studio/stores/project.ts:146`)
 comprueba tamaño y extensión, nada más. Un WAV truncado, un archivo corrupto o **un vídeo renombrado
 a `.mp3` entra sin una sola queja** y falla después en silencio: al reproducir suena el tono de
@@ -175,6 +192,15 @@ motivo nombrado, y ningún archivo inválido llega al manifiesto. Con varios arc
 rechazo se nombra por separado (comportamiento ya existente, no romperlo).
 
 ### Tarea 3 — Buscador del banco libre dentro del Studio
+> **Estado (31-10-2026): hecha, con previews** (decisión §4.2 tomada por el autor). Freesound es una
+> conexión más (clave cifrada, cabecera `Authorization: Token`); los previews del CDN
+> `cdn.freesound.org/previews/` se bajan sin enviar la clave, también en Rust (`freesound_preview`).
+> Cliente en `src/core/assets/freesound.ts` (filtro CC0 pedido y comprobado), buscador en
+> `AssetsDialog.vue` y rama `sfx` del sintetizador del director. El director local reconoce también
+> grillos, ladridos y disparos, y busca en inglés. **Sin verificar:** una búsqueda real contra
+> Freesound (requiere la clave del autor), la descarga del CDN desde el navegador web (CORS) y el
+> código Rust, que solo compila la CI.
+
 **Fuente principal: Freesound, filtrado a CC0.** API v2:
 `GET https://freesound.org/apiv2/search/text/?query=grillos&filter=license:"Creative Commons 0"`,
 con el token en la cabecera `Authorization: Token <clave>`. CC0 es la única licencia que no obliga a
@@ -199,6 +225,12 @@ uno se descarga, se valida con la tarea 2 y se asigna en un solo paso.
 con `license` y `author` rellenos, sin que el autor haya visto una ruta ni una carpeta.
 
 ### Tarea 4 — Avisar al exportar de un archivo que no existe
+> **Estado (31-10-2026): hecha, como aviso** (decisión §4.3). Al abrir el panel de exportación,
+> `presentAssets` (`src/studio/services/assetProbe.ts`, la misma comprobación que el diálogo de
+> recursos) y `missingAssetIssues` (`src/core/assets/usages.ts`) nombran cada sonido o imagen ausente
+> con su escena; el nombre lleva a la escena y «Aportar archivo» lo sustituye ahí mismo, validado. No
+> bloquea: si se exporta con algo ausente, basta confirmar «Exportar igualmente».
+
 **Por qué.** `checkIntegrity` solo ve el manifiesto, no el disco. El único lugar que comprueba la
 existencia real es `probe()`, dentro del diálogo de recursos, **y hay que abrirlo a mano**. Hoy se
 puede publicar una obra en la que el disparo no suena y nada lo advierte.
@@ -212,6 +244,11 @@ aviso con la escena nombrada y permite salvar la situación desde ahí.
 **A decidir con el autor:** ¿bloquea la exportación (`error`) o solo advierte? Ver §4.3.
 
 ### Tarea 5 — Que el aviso del motor de audio llegue al Studio
+> **Estado (31-10-2026): hecha.** `onWarning` lleva ahora un detalle (`AudioWarning`: voz, archivo y
+> etiqueta). El motor del Studio (`StudioApp.vue`) lo envía a `studio.notePreviewAudio`, y
+> `LivePreview.vue` muestra las notas de la escena que se está leyendo («Falta el sonido «viento»;
+> oyes un tono de prueba») con un enlace para aportarlo. Se vacían al recargar la vista previa.
+
 `onWarning` del `SpatialAudioEngine` solo está conectado en `RuntimePlayer.vue`, que lo emite como
 evento. En la vista previa del Studio ese aviso debería aparecer como una nota sobre la escena:
 «Falta el sonido "disparo"; oyes un tono de prueba».
@@ -220,6 +257,12 @@ evento. En la vista previa del Studio ese aviso debería aparecer como una nota 
 la lectura.
 
 ### Tarea 6 — Retardo propio en los eventos acústicos (`delay_ms`)
+> **Estado (31-10-2026): hecha.** Campo opcional en el esquema (0–120 000 ms, JSON Schema
+> regenerado, `docs/03` actualizado). `bind()` lo programa y lo cancela al salir de la escena o al
+> desconectar el motor. `placeSpatialAudio` lo acepta y el director local entiende «dos segundos
+> después», «al cabo de 3 segundos», «tras medio segundo». Aún no hay control en la interfaz para
+> editarlo a mano: se pide al director.
+
 Un campo nuevo en `acoustic_event` aplicable a cualquier disparador: «dos segundos después de
 entrar». Es un campo en el esquema y un temporizador en `SpatialAudioEngine.bind()`, **cancelado en
 `node_exit`** para que no suene en la escena siguiente.
@@ -231,6 +274,20 @@ sencillas (pasos, pasos, disparo, silencio) con varios eventos y retardos distin
 de escena antes. Con prueba unitaria del caso de cancelación.
 
 ### Tarea 7 — Marca en el texto: `on_text_marker`
+> **Estado (31-10-2026): hecha** (decisión §4.1: el libro contemplativo sigue el desplazamiento).
+> `src/core/manifest/markers.ts` analiza `⟦nombre⟧`; el evento usa `trigger: 'on_text_marker'` y
+> `trigger_marker`. En lugar de compilar la marca a un porcentaje fijo, **el reproductor la retira al
+> cargar** (`story.load`) y conserva su posición, así la vista previa del Studio y la obra exportada
+> se comportan igual. En `multimedia` suena cuando el progreso de lectura llega a la marca; en
+> `contemplative_book`, las anclas invisibles se comparan con la zona realmente visible del lector
+> (ventana y contenedores que recortan el scroll). La marca suena al alcanzar el 65 % de esa zona;
+> también se recogen las marcas rebasadas por un salto rápido y no se repiten al volver atrás.
+> El tiempo estimado no dispara estas marcas. Las palabras animadas conservan sus anclas. La narración y el guion accesible nunca leen la marca, y un texto con
+> marcas reutiliza la misma grabación. En el lienzo, el fondo pinta la marca como ficha; «🎧 Sonido en
+> esta palabra» la inserta tras la palabra seleccionada y su ficha permite elegir sonido y retardo. El
+> director acepta `at_word` en `placeSpatialAudio` («justo en «disparó»»). Si una marca desaparece
+> del texto, la integridad avisa (`missing_text_marker`).
+
 **El problema que resuelve.** `on_text_reveal_percentage` es tosco: para que el disparo suene
 exactamente en la palabra «disparó» hay que calcular el porcentaje a mano, y se rompe en cuanto el
 autor edita el párrafo.
@@ -247,6 +304,11 @@ extracción en `src/core/compiler/`; y `src/studio/components/WritingCanvas.vue`
 primero el camino de `multimedia` solo si esa decisión no cambia el diseño del campo.
 
 ### Tarea 8 — Réplicas habladas espaciales (`speech` en `acoustic_event`)
+> **Estado (01-11-2026): descartada por el autor.** La tarea 1 ya cubre la réplica hablada: el texto
+> queda en el registro (`prompt`) y el archivo colocado como evento normal. Solo haría falta para
+> volver a sintetizarla sola al cambiar la voz de la obra; si algún día se necesita, se retoma desde
+> aquí.
+
 Un `acoustic_event` puede llevar `speech: { text, voice, delivery }`. El narrador lo sintetiza con el
 mismo motor y caché por hash que los clips (`assets/audio/voz-natural/<voz>/<hash>.wav`), pero el
 runtime lo reproduce por `playEvent`, con coordenadas y sala.
@@ -256,11 +318,27 @@ en el registro de procedencia (`prompt`) y el archivo colocado como evento norma
 necesita volver a sintetizar la réplica al cambiar la voz de la obra.
 
 ### Tarea 9 — Generación remota de efectos
+> **Estado (31-10-2026): hecha.** `generateSoundEffectWith` (`src/core/ai/media.ts`) llama a
+> `/v1/sound-generation` y valida el MP3 recibido. Va al final de la cadena del director (banco libre →
+> efecto generado → reservado como pendiente) y **solo si la autora lo activa** en Conexiones de IA →
+> ElevenLabs, porque gasta créditos; viene apagado. En el diálogo de recursos, si el banco no tiene el
+> sonido, «Crear «…» con ElevenLabs» lo genera, se escucha y solo entra en la obra al aceptarlo
+> (`origin: 'synthetic'`, `provider: 'elevenlabs · sound-generation'`). **Sin verificar** con una clave
+> real; la §4.5 (derechos de distribución) sigue siendo cosa del autor.
+
 ElevenLabs `POST https://api.elevenlabs.io/v1/sound-generation`, cabecera `xi-api-key`. Es el
 proveedor que ya se soporta para voz, así que la misma clave sirve. Es de pago por crédito, así que
 va **al final de la cadena**: solo cuando el banco libre no tiene lo que la escena pide.
 
 ### Tarea 10 — Movimiento de fuentes (`motion`)
+> **Estado (01-11-2026): hecha.** Campo opcional `motion: { to, duration_ms }` en `acoustic_event`
+> (JSON Schema y `docs/03` al día): la fuente va en línea recta de `coordinates` a `to` mientras
+> suena (`SpatialAudioEngine.glide`, pasos de 50 ms) y se detiene sola si la voz termina o se corta al
+> cambiar de escena. `placeSpatialAudio` traduce el `motion` que ya devolvía
+> `parseSpatialDescription`: «se acercan por detrás a 2 metros» parte de 12 m detrás y llega a 2 m;
+> «se alejan» hace el camino inverso (`motion_duration_ms`, 4 s por defecto). No hay todavía control en
+> el radar para dibujar el recorrido a mano.
+
 `parseSpatialDescription` ya devuelve `'approaching' | 'receding' | 'static'`, y el runtime lo
 ignora. «Unos pasos se acercan por detrás» debería interpolar la posición durante la escena. Es la
 más prescindible de la lista; anotada para que no se pierda.
@@ -272,15 +350,18 @@ más prescindible de la lista; anotada para que no se pierda.
 **No inventar estas respuestas.** Preguntar antes de implementar lo que dependa de ellas.
 
 ### 4.1 La marca en el modo libro contemplativo (bloquea la tarea 7)
+**Decidido (31-10-2026): respaldarla con el scroll** (`IntersectionObserver`).
 En `contemplative_book` no hay tipeo, así que el progreso de lectura no avanza solo y la marca
 quedaría muda. Opciones: respaldarla con el scroll (`IntersectionObserver`), con un tiempo estimado
 por palabras por minuto, o aceptar que ese modo no tiene sonidos sincronizados.
 
 ### 4.2 Previews o archivos originales de Freesound (afecta a la tarea 3)
+**Decidido (31-10-2026): previews.** OAuth2 queda para más adelante si hace falta calidad sin pérdida.
 Los previews en alta calidad se bajan con solo el token; el original exige implementar OAuth2. Para
 efectos cortos el preview probablemente basta. ¿Vale la pena el OAuth?
 
 ### 4.3 Un archivo ausente bloquea o solo advierte (afecta a la tarea 4)
+**Decidido (31-10-2026): solo advierte.**
 ¿Severidad `error`, que impide exportar, o aviso que deja publicar bajo responsabilidad del autor?
 
 ### 4.4 Evaluación auditiva del español de Kokoro
@@ -313,3 +394,13 @@ y las capas de una escena se acumulan, nunca se excluyen (§1.3).
 - https://pixabay.com/api/docs/ (confirma que no hay endpoint de audio)
 - https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert.md
 - https://elevenlabs.io/docs/overview/capabilities/sound-effects
+
+## Verificación de la tarea 7 — 01-11-2026
+
+Se corrigió el seguimiento del scroll para que use la ventana de lectura real, incluida la vista
+previa incrustada del Studio. La prueba de integración verifica que el tiempo no dispara marcas,
+que el scroll sí lo hace y que se respeta el retardo sin repetir eventos. La E2E
+`e2e/markers.spec.ts` comprueba el arranque real de audio en el reproductor exportado.
+
+Verificación local: tipos y lint sin errores, 418 pruebas unitarias y 18 E2E correctas. La última
+revisión del PR anterior a esta corrección tenía las cinco comprobaciones de CI en verde.

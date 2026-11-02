@@ -140,6 +140,14 @@ describe('FictionalDesktop', () => {
 describe('ModuleSandbox', () => {
   const overlay = (input: Record<string, unknown>) => TolerantSchemas.gameplayOverlay.parse(input);
 
+  it('mantiene el expediente abierto tras resolver el escritorio', async () => {
+    const wrapper = mount(ModuleSandbox, { props: { overlay: overlay({ type: 'fictional_desktop', parameters: { files: [{ name: 'expediente.txt', kind: 'text', content: 'Código 314' }], goal_file: 'expediente.txt' } }) } });
+    await wrapper.get('[data-testid="file-expediente.txt"]').trigger('click');
+    await wrapper.setProps({ solved: true });
+    expect(wrapper.get('[data-testid="desktop-window"]').text()).toContain('Código 314');
+    expect(wrapper.emitted('resolve')).toEqual([[true]]);
+  });
+
   it('monta el módulo declarado y devuelve solo la señal de éxito', async () => {
     const wrapper = mount(ModuleSandbox, { props: { overlay: overlay({ type: 'cipher_lock', parameters: { target_code: '1' } }) } });
     const lock = wrapper.get('[data-testid="cipher-lock"]');

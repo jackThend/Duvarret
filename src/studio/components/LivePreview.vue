@@ -16,6 +16,8 @@ const audio = inject<SpatialAudioEngine | null>(STUDIO_AUDIO, null);
 
 const startNode = computed(() => studio.previewStartNode ?? project.selectedNodeId ?? undefined);
 const events = computed(() => project.selectedNode?.acoustic_events ?? []);
+/** Sonidos ausentes de la escena que se está leyendo (y del ambiente de la obra). */
+const notes = computed(() => studio.previewNotes.filter((n) => n.nodeId === null || n.nodeId === story.currentNode?.node_id));
 
 function onPreviewMove(eventId: string, coordinates: Coordinates) {
   audio?.move(`${project.selectedNodeId}::${eventId}`, coordinates);
@@ -44,6 +46,10 @@ function toggleScreenless() {
         :start-node="startNode"
         embedded
       />
+    </div>
+    <div v-if="notes.length" role="status" class="dv-margin-note space-y-1 text-sm" data-testid="preview-audio-notes">
+      <p v-for="note in notes" :key="`${note.nodeId}:${note.asset}`" data-testid="preview-audio-note">{{ note.message }}</p>
+      <button type="button" class="dv-link" data-testid="preview-audio-provide" @click="studio.assetsOpen = true">Aportar el sonido…</button>
     </div>
     <div class="flex flex-col gap-1.5">
       <button type="button" class="dv-btn-ghost justify-start" data-testid="play-from-here" @click="studio.playFromHere()">▶ Reproducir desde aquí</button>

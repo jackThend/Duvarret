@@ -83,7 +83,8 @@ export interface SynthesisRequest {
 
 export interface SynthesisResult {
   path: string;
-  status: 'ready' | 'pending';
+  /** `draft`: creado y escuchable, pero solo entra en la obra si el autor acepta la propuesta. */
+  status: 'ready' | 'pending' | 'draft';
   provider: string;
 }
 

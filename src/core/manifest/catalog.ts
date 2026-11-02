@@ -37,9 +37,10 @@ export const ACOUSTIC_TRIGGERS = [
   'on_text_complete',
   'on_choice_hover',
   'on_puzzle_solve',
+  'on_text_marker',
 ] as const;
 
-export const MODULE_TYPES = ['crt_terminal', 'fictional_desktop', 'cipher_lock', 'circuit_wiring'] as const;
+export const MODULE_TYPES = ['crt_terminal', 'fictional_desktop', 'cipher_lock', 'circuit_wiring', 'lockpick', 'room_search'] as const;
 
 export const AVATAR_POSITIONS = ['left', 'center', 'right'] as const;
 export const OVERLAY_TRIGGERS = ['on_node_enter', 'on_text_complete'] as const;
@@ -89,6 +90,7 @@ export const TRIGGER_LABELS: Record<AcousticTrigger, string> = {
   on_text_complete: 'Al terminar el pasaje',
   on_choice_hover: 'Al dudar entre caminos',
   on_puzzle_solve: 'Al resolver el enigma',
+  on_text_marker: 'En una palabra marcada del texto',
 };
 
 export const MODULE_LABELS: Record<ModuleType, string> = {
@@ -96,6 +98,8 @@ export const MODULE_LABELS: Record<ModuleType, string> = {
   fictional_desktop: 'Escritorio antiguo',
   cipher_lock: 'Cerradura de combinación',
   circuit_wiring: 'Cableado de circuitos',
+  lockpick: 'Cerradura de ganzúa',
+  room_search: 'Exploración con linterna',
 };
 
 export const MODE_LABELS: Record<PlaybackMode, string> = {

@@ -4,7 +4,7 @@ import type { AiProviderId, ModelOption, SpeechProvider } from './types';
 export const AI_PROVIDER_LABELS: Record<AiProviderId, string> = {
   openai: 'OpenAI', anthropic: 'Anthropic', gemini: 'Google Gemini', ollama: 'Ollama local',
   zen: 'OpenCode Zen', compatible: 'Proveedor compatible', elevenlabs: 'ElevenLabs',
-  cloudflare: 'Cloudflare Workers AI',
+  cloudflare: 'Cloudflare Workers AI', freesound: 'Freesound · banco libre de sonidos',
 };
 // https://ai.google.dev/gemini-api/docs/image-generation
 export const IMAGE_MODELS: ModelOption[] = [

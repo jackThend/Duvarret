@@ -1,5 +1,5 @@
 import type { FetchLike } from '../agent/types';
-import type { GeneratedMedia, ImageGenerationRequest, SpeechGenerationRequest } from './types';
+import type { GeneratedMedia, ImageGenerationRequest, SoundEffectRequest, SpeechGenerationRequest } from './types';
 
 const INTERACTIONS = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 const MAX_MEDIA_BYTES = 48 * 1024 * 1024;
@@ -63,9 +63,107 @@ export function validateGeneratedMedia(data: Uint8Array, mimeType: string): void
     let offset = 0;
     if (ascii(0, 3) === 'ID3') offset = 10 + ((data[6]! & 127) << 21) + ((data[7]! & 127) << 14) + ((data[8]! & 127) << 7) + (data[9]! & 127);
     if (offset + 4 > data.length || data[offset] !== 255 || (data[offset + 1]! & 224) !== 224) invalid();
+    // Versión, capa, tasa de bits y frecuencia reservadas delatan bytes que solo parecen una trama.
+    const header = data[offset + 1]!; const rates = data[offset + 2]!;
+    if ((header & 0x18) === 0x08 || (header & 0x06) === 0 || (rates & 0xf0) === 0xf0 || (rates & 0x0c) === 0x0c) invalid();
+    return;
+  }
+  if (mimeType === 'audio/ogg') {
+    // Páginas encadenadas hasta el último byte: un archivo cortado deja la última a medias.
+    let offset = 0; let pages = 0;
+    while (offset < data.length) {
+      if (offset + 27 > data.length || ascii(offset, offset + 4) !== 'OggS' || data[offset + 4] !== 0) invalid();
+      const segments = data[offset + 26]!;
+      if (offset + 27 + segments > data.length) invalid();
+      let size = 27 + segments;
+      for (let i = 0; i < segments; i++) size += data[offset + 27 + i]!;
+      if (offset + size > data.length) invalid();
+      if (pages === 0) {
+        const start = offset + 27 + segments;
+        const codec = ascii(start, start + 8);
+        if (codec !== 'OpusHead' && !ascii(start + 1, start + 7).match(/^(vorbis|FLAC)/) && codec.slice(0, 5) !== 'Speex') invalid();
+      }
+      offset += size; pages++;
+    }
+    if (pages < 2) invalid();
+    return;
+  }
+  if (mimeType === 'audio/flac') {
+    if (data.length < 42 || ascii(0, 4) !== 'fLaC' || (data[4]! & 0x7f) !== 0) invalid();
+    const rate = (data[18]! << 12) | (data[19]! << 4) | (data[20]! >> 4);
+    if (rate < 1 || rate > 655350) invalid();
+    let offset = 4;
+    for (let last = false; !last;) {
+      if (offset + 4 > data.length) invalid();
+      last = (data[offset]! & 0x80) !== 0;
+      offset += 4 + ((data[offset + 1]! << 16) | (data[offset + 2]! << 8) | data[offset + 3]!);
+    }
+    if (offset + 2 > data.length || data[offset] !== 0xff || (data[offset + 1]! & 0xfe) !== 0xf8) invalid();
+    return;
+  }
+  if (mimeType === 'audio/mp4' || mimeType === 'image/avif') {
+    const boxes = isoBoxes(data);
+    if (!boxes || boxes[0]?.type !== 'ftyp') invalid();
+    const ftyp = boxes![0]!;
+    const brands = [ascii(ftyp.start + 8, ftyp.start + 12)];
+    for (let at = ftyp.start + 16; at + 4 <= ftyp.end; at += 4) brands.push(ascii(at, at + 4));
+    if (mimeType === 'image/avif') {
+      if (!brands.some(brand => brand === 'avif' || brand === 'avis') || !boxes!.some(box => box.type === 'meta')) invalid();
+      return;
+    }
+    const moov = boxes!.find(box => box.type === 'moov');
+    if (!moov || !boxes!.some(box => box.type === 'mdat')) invalid();
+    const handlers = isoHandlers(data, moov!.start, moov!.end);
+    if (!handlers.includes('soun') || handlers.includes('vide')) invalid();
+    return;
+  }
+  if (mimeType === 'image/gif') {
+    if (data.length < 14 || !['GIF87a', 'GIF89a'].includes(ascii(0, 6)) || !view.getUint16(6, true) || !view.getUint16(8, true) || data.at(-1) !== 0x3b) invalid();
+    return;
+  }
+  if (mimeType === 'image/svg+xml') {
+    if (data.includes(0)) invalid();
+    const text = new TextDecoder().decode(data).trim();
+    if (!/<svg[\s>]/i.test(text) || !/<\/svg>$/i.test(text)) invalid();
     return;
   }
   invalid();
+}
+
+interface IsoBox { type: string; start: number; end: number }
+
+/** Cajas de primer nivel de un MP4/M4A/AVIF; `null` si no cubren el archivo entero (truncado). */
+function isoBoxes(data: Uint8Array, from = 0, to = data.length): IsoBox[] | null {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const boxes: IsoBox[] = [];
+  for (let offset = from; offset < to;) {
+    if (offset + 8 > to) return null;
+    let size = view.getUint32(offset);
+    if (size === 1) {
+      if (offset + 16 > to) return null;
+      size = view.getUint32(offset + 8) * 2 ** 32 + view.getUint32(offset + 12);
+    } else if (size === 0) size = to - offset;
+    if (size < 8 || offset + size > to) return null;
+    boxes.push({ type: new TextDecoder().decode(data.slice(offset + 4, offset + 8)), start: offset, end: offset + size });
+    offset += size;
+  }
+  return boxes;
+}
+
+/** Tipos de pista (`soun`, `vide`…) declarados en los `hdlr` de cada `trak/mdia`. */
+function isoHandlers(data: Uint8Array, start: number, end: number): string[] {
+  const handlers: string[] = [];
+  for (const trak of isoBoxes(data, start + 8, end)?.filter(box => box.type === 'trak') ?? []) {
+    const mdia = isoBoxes(data, trak.start + 8, trak.end)?.find(box => box.type === 'mdia');
+    const hdlr = mdia && isoBoxes(data, mdia.start + 8, mdia.end)?.find(box => box.type === 'hdlr');
+    if (hdlr && hdlr.end - hdlr.start >= 20) handlers.push(new TextDecoder().decode(data.slice(hdlr.start + 16, hdlr.start + 20)));
+  }
+  return handlers;
+}
+
+/** Igual que `validateGeneratedMedia`, sin lanzar: cierto si los bytes son de verdad ese formato. */
+export function isValidMedia(data: Uint8Array, mimeType: string): boolean {
+  try { validateGeneratedMedia(data, mimeType); return true; } catch { return false; }
 }
 
 function nonempty(value: string, label: string): string {
@@ -149,4 +247,22 @@ export async function generateSpeechWith(fetcher: FetchLike, request: SpeechGene
   if (data.length < 44 || new TextDecoder().decode(data.slice(0, 4)) !== 'RIFF') throw new Error('El proveedor compatible no devolvió el WAV solicitado. Comprueba su compatibilidad con audio/speech.');
   validateGeneratedMedia(data, 'audio/wav');
   return { data, mimeType: 'audio/wav', provider: request.provider, model };
+}
+
+/**
+ * Efecto de sonido generado por ElevenLabs (tarea 9 de docs/11). Es de pago por crédito: Duvarret
+ * solo lo usa al final de la cadena, cuando el banco libre no tiene lo que la escena pide.
+ * API: https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert
+ */
+export async function generateSoundEffectWith(fetcher: FetchLike, request: SoundEffectRequest): Promise<GeneratedMedia> {
+  const text = nonempty(request.text, 'la descripción del sonido');
+  if (text.length > 1000) throw new Error('Describe el sonido en menos de 1000 caracteres.');
+  const seconds = request.durationSeconds;
+  if (seconds !== undefined && (!Number.isFinite(seconds) || seconds < 0.5 || seconds > 30)) throw new Error('La duración del efecto debe estar entre 0,5 y 30 segundos.');
+  const response = await checked(fetcher, 'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', {
+    text, ...(seconds !== undefined ? { duration_seconds: seconds } : {}), prompt_influence: 0.4,
+  }, request.signal);
+  const data = new Uint8Array(await response.arrayBuffer());
+  validateGeneratedMedia(data, 'audio/mpeg');
+  return { data, mimeType: 'audio/mpeg', provider: 'elevenlabs', model: 'sound-generation' };
 }

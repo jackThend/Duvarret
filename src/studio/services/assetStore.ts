@@ -103,7 +103,8 @@ export class DesktopAssetStore implements AssetStore {
     return invoke<T>(cmd, args);
   }
   async put(path: string, data: Uint8Array) {
-    await this.invoke('project_write_bytes', { root: this.root, relative: path, contents: Array.from(data) });
+    const { writeProjectBytes } = await import('./nativeBytes');
+    await writeProjectBytes(this.root, path, data, (command, args) => this.invoke(command, args));
     return null; // el proyecto ya sabe servir sus archivos desde el disco
   }
   async remove(path: string) {

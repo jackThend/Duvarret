@@ -6,6 +6,8 @@ import CipherLock from './CipherLock.vue';
 import CrtTerminal from './CrtTerminal.vue';
 import CircuitWiring from './CircuitWiring.vue';
 import FictionalDesktop from './FictionalDesktop.vue';
+import Lockpick from './Lockpick.vue';
+import RoomSearch from './RoomSearch.vue';
 
 /**
  * Caja de arena de los minijuegos (doc 02 §5.3, RNF-08): el módulo recibe una copia congelada
@@ -20,6 +22,8 @@ const MODULES: Record<ModuleType, Component> = {
   crt_terminal: CrtTerminal,
   circuit_wiring: CircuitWiring,
   fictional_desktop: FictionalDesktop,
+  lockpick: Lockpick,
+  room_search: RoomSearch,
 };
 
 function deepFreeze<T>(value: T): T {
@@ -65,7 +69,7 @@ function retry() {
       <button type="button" @click="retry">Intentar de nuevo</button>
       <button type="button" @click="settle(false)">Seguir leyendo</button>
     </div>
-    <p v-else-if="solved" class="dv-sandbox-solved">Resuelto.</p>
+    <p v-else-if="solved && overlay.type !== 'fictional_desktop'" class="dv-sandbox-solved">Resuelto.</p>
     <component
       :is="MODULES[overlay.type]"
       v-else

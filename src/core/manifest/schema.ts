@@ -202,12 +202,18 @@ function build(tolerant: boolean) {
     label: o(z.string()),
     trigger: d(z.enum(ACOUSTIC_TRIGGERS), 'on_node_enter'),
     trigger_value: o(z.number().min(0).max(100)),
+    /** Con `on_text_marker`: nombre de la marca `⟦…⟧` del texto donde suena. */
+    trigger_marker: o(z.string().min(1).max(40)),
     loop: d(z.boolean(), false),
     coordinates: d(coordinates, { x: 0, y: 0, z: 0 }),
     room_preset: o(z.enum(ROOM_PRESETS)),
     acoustic_material: o(z.enum(ACOUSTIC_MATERIALS)),
     gain: d(z.number().min(0).max(1), 1),
     fade_in_ms: d(z.number().min(0).max(30000), 0),
+    /** Espera tras el disparador («dos segundos después de entrar»); se cancela si el lector sale antes. */
+    delay_ms: o(z.number().min(0).max(120000)),
+    /** La fuente se desplaza de `coordinates` a `to` mientras suena («unos pasos se acercan por detrás»). */
+    motion: o(obj({ to: d(coordinates, { x: 0, y: 0, z: 1 }), duration_ms: d(z.number().min(100).max(120000), 4000) })),
   });
 
   const dialogueLine = obj({

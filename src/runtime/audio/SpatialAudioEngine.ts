@@ -27,7 +27,16 @@ export interface AudioEngineOptions {
   contextFactory?: () => BaseAudioContext;
   loadAsset?: AssetLoader;
   resonanceFactory?: (ctx: BaseAudioContext, destination: AudioNode) => Promise<SpatialBackend>;
-  onWarning?: (message: string) => void;
+  onWarning?: (message: string, detail?: AudioWarning) => void;
+}
+
+/** Detalle de un aviso, para que el Studio lo sitúe en su escena («Falta el sonido "disparo"»). */
+export interface AudioWarning {
+  kind: 'missing_asset';
+  /** Identificador de la voz: `escena::evento` para los eventos del manifiesto. */
+  id: string;
+  asset: string;
+  label: string;
 }
 
 export interface PlayOptions {
@@ -136,8 +145,8 @@ export class SpatialAudioEngine {
     if (ctx && 'resume' in ctx && ctx.state === 'suspended') await ctx.resume();
   }
 
-  private warn(message: string) {
-    this.options.onWarning?.(message);
+  private warn(message: string, detail?: AudioWarning) {
+    this.options.onWarning?.(message, detail);
   }
 
   setRoom(preset: RoomPreset, material: AcousticMaterial) {
@@ -228,7 +237,8 @@ export class SpatialAudioEngine {
       osc.type = 'sine';
       osc.frequency.value = 440;
       source = osc;
-      this.warn(`No se encontró el sonido «${asset || 'sin nombre'}»; se reproduce un tono de prueba.`);
+      const label = options.label ?? asset;
+      this.warn(`Falta el sonido «${label || 'sin nombre'}»; oyes un tono de prueba.`, { kind: 'missing_asset', id, asset, label });
     }
     source.connect(gain);
 
@@ -337,8 +347,8 @@ export class SpatialAudioEngine {
   }
 
   /** Reproduce un evento acústico declarado en el manifiesto. */
-  playEvent(event: AcousticEvent, nodeId: string) {
-    return this.play(event.asset, {
+  async playEvent(event: AcousticEvent, nodeId: string) {
+    const voice = await this.play(event.asset, {
       id: `${nodeId}::${event.event_id}`,
       loop: event.loop,
       gain: event.gain,
@@ -346,6 +356,26 @@ export class SpatialAudioEngine {
       fadeInMs: event.fade_in_ms,
       label: event.label ?? event.event_id,
     });
+    if (voice && event.motion) this.glide(voice.id, event.coordinates, event.motion.to, event.motion.duration_ms);
+    return voice;
+  }
+
+  /**
+   * Desplaza una fuente en línea recta mientras suena («se acerca», «se aleja»). Se detiene sola si
+   * la voz termina, se sustituye o se para al cambiar de escena.
+   */
+  private glide(id: string, from: Coordinates, to: Coordinates, durationMs: number) {
+    const voice = this.voices.get(id);
+    if (!voice) return;
+    const token = voice.token;
+    const start = Date.now();
+    const step = () => {
+      if (this.voices.get(id)?.token !== token) return clearInterval(timer);
+      const t = Math.min(1, (Date.now() - start) / durationMs);
+      this.move(id, { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, z: from.z + (to.z - from.z) * t });
+      if (t >= 1) clearInterval(timer);
+    };
+    const timer = setInterval(step, 50);
   }
 
   /** "Pop" espacial breve que confirma la ubicación de una fuente (microinteracción del Studio). */
@@ -386,10 +416,17 @@ export class SpatialAudioEngine {
   }
 
   bind(store: { on(listener: (e: RuntimeEvent) => void): () => void; currentNode: StoryNode | null; manifest: StoryManifest | null }) {
-    return store.on((event) => {
+    // Eventos con `delay_ms` a la espera: salir de la escena los cancela para que no suenen en la siguiente.
+    const waiting = new Set<ReturnType<typeof setTimeout>>();
+    const cancelWaiting = () => {
+      for (const timer of waiting) clearTimeout(timer);
+      waiting.clear();
+    };
+    const off = store.on((event) => {
       const node = store.currentNode;
       const env = store.manifest?.acoustic_environment;
       if (event.type === 'node_exit') {
+        cancelWaiting();
         this.stopAll({ loopsOnly: true, fadeMs: 700, except: [AMBIENCE_ID] });
         return;
       }
@@ -411,9 +448,22 @@ export class SpatialAudioEngine {
       for (const acoustic of node.acoustic_events) {
         if (acoustic.trigger !== event.type) continue;
         if (event.type === 'on_text_reveal_percentage' && (acoustic.trigger_value ?? 50) !== event.value) continue;
-        void this.playEvent(acoustic, node.node_id);
+        if (event.type === 'on_text_marker' && acoustic.trigger_marker !== event.marker) continue;
+        if (!acoustic.delay_ms) {
+          void this.playEvent(acoustic, node.node_id);
+          continue;
+        }
+        const timer = setTimeout(() => {
+          waiting.delete(timer);
+          if (store.currentNode?.node_id === node.node_id) void this.playEvent(acoustic, node.node_id);
+        }, acoustic.delay_ms);
+        waiting.add(timer);
       }
     });
+    return () => {
+      off();
+      cancelWaiting();
+    };
   }
 
   async dispose() {
