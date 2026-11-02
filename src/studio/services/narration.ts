@@ -24,3 +24,9 @@ export async function synthesizeNarration(root: string, plan: NarrationPlan, pro
     root, voice: plan.voice, delivery: plan.delivery, speed: plan.speed, clips: plan.pending, onProgress,
   });
 }
+
+/** Lee un WAV que el motor local acaba de escribir en la obra (para validarlo y previsualizarlo). */
+export async function readGeneratedClip(root: string, asset: string): Promise<Uint8Array> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return new Uint8Array(await invoke<number[]>('project_read_bytes', { root, relative: asset }));
+}

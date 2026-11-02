@@ -1,9 +1,34 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useStudioStore, type PitchCard } from '../stores/studio';
+import { useProjectStore } from '../stores/project';
+import { kindFromPath, type SynthesisResult } from '@/core/assets/registry';
 
 const studio = useStudioStore();
+const project = useProjectStore();
 const adjusting = ref<string | null>(null);
+const listening = ref<string | null>(null);
+let player: HTMLAudioElement | null = null;
+
+/** Lo que el director creó para esta propuesta y aún no está en la obra: se escucha o se ve antes de aceptar. */
+function drafts(card: PitchCard) {
+  return (card.executions ?? []).flatMap((e) => {
+    const result = e.outcome.result as Partial<SynthesisResult> | null;
+    if (e.call.name !== 'requestAssetSynthesis' || result?.status !== 'draft' || !result.path || !project.draftAssets.has(result.path)) return [];
+    return [{ path: result.path, kind: kindFromPath(result.path), title: project.draftAssets.get(result.path)!.provenance.title ?? 'Recurso creado' }];
+  });
+}
+
+function listen(path: string) {
+  player?.pause();
+  if (listening.value === path) { listening.value = null; return; }
+  player = new Audio(project.resolveAsset(path));
+  listening.value = path;
+  player.onended = () => { listening.value = null; };
+  void player.play()?.catch(() => { listening.value = null; });
+}
+
+onBeforeUnmount(() => player?.pause());
 
 /** Parámetros numéricos ajustables sin escribir código: se muestran como deslizadores. */
 function numericFields(card: PitchCard) {
@@ -46,6 +71,15 @@ const cards = computed(() => studio.openPitches);
     >
       <header class="flex items-center gap-2 text-sm font-semibold text-dv-accent-2"><span aria-hidden="true">✦</span> {{ card.title }}</header>
       <p class="mt-1 font-prose text-[1.02rem] leading-relaxed">{{ card.rationale }}</p>
+      <ul v-if="drafts(card).length" class="mt-3 space-y-2" data-testid="pitch-drafts">
+        <li v-for="d in drafts(card)" :key="d.path" class="flex items-center gap-3 text-sm">
+          <button v-if="d.kind === 'audio'" type="button" class="dv-btn-ghost" :aria-pressed="listening === d.path" data-testid="pitch-listen" @click="listen(d.path)">
+            {{ listening === d.path ? '■ Detener' : '▶ Escuchar' }}
+          </button>
+          <img v-else-if="d.kind === 'image'" :src="project.resolveAsset(d.path)" :alt="d.title" class="h-16 w-16 rounded object-cover" data-testid="pitch-image" />
+          <span class="text-dv-muted">{{ d.title }} · solo se guarda si aplicas la propuesta</span>
+        </li>
+      </ul>
       <div v-if="adjusting === card.id" class="mt-3 space-y-2" data-testid="pitch-adjust">
         <label v-for="f in numericFields(card)" :key="f.path" class="flex items-center gap-3 text-xs text-dv-muted">
           <span class="w-44">{{ f.label }}</span>

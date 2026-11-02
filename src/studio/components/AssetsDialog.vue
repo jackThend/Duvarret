@@ -5,9 +5,11 @@ import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, assetFolderFor, assetUsages } from 
 import { useProjectStore, type AssetAssignment } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 import { STUDIO_AUDIO } from '../services/audio';
+import { presentAssets } from '../services/assetProbe';
 import Modal from './Modal.vue';
 import { useAiStore } from '../stores/ai';
-import { generateImage } from '../services/ai';
+import { generateImage, generateSoundEffect, providerFetch } from '../services/ai';
+import { searchSoundBank, type BankSound } from '@/core/assets/freesound';
 import { AI_PROVIDER_LABELS, CLOUD_USAGE_NOTICE, IMAGE_MODELS, CLOUDFLARE_IMAGE_MODELS } from '@/core/ai/catalog';
 import type { GeneratedMedia } from '@/core/ai/types';
 
@@ -30,6 +32,13 @@ const imagePrompt = ref('');
 const imageBusy = ref(false);
 const imageModels = computed(() => ai.image.provider === 'cloudflare' ? CLOUDFLARE_IMAGE_MODELS : IMAGE_MODELS);
 const generatedImage = shallowRef<{ media: GeneratedMedia; url: string; prompt: string; nodeId: string; storage: typeof project.storage } | null>(null);
+const bankQuery = ref('');
+const bankBusy = ref(false);
+const bankSearched = ref(false);
+const bankResults = shallowRef<BankSound[]>([]);
+const bankListening = ref<number | null>(null);
+const effectBusy = ref(false);
+const generatedEffect = shallowRef<{ media: GeneratedMedia; url: string; prompt: string; storage: typeof project.storage } | null>(null);
 const form = ref({ kind: 'scene_sound' as AssetAssignment['kind'], nodeId: project.selectedNodeId ?? '', characterId: project.characters[0]?.id ?? '', mood: 'neutral', itemId: project.items[0]?.id ?? '', loop: false });
 
 const usages = computed(() => assetUsages(project.manifest));
@@ -40,26 +49,13 @@ const available = computed(() => known.value.filter((p) => present.value.has(p))
 /** Comprueba qué archivos existen realmente (en disco, en el dispositivo o junto a la obra de ejemplo). */
 async function probe() {
   probing.value = true;
-  const found = new Set<string>();
-  await Promise.all(
-    known.value.map(async (path) => {
-      if (project.assetOverrides.has(path)) return void found.add(path);
-      try {
-        const response = await fetch(project.resolveAsset(path));
-        // Muchos servidores responden con la página principal (HTML) a cualquier archivo inexistente.
-        if (response.ok && !(response.headers.get('content-type') ?? '').includes('text/html')) found.add(path);
-      } catch {
-        /* no está */
-      }
-    }),
-  );
-  present.value = found;
+  present.value = await presentAssets(known.value, project.resolveAsset, project.assetOverrides);
   probing.value = false;
 }
 
 onMounted(() => { void probe(); void ai.initialize(); });
 function discardImage() { if (generatedImage.value) URL.revokeObjectURL(generatedImage.value.url); generatedImage.value = null; }
-onBeforeUnmount(discardImage);
+onBeforeUnmount(() => { discardImage(); discardEffect(); player?.pause(); });
 async function createImage() {
   error.value = message.value = '';
   const storage = project.storage;
@@ -165,12 +161,85 @@ async function remove(path: string) {
 let player: HTMLAudioElement | null = null;
 function listen(path: string) {
   player?.pause();
+  bankListening.value = null;
   player = new Audio(project.resolveAsset(path));
   void player.play()?.catch(() => undefined);
 }
 
+/** Banco libre: solo sonidos CC0 de Freesound, escuchables antes de elegirlos. */
+async function searchBank() {
+  error.value = message.value = '';
+  bankBusy.value = true;
+  try {
+    await ai.requireKey('freesound');
+    bankResults.value = await searchSoundBank(providerFetch('freesound'), bankQuery.value);
+    bankSearched.value = true;
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { bankBusy.value = false; }
+}
+
+function listenBank(sound: BankSound) {
+  player?.pause();
+  if (bankListening.value === sound.id) { bankListening.value = null; return; }
+  bankListening.value = sound.id;
+  player = new Audio(sound.previewUrl);
+  player.onended = () => { bankListening.value = null; };
+  void player.play()?.catch(() => { bankListening.value = null; });
+}
+
+async function chooseBank(sound: BankSound) {
+  player?.pause();
+  busy.value = true; error.value = message.value = '';
+  try {
+    const path = await project.addBankSound(sound, bankQuery.value.trim());
+    audio?.invalidate(path);
+    present.value = new Set([...present.value, path]);
+    studio.previewNonce++;
+    message.value = `«${sound.name}», de ${sound.author}, ya está en la obra (CC0).`;
+    openAssign(path);
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { busy.value = false; }
+}
+
+/** Último recurso, de pago: crear el efecto con ElevenLabs, escucharlo y decidir si entra en la obra. */
+function discardEffect() { if (generatedEffect.value) URL.revokeObjectURL(generatedEffect.value.url); generatedEffect.value = null; }
+async function createEffect() {
+  const prompt = bankQuery.value.trim();
+  if (!prompt) return;
+  error.value = message.value = '';
+  effectBusy.value = true;
+  try {
+    await ai.requireKey('elevenlabs');
+    const storage = project.storage;
+    const media = await generateSoundEffect({ text: prompt });
+    if (project.storage !== storage) throw new Error('La obra cambió durante la creación. Vuelve a crear el sonido para la obra abierta.');
+    discardEffect();
+    generatedEffect.value = { media, prompt, storage, url: URL.createObjectURL(new Blob([media.data.slice().buffer], { type: media.mimeType })) };
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { effectBusy.value = false; }
+}
+async function acceptEffect() {
+  const effect = generatedEffect.value;
+  if (!effect) return;
+  busy.value = true; error.value = '';
+  try {
+    if (project.storage !== effect.storage) throw new Error('La obra cambió. Vuelve a crear el sonido para la obra abierta.');
+    const path = await project.addGeneratedAsset({ name: `efecto ${effect.prompt.slice(0, 32)}.mp3`, data: effect.media.data }, { provider: 'elevenlabs · sound-generation', prompt: effect.prompt, title: `Efecto: «${effect.prompt}»` });
+    audio?.invalidate(path);
+    present.value = new Set([...present.value, path]);
+    studio.previewNonce++;
+    discardEffect();
+    message.value = 'Efecto creado y guardado en la obra.';
+    openAssign(path);
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause); }
+  finally { busy.value = false; }
+}
+
+const seconds = (value: number) => (value < 10 ? value.toFixed(1) : Math.round(value).toString()).replace('.', ',');
+
 const nameOf = (path: string) => path.split('/').pop() ?? path;
 const originOf = (path: string) => project.assets.get(path)?.origin;
+const creditOf = (path: string) => { const r = project.assets.get(path); return r?.license && r.author ? `${r.license.split(' ')[0]} · ${r.author}` : ''; };
 const canRemove = (path: string) => originOf(path) === 'author' && project.assets.get(path)?.status === 'ready';
 const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, label: n.title ?? n.node_id })));
 </script>
@@ -204,6 +273,38 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
             <button type="button" class="dv-btn-ghost" :disabled="busy" @click="discardImage">Descartar vista previa</button>
           </div>
         </div>
+      </section>
+      <section class="space-y-3 rounded border border-dv-border p-4" aria-label="Buscar un sonido libre" data-testid="sound-bank">
+        <h3 class="dv-section-title">Buscar un sonido libre</h3>
+        <p class="text-xs text-dv-muted">Sonidos de Freesound con licencia CC0: puedes usarlos en tus obras, también a la venta, sin pedir permiso ni acreditar. Escúchalos antes de elegir.</p>
+        <form class="flex flex-wrap gap-2" @submit.prevent="searchBank">
+          <input v-model="bankQuery" class="dv-input min-w-0 flex-1" data-testid="bank-query" placeholder="grillos, pasos en madera, campana lejana…" :disabled="bankBusy" aria-label="Qué sonido buscas" />
+          <button type="submit" class="dv-btn-accent" data-testid="bank-search" :disabled="bankBusy || !bankQuery.trim()">{{ bankBusy ? 'Buscando…' : 'Buscar' }}</button>
+          <button v-if="!ai.configured.freesound" type="button" class="dv-btn-ghost" @click="studio.settingsOpen = true; emit('close')">Conectar Freesound</button>
+        </form>
+        <p v-if="bankSearched && !bankResults.length" class="text-dv-muted" data-testid="bank-empty">No hay sonidos CC0 para «{{ bankQuery }}». Prueba con otras palabras, mejor en inglés («crickets», «footsteps»).</p>
+        <div v-if="ai.configured.elevenlabs && bankQuery.trim() && (bankSearched || !ai.configured.freesound)" class="flex flex-wrap items-center gap-2 text-xs text-dv-muted" data-testid="effect-generation">
+          <span>¿No encuentras lo que buscas?</span>
+          <button type="button" class="dv-btn-ghost" data-testid="effect-generate" :disabled="effectBusy || busy" @click="createEffect">{{ effectBusy ? 'Creando…' : `Crear «${bankQuery.trim()}» con ElevenLabs` }}</button>
+          <span>Gasta créditos de tu cuenta. {{ CLOUD_USAGE_NOTICE }}</span>
+        </div>
+        <div v-if="generatedEffect" class="space-y-2" data-testid="effect-preview">
+          <audio :src="generatedEffect.url" controls class="w-full" />
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="dv-btn-accent" data-testid="effect-accept" :disabled="busy" @click="acceptEffect">Usar en la obra</button>
+            <button type="button" class="dv-btn-ghost" :disabled="busy" @click="discardEffect">Descartar</button>
+          </div>
+        </div>
+        <ul v-if="bankResults.length" class="space-y-1" data-testid="bank-results">
+          <li v-for="sound in bankResults" :key="sound.id" class="flex items-center gap-3 border-b border-dv-border py-1.5" :data-testid="`bank-${sound.id}`">
+            <button type="button" class="dv-icon-btn shrink-0 border border-dv-border" :aria-label="`${bankListening === sound.id ? 'Detener' : 'Escuchar'} ${sound.name}`" :aria-pressed="bankListening === sound.id" data-testid="bank-listen" @click="listenBank(sound)">{{ bankListening === sound.id ? '■' : '▶' }}</button>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate">{{ sound.name }}</span>
+              <span class="block truncate text-xs text-dv-muted">{{ sound.author }} · {{ seconds(sound.seconds) }} s · <span data-testid="bank-license">{{ sound.license }}</span></span>
+            </span>
+            <button type="button" class="dv-btn-ghost shrink-0" data-testid="bank-choose" :disabled="busy" @click="chooseBank(sound)">Usar en la obra</button>
+          </li>
+        </ul>
       </section>
       <label
         class="dv-dropzone"
@@ -249,7 +350,8 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
               <button v-else type="button" class="dv-icon-btn shrink-0 border border-dv-border" :aria-label="`Escuchar ${nameOf(path)}`" @click="listen(path)">▶</button>
               <div class="min-w-0 flex-1">
                 <p class="truncate">{{ nameOf(path) }}
-                  <span v-if="originOf(path) === 'author'" class="ml-1 text-xs text-dv-accent-2">tuyo</span>
+                  <span v-if="creditOf(path)" class="ml-1 text-xs text-dv-accent-2" data-testid="asset-credit">{{ creditOf(path) }}</span>
+                  <span v-else-if="originOf(path) === 'author'" class="ml-1 text-xs text-dv-accent-2">tuyo</span>
                   <span v-else-if="originOf(path) === 'synthetic'" class="ml-1 text-xs text-dv-mystic">sintético</span>
                 </p>
                 <p class="text-xs text-dv-muted" data-testid="asset-usages">{{ usages.get(path)?.join(' · ') || 'Aún no se usa en la obra' }}</p>

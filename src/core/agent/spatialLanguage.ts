@@ -46,7 +46,7 @@ export function parseSpatialDescription(description: string): SpatialReading {
   };
 
   // Susurros íntimos pegados a una oreja.
-  const ear = text.match(/\b(?:en|junto a|al|a) (?:la |el )?(?:oreja|oido) (izquierd[oa]|derech[oa])/) ?? text.match(/\b(left|right) ear\b/);
+  const ear = text.match(/\b(?:en|junto a|al|a) (?:la |el |mi |tu |su )?(?:oreja|oido) (izquierd[oa]|derech[oa])/) ?? text.match(/\b(left|right) ear\b/);
   if (ear) {
     const side = ear[1]!.startsWith('izq') || ear[1] === 'left' ? -1 : 1;
     return { coordinates: { x: round(0.25 * side), y: 0, z: 0 }, distance: 0.25, motion: 'static', matched: [ear[0].trim()], understood: true };

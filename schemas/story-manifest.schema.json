@@ -641,13 +641,19 @@
                     "on_text_reveal_percentage",
                     "on_text_complete",
                     "on_choice_hover",
-                    "on_puzzle_solve"
+                    "on_puzzle_solve",
+                    "on_text_marker"
                   ]
                 },
                 "trigger_value": {
                   "type": "number",
                   "minimum": 0,
                   "maximum": 100
+                },
+                "trigger_marker": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
                 },
                 "loop": {
                   "default": false,
@@ -710,6 +716,48 @@
                   "type": "number",
                   "minimum": 0,
                   "maximum": 30000
+                },
+                "delay_ms": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 120000
+                },
+                "motion": {
+                  "type": "object",
+                  "properties": {
+                    "to": {
+                      "default": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                      },
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "z": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "z"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "duration_ms": {
+                      "default": 4000,
+                      "type": "number",
+                      "minimum": 100,
+                      "maximum": 120000
+                    }
+                  },
+                  "additionalProperties": false
                 }
               },
               "required": [
@@ -804,7 +852,9 @@
                   "crt_terminal",
                   "fictional_desktop",
                   "cipher_lock",
-                  "circuit_wiring"
+                  "circuit_wiring",
+                  "lockpick",
+                  "room_search"
                 ]
               },
               "is_mandatory_to_advance": {

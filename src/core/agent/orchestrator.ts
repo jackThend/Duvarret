@@ -8,6 +8,7 @@
 import type { StoryManifest, ManifestIssue } from '../manifest';
 import { ManifestEditor } from './manifestEditor';
 import { DIRECTOR_TOOLS } from './tools/directorTools';
+import { SCENE_DIRECTION_GUIDE } from './sceneCapabilities';
 import { ToolRegistry, type ToolContext, type ToolOutcome } from './tools/registry';
 import { ProviderError, type ChatMessage, type DirectorContext, type LlmProvider, type StopReason, type ToolCall } from './types';
 
@@ -79,7 +80,7 @@ export class DirectorOrchestrator {
     const ctx: ToolContext = { ...(options.tools ?? {}), editor };
     const specs = this.registry.specs();
     const history: ChatMessage[] = [...(options.history ?? []), { role: 'user', content: options.message }];
-    const messages = (): ChatMessage[] => [{ role: 'system', content: this.options.systemPrompt ?? DIRECTOR_SYSTEM_PROMPT }, ...history];
+    const messages = (): ChatMessage[] => [{ role: 'system', content: `${this.options.systemPrompt ?? DIRECTOR_SYSTEM_PROMPT}\n\n${SCENE_DIRECTION_GUIDE}` }, ...history];
     const executions: ToolExecution[] = [];
     let reply = '';
     let stopReason: DirectorTurn['stopReason'] = 'max_steps';

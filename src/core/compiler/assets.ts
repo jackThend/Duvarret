@@ -20,6 +20,7 @@ export function collectAssetReferences(manifest: StoryManifest): string[] {
     node.acoustic_events.forEach((e) => add(e.asset));
     add(node.gameplay_overlay?.on_success.play_sfx);
     add(node.gameplay_overlay?.on_failure.play_sfx);
+    if (node.gameplay_overlay?.type === 'room_search' && typeof node.gameplay_overlay.parameters.image === 'string') add(node.gameplay_overlay.parameters.image);
     add(node.screenless_mode?.voice_over_asset);
     add(node.screenless_mode?.foley_bed);
   }

@@ -33,13 +33,14 @@ defineExpose({ focus: () => input.value?.focus() });
     <h3 class="dv-section-title">Co-director</h3>
     <div ref="log" class="max-h-56 space-y-2 overflow-y-auto" role="log" aria-live="polite">
       <p v-if="!studio.chat.length" class="text-sm text-dv-muted">
-        Cuéntale a tu co-director cómo imaginas la escena: «Quiero que cuando lea esta frase se escuche una respiración en la oreja izquierda».
+        Pide una puesta en escena: voces y sonidos, una ganzúa, buscar con linterna y guardar un hallazgo, expedientes, novela visual o letras que se transforman.
       </p>
       <p v-for="entry in studio.chat" :key="entry.id" class="dv-chat" :class="`dv-chat-${entry.role}`" :data-testid="`chat-${entry.role}`">
         <span class="font-semibold">{{ entry.role === 'author' ? 'Tú' : 'Director' }}:</span>
         <span :class="{ 'animate-pulse': entry.pending }"> {{ entry.text }}</span>
       </p>
     </div>
+    <button type="button" class="dv-btn-ghost self-start text-sm" data-testid="agent-capabilities" :disabled="studio.busy" @click="draft = '¿Qué tipos de escenas puedes sugerir para este pasaje?'; send()">Explorar escenas posibles</button>
     <form class="flex items-end gap-2" @submit.prevent="send">
       <label class="sr-only" for="dv-agent-input">Mensaje para el co-director</label>
       <textarea
