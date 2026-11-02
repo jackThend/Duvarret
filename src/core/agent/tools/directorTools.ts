@@ -7,11 +7,29 @@ import { ACOUSTIC_MATERIALS, LAYOUT_LABELS, MODULE_LABELS, ROOM_LABELS, ROOM_PRE
 import { describePosition } from '../../../runtime/audio/coordinates';
 import { parseSpatialDescription } from '../spatialLanguage';
 import { defineTool, type AgentTool } from './registry';
+import { SCENE_CAPABILITIES } from '../sceneCapabilities';
 
 const nodeId = z.string().min(1).describe('Identificador del nodo (escena) del manifiesto');
 const looseParams = z.record(z.string(), z.unknown()).default({});
 
 const num = (v: unknown, fallback?: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+
+export const listSceneCapabilities = defineTool({
+  name: 'listSceneCapabilities',
+  description: 'Descubre escenas jugables disponibles, cuándo sugerirlas, parámetros de ejemplo y recursos necesarios (ganzúa, linterna, escritorio, terminal, combinación y circuitos).',
+  schema: z.object({}),
+  async run() { return { result: SCENE_CAPABILITIES, summary: 'Estas son las escenas jugables de esta instalación.', mutates: false }; },
+});
+
+export const defineInventoryItem = defineTool({
+  name: 'defineInventoryItem',
+  description: 'Registra un objeto que una escena puede conceder al inventario con on_success.grant_items. No lo concede de inmediato.',
+  schema: z.object({ item_id: z.string().min(1), name: z.string().min(1), description: z.string().default(''), inspect_content: z.string().optional() }),
+  async run({ item_id, name, description, inspect_content }, ctx) {
+    const issues = ctx.editor.patchManifest({ item_registry: { [item_id]: { name, description, ...(inspect_content ? { is_inspectable: true, inspect_content } : {}) } } });
+    return { result: { item_id }, summary: `Objeto «${name}» preparado para el inventario.`, mutates: true, issues };
+  },
+});
 
 // ── Cerebro semántico ───────────────────────────────────────────────────────
 
@@ -309,6 +327,8 @@ export const requestAssetSynthesis = defineTool({
 });
 
 export const DIRECTOR_TOOLS: AgentTool[] = [
+  listSceneCapabilities,
+  defineInventoryItem,
   queryLoreGraph,
   updateLoreEntity,
   validateContinuity,

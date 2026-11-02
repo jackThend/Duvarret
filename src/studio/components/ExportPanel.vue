@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { TARGET_LABELS, type ExportTarget } from '@/core/compiler';
+import { TARGET_LABELS, type CompileResult, type ExportTarget } from '@/core/compiler';
 import { isTauri } from '@/core/lore/tauriDriver';
 import { useProjectStore } from '../stores/project';
-import { compileFromStudio, savePortable, saveExport } from '../services/exporter';
+import { compileFromStudio, loadPlayerRuntime, savePortableZip, savePortable, saveExport } from '../services/exporter';
 import { showExportFolder } from '../services/desktop';
 import { useStudioStore } from '../stores/studio';
 import ExportDialog from './ExportDialog.vue';
@@ -11,13 +11,15 @@ import ExportDialog from './ExportDialog.vue';
 const emit = defineEmits<{ close: [] }>();
 const project = useProjectStore();
 const studio = useStudioStore();
-const busy = ref<ExportTarget | null>(null);
+const busy = ref<ExportTarget | 'all' | null>(null);
 const message = ref('');
 const pending = ref<string[]>([]);
 const desktop = isTauri();
+const selected = ref<ExportTarget[]>(['web']);
+const prepared = ref<ExportTarget[]>([]);
 const failed = ref(false);
 const allowDraft = ref(false);
-const completed = ref<ExportTarget | null>(null);
+const completed = ref<ExportTarget | 'all' | null>(null);
 const location = ref('');
 const voiceRepair = ref(false);
 
@@ -70,6 +72,50 @@ async function reveal() {
   try { await showExportFolder(project.storage.location); }
   catch { failed.value = true; message.value = 'No se pudo abrir la carpeta. Encontrarás la publicación dentro de export, en la carpeta de tu obra.'; }
 }
+async function runAll() {
+  if (busy.value || !selected.value.length) return;
+  busy.value = 'all';
+  completed.value = null;
+  message.value = '';
+  pending.value = [];
+  failed.value = false;
+  voiceRepair.value = false;
+  prepared.value = [];
+  const source = project.manifest;
+  const storage = project.storage;
+  try {
+    await project.save();
+    const runtime = await loadPlayerRuntime();
+    const results: CompileResult[] = [];
+    const targets = [...selected.value].filter(target => target !== 'native' || desktop);
+    if (targets.includes('native') && storage.kind !== 'tauri') throw new Error('Guarda primero la obra en una carpeta desde Studio de escritorio para crear el ejecutable.');
+    for (const target of targets) {
+      message.value = `Preparando ${TARGET_LABELS[target].toLowerCase()}…`;
+      results.push(await compileFromStudio({ manifest: source, resolveAsset: project.resolveAsset, target, runtime }));
+      if (storage !== project.storage || source !== project.manifest) throw new Error('La obra cambió durante la preparación. Vuelve a preparar la versión actual.');
+    }
+    const blocking = results.flatMap(result => result.blocking);
+    if (results.some(result => !result.ok)) {
+      voiceRepair.value = blocking.some(issue => issue.code === 'missing_narration');
+      throw new Error([...new Set(blocking.map(issue => issue.message))].join(' ') || 'Hay escenas por resolver antes de preparar las versiones.');
+    }
+    pending.value = [...new Set(results.flatMap(result => result.missingAssets))];
+    if (pending.value.length && !allowDraft.value) throw new Error('Faltan sonidos o imágenes. Aporta los recursos indicados o confirma un borrador con recursos de prueba.');
+    const locations: string[] = [];
+    for (const result of results) {
+      const root = storage.kind === 'tauri' ? storage.location : null;
+      const saved = result.target === 'native' && root ? await savePortableZip(result, root) : await saveExport(result, root);
+      locations.push(saved.location);
+      prepared.value.push(result.target);
+    }
+    location.value = locations.join('\n');
+    completed.value = 'all';
+    message.value = `${prepared.value.length} formatos preparados por separado. Cada uno conserva todas las decisiones y finales.`;
+  } catch (error) {
+    failed.value = true;
+    message.value = `${error instanceof Error ? error.message : 'No se pudieron preparar las versiones.'}${prepared.value.length ? ` Ya se guardó: ${prepared.value.map(target => TARGET_LABELS[target]).join(', ')}.` : ''}`;
+  } finally { busy.value = null; }
+}
 function repairAssets() { emit('close'); studio.assetsOpen = true; }
 function repairVoice() { emit('close'); studio.narrationOpen = true; }
 </script>
@@ -78,6 +124,15 @@ function repairVoice() { emit('close'); studio.narrationOpen = true; }
   <ExportDialog :busy="busy !== null" @close="emit('close')">
     <template #default="{ disabled }">
       <p class="mb-3 text-dv-muted">Se guarda tu trabajo antes de preparar el archivo. Exportar no publica la obra en internet.</p>
+      <fieldset class="mb-4 space-y-3 border-b border-dv-border pb-4" :disabled="disabled || busy !== null">
+        <legend class="font-semibold">Elige los formatos para compartir</legend>
+        <p class="text-sm text-dv-muted">Puedes elegir uno, varios o los tres. Recibirás un ZIP independiente por formato, con todas las decisiones y finales.</p>
+        <div class="flex flex-wrap gap-4">
+          <label v-for="target in (['web', 'audio_drama', 'native'] as ExportTarget[])" :key="target" class="flex min-h-11 items-center gap-2"><input v-model="selected" type="checkbox" :value="target" :disabled="target === 'native' && !desktop" :data-testid="`export-select-${target}`" />{{ TARGET_LABELS[target] }}</label>
+        </div>
+        <p v-if="!desktop" class="text-xs text-dv-muted">El ejecutable se crea desde Studio de escritorio, para el sistema de ese equipo.</p>
+        <button type="button" class="dv-btn-accent" data-testid="export-selected" :disabled="!selected.length" @click="runAll">{{ busy === 'all' ? 'Preparando formatos…' : 'Descargar formatos seleccionados' }}</button>
+      </fieldset>
       <div class="grid gap-3 md:grid-cols-3" data-testid="export-targets">
         <article v-for="target in (['web', 'audio_drama', 'native'] as ExportTarget[])" :key="target" class="dv-pitch flex flex-col gap-2">
           <h3 class="font-semibold text-dv-accent-2">{{ TARGET_LABELS[target] }}</h3>
@@ -101,8 +156,9 @@ function repairVoice() { emit('close'); studio.narrationOpen = true; }
         <label class="flex items-start gap-2"><input v-model="allowDraft" type="checkbox" data-testid="export-allow-draft" /> Exportar igualmente, con un tono de prueba o un marcador donde falte algo</label>
       </div>
       <section v-if="completed" class="mt-4 space-y-3 rounded-lg border border-dv-border p-4" aria-label="Cómo compartir la obra" data-testid="export-next-steps">
-        <p class="break-all text-sm">Archivo: {{ location }}</p>
-        <p v-if="completed === 'native'">Envía la carpeta completa, con el programa y la carpeta obra. El archivo de Windows no se abre en Android.</p>
+        <p class="whitespace-pre-line break-all text-sm">{{ completed === 'all' ? 'Archivos:' : 'Archivo:' }} {{ location }}</p>
+        <p v-if="completed === 'all'">Comparte cada ZIP por separado. Publica Web o audio-drama en un servidor; para escritorio, extrae el ZIP y conserva juntos el programa y la carpeta obra.</p>
+        <p v-else-if="completed === 'native'">Envía la carpeta completa, con el programa y la carpeta obra. El archivo de Windows no se abre en Android.</p>
         <p v-else>Para compartir un enlace, extrae el ZIP y publica su contenido en GitHub Pages o itch.io. Después envía la dirección de la página. Abrir index.html con doble clic puede impedir cargar el cuento.</p>
         <button v-if="desktop && project.storage.kind === 'tauri'" type="button" class="dv-btn-accent" data-testid="export-show-folder" @click="reveal">Abrir carpeta de publicaciones</button>
       </section>

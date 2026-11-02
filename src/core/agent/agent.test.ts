@@ -184,10 +184,10 @@ describe('herramientas del director', () => {
     editor = new ManifestEditor(manifest());
   });
 
-  it('expone esquemas JSON estándar para las 8 herramientas nucleares', () => {
+  it('expone esquemas JSON estándar para las herramientas nucleares', () => {
     const specs = registry.specs();
     expect(specs.map((s) => s.name).sort()).toEqual(
-      ['mountSimulatedModule', 'placeSpatialAudio', 'queryLoreGraph', 'requestAssetSynthesis', 'setTypographicEffect', 'setVisualNovelSegment', 'updateLoreEntity', 'validateContinuity'].sort(),
+      ['listSceneCapabilities', 'defineInventoryItem', 'mountSimulatedModule', 'placeSpatialAudio', 'queryLoreGraph', 'requestAssetSynthesis', 'setTypographicEffect', 'setVisualNovelSegment', 'updateLoreEntity', 'validateContinuity'].sort(),
     );
     for (const spec of specs) expect(spec.parameters.type).toBe('object');
   });

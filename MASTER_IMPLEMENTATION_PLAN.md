@@ -298,3 +298,11 @@ Rust y los ejecutables de Windows, macOS y Linux.
   de espera; la suite local final pasa las 430 pruebas. CI `41362029617` de `5c8bbb7`: cinco trabajos
   correctos, incluidos 18 E2E, Rust y compilaciones Windows/macOS/Linux. Se corrige además la carrera
   del guion CDP que podía recargar `about:blank` antes del arranque del lector.
+
+### Aprendizajes dentro de la app y distribución
+
+El catálogo de escenas ahora viaja con todos los proveedores; el director local reconoce y sugiere
+ganzúa y búsqueda con linterna, con registro de objetos de inventario. El chat permite explorar las
+capacidades. Compartir permite elegir formatos y obtener ZIP independientes, incluido el ejecutable
+con su obra. Detalles y límites en `docs/13_CAPACIDADES_Y_FORMATOS.md`. El usuario autoriza fusionar
+el PR #6 tras CI verde, publicar este cuento en GitHub Pages y copiarlo a Escritorio/Instaladores.

@@ -130,6 +130,40 @@ try {
   }, root);
   assert.deepEqual(transport, [97, 98, 99, 100]);
   passed('El ejecutable actual recibe y publica archivos por bloques sin pérdida de bytes.');
+  if (process.argv.includes('--studio-formats')) {
+    await page.getByTestId('agent-capabilities').click();
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="chat-director"]')].some(el => /ganzúa/.test(el.textContent ?? '') && /linterna/.test(el.textContent ?? '')));
+    const initialManifest = readFileSync(manifestPath, 'utf8');
+    for (const [message, label] of [
+      ['Quiero un minijuego de ganzúa para forzar una cerradura', 'Ganzúa'],
+      ['Buscar con linterna un objeto en el cuarto con assets/images/cuarto.svg', 'linterna'],
+    ]) {
+      await page.getByTestId('agent-input').fill(message);
+      await page.getByTestId('agent-send').click();
+      const pitch = page.locator('[data-testid^="pitch-chat:"]').last();
+      await pitch.waitFor();
+      assert.match(await pitch.innerText(), new RegExp(label, 'i'));
+      await pitch.getByTestId('pitch-dismiss').click();
+    }
+    assert.equal(readFileSync(manifestPath, 'utf8'), initialManifest);
+    passed('El director del Studio real descubre capacidades y propone ganzúa y búsqueda con linterna como borradores sin modificar la obra.');
+    await page.getByTestId('open-export').click();
+    await page.getByTestId('export-select-audio_drama').check();
+    await page.getByTestId('export-select-native').check();
+    await page.getByTestId('export-selected').click();
+    await page.getByTestId('export-next-steps').waitFor({ timeout: 240000 });
+    assert.equal(await page.getByTestId('export-pending').count(), 0);
+    const { unzipSync } = await import('fflate');
+    const archives = walk(join(root, 'export'));
+    for (const suffix of ['-web.zip', '-audio-drama.zip', '-escritorio.zip']) assert.ok(archives.some(file => file.endsWith(suffix)), `Falta ${suffix}`);
+    const archive = archives.find(file => file.endsWith('-escritorio.zip'));
+    const packed = unzipSync(readFileSync(archive));
+    assert.ok(Object.keys(packed).some(file => file.endsWith('.exe')));
+    assert.ok(Object.keys(packed).some(file => file.endsWith('/obra/manifest/story_manifest.json')));
+    await page.screenshot({ path: join(output, '03-formatos-independientes.png'), fullPage: true });
+    passed('Seleccionar tres formatos en Studio crea tres ZIP independientes; el de escritorio contiene programa y obra.');
+    await page.getByTestId('modal-close').click();
+  }
   if (!process.argv.includes('--export-only')) {
   await generateLine(page, 'ef_dora', 'No digas tu nombre. Aquí las paredes aprenden por repetición. Tu madre cerró una boca. Alguien ha vuelto a enseñarle a leer.', 'voz-ines');
   await generateLine(page, 'em_alex', 'Ya sé dónde empiezas.', 'voz-casa');

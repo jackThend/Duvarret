@@ -10,7 +10,7 @@ import Modal from './Modal.vue';
 import TopBar from './TopBar.vue';
 import ExportPanel from './ExportPanel.vue';
 
-const exporting = vi.hoisted(() => ({ compileFromStudio: vi.fn(), savePortable: vi.fn(), saveExport: vi.fn() }));
+const exporting = vi.hoisted(() => ({ compileFromStudio: vi.fn(), loadPlayerRuntime: vi.fn(), savePortableZip: vi.fn(), savePortable: vi.fn(), saveExport: vi.fn() }));
 vi.mock('../services/exporter', () => exporting);
 const wrappers: ReturnType<typeof mount>[] = [];
 beforeEach(async () => {
@@ -21,6 +21,26 @@ beforeEach(async () => {
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); vi.useRealTimers(); document.body.innerHTML = ''; });
 
 describe('recorrido de autor sin conocimientos técnicos', () => {
+  it('prepara solo los formatos elegidos y entrega archivos independientes', async () => {
+    exporting.loadPlayerRuntime.mockResolvedValue(new Map());
+    exporting.compileFromStudio.mockImplementation(async ({ target }) => ({ ok: true, target, missingAssets: [], blocking: [] }));
+    exporting.saveExport.mockImplementation(async ({ target }) => ({ location: `cuento-${target}.zip` }));
+    const wrapper = mount(ExportPanel); wrappers.push(wrapper);
+    await wrapper.get('[data-testid="export-select-audio_drama"]').setValue(true);
+    expect(wrapper.get('[data-testid="export-select-native"]').attributes('disabled')).toBeDefined();
+    await wrapper.get('[data-testid="export-selected"]').trigger('click');
+    await flushPromises();
+    expect(exporting.compileFromStudio.mock.calls.map(([input]) => input.target)).toEqual(['web', 'audio_drama']);
+    expect(exporting.saveExport).toHaveBeenCalledTimes(2);
+    expect(wrapper.get('[data-testid="export-next-steps"]').text()).toContain('cuento-web.zip');
+    expect(wrapper.get('[data-testid="export-next-steps"]').text()).toContain('cuento-audio_drama.zip');
+  });
+
+  it('no permite descargar sin seleccionar un formato', async () => {
+    const wrapper = mount(ExportPanel); wrappers.push(wrapper);
+    await wrapper.get('[data-testid="export-select-web"]').setValue(false);
+    expect(wrapper.get('[data-testid="export-selected"]').attributes('disabled')).toBeDefined();
+  });
   it('guarda tras una pausa y mantiene visibles los cambios si el guardado falla', async () => {
     vi.useFakeTimers();
     const project = useProjectStore();

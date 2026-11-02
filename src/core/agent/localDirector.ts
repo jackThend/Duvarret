@@ -6,6 +6,7 @@
 import { analyzeBeat, normalizeText, TONE_LABELS } from '../ingest/toneAnalyzer';
 import { parseSpatialDescription } from './spatialLanguage';
 import type { StoryNode } from '../manifest';
+import { SCENE_CAPABILITIES } from './sceneCapabilities';
 import { newCallId, type CompletionRequest, type CompletionResponse, type LlmProvider, type ToolCall } from './types';
 
 export interface PitchSuggestion {
@@ -53,6 +54,12 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
   const analysis = analyzeBeat(text);
   const out: PitchSuggestion[] = [];
   const node = options.node;
+  const norm = normalizeText(text);
+  if (!node?.gameplay_overlay && /ganzua|forzar.{0,35}cerradura/.test(norm)) {
+    out.push({ id: `${nodeId}:lockpick`, title: 'Abrir con ganzúa', rationale: 'La cerradura puede convertirse en una prueba de tacto y tensión: ajustar tres pernos antes de agotar los intentos.', calls: [call('mountSimulatedModule', { node_id: nodeId, module_type: 'lockpick', config: { pin_heights: [1, 3, 2], max_attempts: 5 } })] });
+  } else if (!node?.gameplay_overlay && /linterna/.test(norm) && /buscar|encontr|recog|registr|inventario/.test(norm)) {
+    out.push({ id: `${nodeId}:room-search`, title: 'Buscar con la linterna', rationale: 'Podemos explorar una habitación ilustrada y recoger un hallazgo para el inventario. Habrá que aportar la imagen del cuarto.', calls: searchRoomCalls(nodeId, text) });
+  }
   const tone = analysis.dominantTone ? TONE_LABELS[analysis.dominantTone].toLowerCase() : null;
   const te = node?.typographic_engine;
   const already: Record<string, boolean> = {
@@ -111,6 +118,7 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
         break;
       }
       case 'cipher_lock': {
+        if (out.some(s => s.id.endsWith(':lockpick') || s.id.endsWith(':room-search'))) break;
         const code = text.match(/\b\d{3,6}\b/)?.[0] ?? '0000';
         out.push({
           id: `${nodeId}:lock`,
@@ -131,7 +139,6 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
     }
   }
   // Sonidos mencionados en la prosa con su posición implícita.
-  const norm = normalizeText(text);
   for (const [re, file, label] of SOUND_NOUNS) {
     if (!re.test(norm) || out.length >= 5) continue;
     if (node?.acoustic_events.some((e) => e.asset.includes(file) || normalizeText(e.label ?? e.event_id).includes(normalizeText(label).trim()))) continue;
@@ -153,6 +160,16 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
     break;
   }
   return out;
+}
+
+function searchRoomCalls(nodeId: string, text: string): ToolCall[] {
+  const itemId = `hallazgo_${nodeId}`;
+  const image = text.match(/assets\/images\/[\w./-]+\.(?:svg|png|webp|jpg|jpeg)/i)?.[0] ?? 'assets/images/habitacion.svg';
+  const label = text.match(/[«“"]([^»”"]{1,60})[»”"]/)?.[1] ?? 'Objeto encontrado';
+  return [
+    call('defineInventoryItem', { item_id: itemId, name: label, description: 'Un objeto descubierto al registrar la habitación.' }),
+    call('mountSimulatedModule', { node_id: nodeId, module_type: 'room_search', config: { image, item_label: label, item_x: 72, item_y: 64, radius_px: 120, on_success: { grant_items: [itemId] } } }),
+  ];
 }
 
 /** Réplica entre comillas que el autor quiere oír dicha: «ponme una voz que susurre "no mires atrás"». */
@@ -204,13 +221,15 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
   // Lo que dirá la voz no son indicaciones: «no mires atrás» no pide nada a la tipografía.
   const t = normalizeText(spoken ? message.replace(/[«"“][^»"”]*[»"”]/g, ' ') : message);
   const calls: ToolCall[] = [];
+  const searchRoom = /linterna/.test(t) && /habitacion|cuarto|buscar|objeto|inventario|recog|encontr/.test(t);
+  const lockpick = /ganzua|forzar.{0,35}cerradura/.test(t);
   const effect = (effect_type: string, parameters: Record<string, unknown> = {}) =>
     calls.push(call('setTypographicEffect', { node_id: nodeId, effect_type, parameters }));
 
   if (/estrech|comprim|angost|claustrof|asfixi/.test(t)) effect('narrow_corridor', { column_width_rem: 24 });
   if (/tiembl|pulso|latid|corazon/.test(t)) effect('heartbeat_tremor', { bpm: Number(t.match(/(\d{2,3})\s*(?:bpm|pulsaciones)/)?.[1] ?? 100) });
   if (/derrit|licu|funda/.test(t)) effect('melt_text', { intensity: 0.5 });
-  if (/oscur|linterna|a ciegas|penumbra/.test(t)) effect('flashlight_mask');
+  if (!searchRoom && /oscur|linterna|a ciegas|penumbra/.test(t)) effect('flashlight_mask');
   if (/caig|caer|gravedad|desplom/.test(t)) effect('physics_fall');
   if (/espejo|invert|al reves|boca abajo/.test(t)) effect('mirror_inverted', { axis: /boca abajo|vertical/.test(t) ? 'y' : 'x' });
 
@@ -219,7 +238,9 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
     if (lines.length) calls.push(call('setVisualNovelSegment', { node_id: nodeId, speakers: [], dialogue_tree: lines }));
   }
   if (/terminal|consola|ordenador/.test(t)) calls.push(call('mountSimulatedModule', { node_id: nodeId, module_type: 'crt_terminal', config: {} }));
-  if (/cerradura|combinacion|candado|codigo/.test(t)) {
+  if (searchRoom) calls.push(...searchRoomCalls(nodeId, message));
+  else if (lockpick) calls.push(call('mountSimulatedModule', { node_id: nodeId, module_type: 'lockpick', config: { pin_heights: [1, 3, 2], max_attempts: 5 } }));
+  else if (/cerradura|combinacion|candado|codigo/.test(t)) {
     const code = message.match(/\b\d{3,8}\b/)?.[0] ?? nodeText.match(/\b\d{3,8}\b/)?.[0] ?? '0000';
     calls.push(call('mountSimulatedModule', { node_id: nodeId, module_type: 'cipher_lock', config: { target_code: code } }));
   }
@@ -315,6 +336,9 @@ export class LocalDirectorProvider implements LlmProvider {
     const message = last?.role === 'user' ? last.content : '';
     const ctx = request.context ?? {};
     const nodeId = ctx.nodeId ?? 'nodo_001';
+    if (/que (?:puedes|se puede) hacer|capacidades|tipos de escenas|que minijuegos/.test(normalizeText(message))) {
+      return { content: `Puedo proponer ${SCENE_CAPABILITIES.map(c => c.title.toLowerCase()).join(', ')}, además de novela visual, efectos de letras y audio espacial. La búsqueda con linterna puede guardar un objeto en el inventario; necesita una imagen del cuarto. Tú decides qué aplicar.`, toolCalls: [], stopReason: 'stop' };
+    }
     let calls = interpretInstruction(message, nodeId, ctx.nodeText, ctx.characters);
     if (!calls.length && ctx.nodeText && /propon|sugier|analiz|ideas|que harias|dirige|mejora/.test(normalizeText(message))) {
       calls = suggestForBeat(nodeId, ctx.nodeText, { characters: ctx.characters ?? [] }).flatMap((s) => s.calls);
@@ -323,7 +347,7 @@ export class LocalDirectorProvider implements LlmProvider {
     if (!calls.length) {
       return {
         content:
-          'Puedo estrechar la página, hacer latir o derretir el texto, dejarlo a oscuras, escenificar un diálogo, montar una cerradura o una terminal, o situar un sonido en el espacio («una gotera a la derecha a 3 metros»). ¿Qué te gustaría?',
+          'Puedo proponer una ganzúa, buscar objetos con linterna para el inventario, un escritorio de expedientes, una combinación o una terminal; también novela visual, letras que se estrechan o derriten y audio espacial. ¿Qué te gustaría?',
         toolCalls: [],
         stopReason: 'stop',
       };
