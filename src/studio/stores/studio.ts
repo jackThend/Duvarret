@@ -115,6 +115,7 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   const exportOpen = ref(false);
   const importOpen = ref(false);
   const worksOpen = ref(false);
+  const libraryOpen = ref(false);
   const assetsOpen = ref(false);
   const narrationOpen = ref(false);
   const pathsMapOpen = ref(false);
@@ -437,6 +438,7 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     exportOpen,
     importOpen,
     worksOpen,
+    libraryOpen,
     assetsOpen,
     narrationOpen,
     pathsMapOpen,

@@ -14,7 +14,12 @@ export function observeReadingMarkers(article: HTMLElement, reach: (name: string
       bottom = Math.min(bottom, rect.top + el.clientTop + el.clientHeight);
     }
     if (bottom <= top || article.getClientRects().length === 0) return;
-    const line = top + (bottom - top) * 0.65;
+    const scrollRoot = containers.find(el => el.scrollHeight > el.clientHeight);
+    const scrolling = scrollRoot ?? document.scrollingElement;
+    // Al final ya no se puede subir el último párrafo hasta la línea de lectura.
+    const atEnd = scrolling && scrolling.scrollTop > 0
+      && scrolling.scrollTop + scrolling.clientHeight >= scrolling.scrollHeight - 1;
+    const line = atEnd ? bottom : top + (bottom - top) * 0.65;
     // Recoge también marcas rebasadas con saltos rápidos; el store evita repetirlas.
     for (const anchor of anchors) {
       if (anchor.getBoundingClientRect().top <= line) reach(anchor.dataset.marker!);

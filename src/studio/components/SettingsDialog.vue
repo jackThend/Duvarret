@@ -6,6 +6,7 @@ import { useProjectStore } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
 import Modal from './Modal.vue';
 import AiConnections from './AiConnections.vue';
+import LocalProfile from './LocalProfile.vue';
 import { useAiStore } from '../stores/ai';
 
 const emit = defineEmits<{ close: [] }>();
@@ -45,6 +46,7 @@ async function testProvider() {
 <template>
   <Modal title="Preferencias" @close="emit('close')">
     <div class="space-y-5 text-sm" data-testid="settings">
+      <LocalProfile />
       <fieldset class="space-y-2">
         <legend class="dv-section-title">Tema</legend>
         <label v-for="t in THEMES" :key="t" class="flex items-center gap-2">

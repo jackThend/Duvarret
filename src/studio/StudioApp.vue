@@ -12,6 +12,7 @@ import { STUDIO_AUDIO } from './services/audio';
 import { defaultWork } from './services/works';
 import { LEGACY_SLOT, forgetWork, targetFor } from './services/workManager';
 import WorksDialog from './components/WorksDialog.vue';
+import ResourcesDialog from './components/ResourcesDialog.vue';
 import AssetsDialog from './components/AssetsDialog.vue';
 import NarrationDialog from './components/NarrationDialog.vue';
 import ListeningTest from './components/ListeningTest.vue';
@@ -180,6 +181,7 @@ const columns = computed(() => (studio.leftCollapsed ? 'minmax(0,0fr) minmax(0,5
     <SettingsDialog v-if="studio.settingsOpen" @close="studio.settingsOpen = false" />
     <ImportDialog v-if="studio.importOpen" @close="studio.importOpen = false" />
     <WorksDialog v-if="studio.worksOpen" @close="studio.worksOpen = false" />
+    <ResourcesDialog v-if="studio.libraryOpen" @close="studio.libraryOpen = false" />
     <AssetsDialog v-if="studio.assetsOpen" @close="studio.assetsOpen = false" />
     <NarrationDialog v-if="studio.narrationOpen" @close="studio.narrationOpen = false" />
     <ListeningTest v-if="studio.listeningOpen" @close="studio.listeningOpen = false" />

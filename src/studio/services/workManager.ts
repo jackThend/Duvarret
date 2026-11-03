@@ -5,7 +5,7 @@
  */
 import { BrowserStorage, TauriStorage, WorkLibrary, newBrowserLocation, type ProjectMeta, type ProjectStorage, type WorkEntry } from '@/core/project';
 import type { StoryManifestInput } from '@/core/manifest';
-import { allowWorkAssets, createWorkFolder, fileUrlResolver, isTauri, pickFolder } from './desktop';
+import { allowWorkAssets, createPersonalWork, createWorkFolder, fileUrlResolver, isTauri, pickFolder } from './desktop';
 import { FLAGSHIP_BASE } from './works';
 import { BrowserAssetStore } from './assetStore';
 
@@ -41,8 +41,9 @@ async function desktopTarget(root: string): Promise<WorkTarget> {
 }
 
 /** Prepara el lugar de una obra nueva. En el escritorio pregunta la carpeta; `null` si se cancela. */
-export async function prepareNewWork(meta: ProjectMeta): Promise<WorkTarget | null> {
+export async function prepareNewWork(meta: ProjectMeta, chooseFolder = false): Promise<WorkTarget | null> {
   if (!isTauri()) return { storage: new BrowserStorage(newBrowserLocation()), assetResolver: null };
+  if (!chooseFolder) return desktopTarget(await createPersonalWork(meta));
   const parent = await pickFolder('¿En qué carpeta guardamos la obra?', lastParent());
   if (!parent) return null;
   rememberParent(parent);

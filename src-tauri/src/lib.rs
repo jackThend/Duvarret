@@ -4,6 +4,7 @@ pub mod player;
 pub mod project;
 pub mod narration;
 pub mod ai;
+pub mod library;
 
 use std::path::PathBuf;
 
@@ -134,6 +135,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             project_create,
+            library::studio_library_paths,
+            library::studio_delete_managed_work,
             project_read,
             project_allow_assets,
             project_write_text,

@@ -4,6 +4,7 @@ import { createMeta } from '@/core/project';
 const desktop = vi.hoisted(() => ({
   tauri: false,
   pickFolder: vi.fn<(title: string, defaultPath?: string) => Promise<string | null>>(),
+  createPersonalWork: vi.fn(async () => '/personal/Mi_obra.duvarret'),
   createWorkFolder: vi.fn(async (parent: string) => `${parent}/Mi_obra.duvarret`),
   allowWorkAssets: vi.fn(async () => undefined),
   fileUrlResolver: vi.fn(async (root: string) => (p: string) => `asset://localhost/${root}/${p}`),
@@ -13,6 +14,7 @@ vi.mock('./desktop', () => ({
   isTauri: () => desktop.tauri,
   pickFolder: desktop.pickFolder,
   createWorkFolder: desktop.createWorkFolder,
+  createPersonalWork: desktop.createPersonalWork,
   allowWorkAssets: desktop.allowWorkAssets,
   fileUrlResolver: desktop.fileUrlResolver,
 }));
@@ -38,16 +40,18 @@ describe('workManager', () => {
     desktop.tauri = true;
     desktop.pickFolder.mockResolvedValueOnce('/home/elena/Obras');
     const meta = createMeta({ title: 'Mi obra' });
-    const target = await prepareNewWork(meta);
+    const target = await prepareNewWork(meta, true);
     expect(desktop.createWorkFolder).toHaveBeenCalledWith('/home/elena/Obras', meta);
     expect(desktop.allowWorkAssets).toHaveBeenCalledWith('/home/elena/Obras/Mi_obra.duvarret');
     expect(target?.storage).toMatchObject({ kind: 'tauri', location: '/home/elena/Obras/Mi_obra.duvarret' });
     expect(target?.assetResolver?.('assets/a.wav')).toBe('asset://localhost//home/elena/Obras/Mi_obra.duvarret/assets/a.wav');
     // La siguiente vez propone la misma carpeta.
     desktop.pickFolder.mockResolvedValueOnce(null);
-    expect(await prepareNewWork(meta)).toBeNull();
+    expect(await prepareNewWork(meta, true)).toBeNull();
     expect(desktop.pickFolder).toHaveBeenLastCalledWith(expect.any(String), '/home/elena/Obras');
   });
+
+  it('crea por defecto en la carpeta personal sin preguntar una ubicación', async () => { desktop.tauri = true; const target = await prepareNewWork(createMeta({title: 'Mi obra'})); expect(target?.storage.location).toBe('/personal/Mi_obra.duvarret'); expect(desktop.pickFolder).not.toHaveBeenCalled(); });
 
   it('abre carpetas existentes y obras recientes', async () => {
     desktop.tauri = true;
