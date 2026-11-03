@@ -90,7 +90,7 @@ describe('IA híbrida con claves del autor', () => {
     expect(w.find('[data-testid="image-preview"]').exists()).toBe(true);
     expect(project.nodes[0]?.illustration).toBeUndefined();
     await w.get('[data-testid="image-accept"]').trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(w.get('[data-testid="assets-message"]').text()).toContain('Ilustración guardada'));
     const path = project.nodes[0]?.illustration?.asset;
     expect(path).toMatch(/\.png$/);
     expect(project.assetOverrides.has(path!)).toBe(true);
@@ -377,7 +377,7 @@ describe('banco libre de sonidos', () => {
     expect(w.get('[data-testid="bank-license"]').text()).toContain('CC0');
     expect(w.find('[data-testid="bank-listen"]').exists()).toBe(true);
     await w.get('[data-testid="bank-choose"]').trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(w.get('[data-testid="assets-message"]').text()).toContain('de campo'));
     const path = 'assets/audio/grillos_de_noche.mp3';
     expect(project.assets.get(path)).toMatchObject({ origin: 'author', status: 'ready', author: 'campo', license: 'CC0 1.0 (dominio público)', prompt: 'grillos' });
     expect(w.get('[data-testid="assets-message"]').text()).toContain('de campo');
@@ -475,7 +475,7 @@ describe('efectos generados con ElevenLabs (último recurso, de pago)', () => {
     expect(w.find('[data-testid="effect-preview"] audio').exists()).toBe(true);
     expect(project.assets.list()).toHaveLength(0);
     await w.get('[data-testid="effect-accept"]').trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(w.get('[data-testid="assets-message"]').text()).toContain('Efecto creado'));
     const record = project.assets.list().find(r => r.provider === 'elevenlabs · sound-generation');
     expect(record).toMatchObject({ origin: 'synthetic', prompt: 'puerta que chirría', title: 'Efecto: «puerta que chirría»' });
     expect(w.find('[data-testid="assign-form"]').exists()).toBe(true);
