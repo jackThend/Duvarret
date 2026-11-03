@@ -1,5 +1,7 @@
 # Construcción y verificación del motor de voz Windows
 
+Guía técnica vigente. Para uso y alcance del producto, consultar [el documento principal](PROYECTO_DUVARRET.md). La entrega Windows 0.2.0 verificó los 1.472 archivos del paquete y generó y reprodujo voces desde el ejecutable extraído. Los hashes y rutas fechados de 0.1.0 que siguen más abajo son antecedentes de esas entregas, no la identidad del instalador actual.
+
 El paquete `dist-voice/` se incluye como recurso Tauri `voice/`. Contiene `python/python.exe`, biblioteca estándar aislada, `runtime/`, `modelos/`, fuentes/licencias y `package.json` con versiones, tamaños y SHA256. El lector exportado no lleva el motor: solo las grabaciones finales.
 
 ## Construcción

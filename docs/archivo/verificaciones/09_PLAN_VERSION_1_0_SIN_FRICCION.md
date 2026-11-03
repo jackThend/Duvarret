@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Plan de Duvarret 1.0: crear desde una instalación limpia
 
 Fecha de auditoría: 20 de octubre de 2026. Las fases conservan el plan original; los avances posteriores se registran al final. Prioridad: escritores no técnicos. Primera plataforma objetivo: Windows; ampliar la promesa a macOS/Linux cuando pasen las mismas pruebas de instalación y uso.

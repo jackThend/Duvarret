@@ -1,144 +1,52 @@
-# Duvarret 📖✨
+# Duvarret
 
-> **Director Agéntico de Literatura Polimórfica y Compilador Multimedia**
+Duvarret es un estudio de autoría para crear relatos interactivos a partir de texto: decisiones, ilustraciones, voces, ambientes, tipografía expresiva y pequeñas escenas jugables. Publica la misma obra como Web/PWA, audio-drama interactivo o lector de escritorio.
 
-Duvarret es un entorno de co-creación literaria y estación de trabajo de autoría diseñado para **artistas, novelistas, diseñadores narrativos y divulgadores**. Su objetivo fundamental es **desacoplar el texto de su soporte físico tradicional**, permitiendo transformar un manuscrito en una experiencia interactiva ejecutable (.exe nativo < 20 MB, Web/PWA, o Audio-drama 3D binaural puro sin pantalla) mediante la co-dirección con un agente de inteligencia artificial y sin que el autor toque una sola línea de código.
+**Versión de referencia local: Studio 0.2.0.** Incluye Mis obras, Mis recursos, perfil local opcional, autoguardado y voz Kokoro en la distribución Windows. El autor puede trabajar sin un proveedor de IA de pago; las conexiones externas son opcionales.
 
----
+## Entender el proyecto
 
-## 🤖 Para Agentes Autónomos de IA (Cloud / Cursor / Devin / OpenHands)
+- **[Documento principal del proyecto](docs/PROYECTO_DUVARRET.md):** propósito, personas destinatarias, posibilidades narrativas, guía de uso, bibliotecas, IA, formatos, datos, arquitectura, pruebas y límites actuales.
+- **[Documento en PDF](docs/PROYECTO_DUVARRET.pdf):** copia de lectura y consulta del mismo contenido.
+- [Mapa de documentación](docs/README.md).
+- [Estado y plan vigente](MASTER_IMPLEMENTATION_PLAN.md).
 
-Si eres un agente de IA que trabajará de forma autónoma en este repositorio, **sigue la directiva de arranque inmediata**:
+## Desarrollar
 
-👉 **Lee atentamente y ejecuta las instrucciones de:** [`AGENT_INSTRUCTIONS.md`](./AGENT_INSTRUCTIONS.md)
+Entorno local comprobado: Node.js 24. La CI declara su versión de Node en `.github/workflows/ci.yml`.
 
-Allí encontrarás el protocolo del **Bucle Autónomo de Auto-reparación (TDD)**, las **Oleadas de Desarrollo (Waves)** y la obligación de crear el archivo `MASTER_IMPLEMENTATION_PLAN.md` antes de escribir código.
-
----
-
-## 📚 Documentación del Proyecto
-
-Toda la especificación técnica y de producto aprobada se encuentra en la carpeta [`docs/`](./docs/):
-
-1. **[01. Documento de Requisitos de Producto (PRD)](./docs/01_PRD_DOCUMENTO_REQUISITOS_PRODUCTO.md)**: Visión, usuarios objetivo, requisitos funcionales/no funcionales y modelo de negocio en 3 fases.
-2. **[02. Documento de Arquitectura de Software y Sistema (ADD)](./docs/02_ARQUITECTURA_DEL_SISTEMA.md)**: Stack técnico (Tauri v2 + Vue 3 + Pinia), pipeline agéntico desacoplado, motor de audio espacial 3D (Resonance Audio) y grafo semántico local embebido (SQLite).
-3. **[03. Especificación Técnica del Manifiesto Declarativo](./docs/03_ESPECIFICACION_STORY_MANIFEST.md)**: Contrato JSON estricto (`story_manifest.json`), catálogo de directivas tipográficas, eventos acústicos y sandboxes de minijuegos.
-4. **[04. Especificación de Diseño UI/UX: Duvarret Studio](./docs/04_DISENO_UI_UX_EDITOR_ARTISTAS.md)**: Diseño tripartito en Split-View en tiempo real, lienzo libre de distracciones, tarjetas de dirección agéntica y radar acústico interactivo.
-5. **[05. Roadmap y Plan de Desarrollo de Ingeniería](./docs/05_ROADMAP_PLAN_DESARROLLO.md)**: Fases de desarrollo por sprints, estrategia de dogfooding comercial con obra de dominio público y KPIs.
-
----
-
-## 🛠️ Stack Tecnológico Principal
-
-- **Shell de Escritorio:** [Tauri v2](https://tauri.app/) (Rust) — Binarios < 20 MB y bajo consumo de memoria.
-- **Frontend / Editor:** [Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/) + [Pinia](https://pinia.vuejs.org/) + [TailwindCSS](https://tailwindcss.com/).
-- **Renderizado Tipográfico:** CSS Shaders + WebGL / [PixiJS](https://pixijs.com/).
-- **Audio Psicoacústico 3D:** Google Resonance Audio SDK / Web Audio API HRTF + Valve Steam Audio (WASM).
-- **Cerebro Semántico Local:** SQLite embebido con extensiones FTS5 y JSON (Offline-first / Graph RAG).
-- **Agnosticismo de IA:** Tool Calling estándar compatible con Gemini, Claude, OpenAI y modelos locales vía Ollama.
-
----
-
-## 🧪 Probar Duvarret en tu computadora
-
-**Opción A: solo jugar la obra insignia (sin instalar nada).** En GitHub, abre *Actions*, elige la última ejecución en verde de la rama `main` y baja, en *Artifacts*:
-
-- `el-corazon-delator-Windows`, `-macOS` o `-Linux`: el ejecutable de la obra. Sin firmar: en Windows, «Más información → Ejecutar de todas formas»; en macOS, clic derecho → Abrir (o `xattr -d com.apple.quarantine el-corazon-delator`); en Linux, `chmod +x el-corazon-delator`.
-- `obra-insignia-web-y-audio`: la versión web y el audio-drama en ZIP (descomprime y sírvelos con cualquier servidor local, p. ej. `npx serve`).
-
-**Opción B: el Studio completo.** Necesitas [Node 22+](https://nodejs.org) y [Git](https://git-scm.com).
-
-```bash
-git clone https://github.com/jackThend/Duvarret.git
-cd Duvarret
+```text
 npm ci
-npm run dev        # abre http://localhost:1420 en el navegador
+npm run dev
 ```
 
-Qué probar: escribir y ver la vista previa al instante, el mapa de caminos, **▶ Exportar**, *Recursos → Narración grabada* (pide permiso de micrófono), *⚙ Preferencias → Prueba de escucha* (con auriculares) y el co-director (el director local funciona sin conexión; Claude necesita tu clave, que se guarda solo en tu equipo). `?obra=bienvenida` en la URL abre la obra mínima.
+Studio abre en `http://localhost:1420`. `?obra=bienvenida` muestra una obra mínima. Para ejecutar el escritorio se necesita Rust y las dependencias nativas de Tauri de la plataforma; después se utiliza `npm run tauri dev`.
 
-**Opción C: la app de escritorio y los ejecutables.** Además de lo anterior, [Rust](https://rustup.rs) y las [dependencias de Tauri v2](https://tauri.app/start/prerequisites/) de tu sistema (en Windows, «Desktop development with C++» de Visual Studio Build Tools; WebView2 ya viene con Windows 10/11).
-
-```bash
-npm run tauri dev                                                          # Studio como app de escritorio
-npm run duvarret -- export works/el-corazon-delator.duvarret --target native   # ejecutable de la obra (1–3 min la primera vez)
+```text
+npm run typecheck
+npm run lint
+npx vitest run --maxWorkers=2
+npx playwright test --workers=2
+npm run build
 ```
 
-Si algo falla, anota el paso, el sistema y el mensaje de error (o una captura) para la siguiente ronda.
+Las pruebas Rust se ejecutan con `cargo test` dentro de `src-tauri`. La construcción del instalador es `npm run build:desktop`; requiere preparar la voz incluida según [su guía](docs/10_MOTOR_VOZ_INCLUIDO.md). En Windows, `scripts/build-windows.ps1` configura el toolchain portátil si está preparado en este equipo.
 
-## 🚀 Puesta en marcha
+## Mapa del código
 
-Requisitos: Node 22+, y para el ejecutable nativo Rust estable + las dependencias de sistema de [Tauri v2](https://tauri.app/start/prerequisites/).
+| Carpeta | Contenido |
+| --- | --- |
+| `src/core/` | Manifiesto, herramientas del agente, importación, lore, recursos y compilador. |
+| `src/runtime/` | Reproductor, navegación, inventario, tipografía, módulos y audio. |
+| `src/studio/` | Editor, paneles, bibliotecas, stores y servicios. |
+| `src/player/` | Entrada del reproductor independiente. |
+| `src-tauri/` | Shell Rust, disco, credenciales, voz y configuración Tauri. |
+| `scripts/` | Construcción, CLI, preparación y verificaciones. |
+| `works/` | Proyectos de ejemplo editables. |
+| `e2e/` | Recorridos automatizados en navegador. |
 
-```bash
-npm install
-npm run dev              # Duvarret Studio en el navegador (http://localhost:1420)
-npm run tauri dev        # Duvarret Studio como aplicación de escritorio
-```
+Para validar una obra: `npm run duvarret -- validate <carpeta.duvarret>`. Para Web: `npm run duvarret -- export <carpeta.duvarret> --target web --zip`. La aplicación permite elegir formatos y obtener ZIP independientes; [publicación](docs/07_PUBLICACION.md) explica cómo compartirlos.
 
-El Studio abre por defecto la obra insignia **El Corazón Delator** (`works/el-corazon-delator.duvarret`). Añade `?obra=bienvenida` a la URL para abrir la obra mínima de bienvenida.
+## Trabajar con agentes
 
-### Compilar y exportar una obra
-
-Desde el Studio: botón **▶ Exportar** (Web/PWA y audio-drama en ZIP; ejecutable portátil en la app de escritorio). Desde la terminal:
-
-```bash
-npm run duvarret -- validate works/el-corazon-delator.duvarret
-npm run duvarret -- export   works/el-corazon-delator.duvarret --target web --zip      # Web / PWA sin conexión
-npm run duvarret -- export   works/el-corazon-delator.duvarret --target audio --zip    # audio-drama accesible
-npm run duvarret -- export   works/el-corazon-delator.duvarret --target native         # binario nativo (LTO, < 20 MB)
-npm run duvarret -- export   works/el-corazon-delator.duvarret --target portable       # reproductor + carpeta obra/
-npm run duvarret -- ingest   mi-novela.docx --out Mi_Novela.duvarret                   # .docx/.epub/.pdf/.md/.txt → escenas de 300–800 palabras
-```
-
-### Validar en condiciones reales
-
-```bash
-ANTHROPIC_API_KEY=… npm run duvarret -- probar-ia works/el-corazon-delator.duvarret --proveedor anthropic
-npm run duvarret -- probar-ia works/el-corazon-delator.duvarret --proveedor ollama --modelo qwen2.5
-npm run build:desktop                                                    # Studio de escritorio con el reproductor incluido
-npm run medir-ram -- ruta/al/ejecutable --segundos 30   # memoria real (Linux, Windows, macOS; también en CI)
-```
-
-`probar-ia` (también en ⚙ Preferencias → Probar conexión) hace una vuelta real del co-director sobre una copia de la obra. Resultados y método: [`docs/06_VALIDACION.md`](docs/06_VALIDACION.md).
-
-### Publicar
-
-La voz grabada de cada escena (Studio → Recursos → Narración grabada) y la firma de código de los ejecutables (automática si el entorno o el CI tienen los certificados) se explican en [`docs/07_PUBLICACION.md`](docs/07_PUBLICACION.md).
-
-### Calidad
-
-| Comando | Qué verifica |
-| :--- | :--- |
-| `npm run typecheck` | TypeScript estricto (`vue-tsc`) |
-| `npm run lint` | ESLint sin avisos (prohíbe `eval`, `new Function` y `any`) |
-| `npm test` | Vitest: manifiesto, runtime, audio simulado, lore SQLite, agente, Studio |
-| `npm run test:e2e` | Playwright contra el build real |
-| `cd src-tauri && cargo clippy --all-targets -- -D warnings && cargo test` | Shell nativo |
-
-El plan de trabajo completo, con cada tarea verificada, está en [`MASTER_IMPLEMENTATION_PLAN.md`](./MASTER_IMPLEMENTATION_PLAN.md).
-
-## 🗂️ Estructura del código
-
-```
-src/core/       Lógica sin interfaz: manifest (Zod + JSON Schema), lore (SQLite + continuidad),
-                agent (proveedores, herramientas, orquestador), ingest, compiler, project, assets
-src/runtime/    Duvarret Runtime: máquina de estados, tipografía ergódica, audio 3D, modo sin pantalla,
-                novela visual y minijuegos en sandbox
-src/studio/     Duvarret Studio: layout tripartito, lienzo, Pitch Cards, radar acústico, exportación
-src/player/     Entrada del reproductor aislado (Web/PWA y binario)
-src-tauri/      Shell Tauri v2 (Rust): proyectos .duvarret, SQLite, protocolo obra:// portátil
-works/          Obras de ejemplo (.duvarret)
-schemas/        JSON Schema generado del story_manifest.json
-scripts/        CLI (duvarret), foley sintetizado, obra insignia, build de escritorio
-```
-
-### Co-director y modelos
-
-El agente funciona sin conexión con el **director local** (heurístico, determinista). En ⚙ Preferencias se puede elegir Anthropic Claude (SDK oficial, `claude-opus-5` por defecto), OpenAI, Google Gemini u Ollama local. Las claves se guardan solo en el dispositivo, nunca dentro de la obra. El agente jamás genera código: únicamente invoca herramientas que editan el manifiesto a través del validador.
-
----
-
-## 📄 Licencia
-
-Este proyecto está bajo los términos arquitectónicos de código abierto permisivo (bases de motor MIT / Apache 2.0).
+Las instrucciones vigentes están en [AGENTS.md](AGENTS.md). El esquema ejecutable y las pruebas prevalecen sobre las propuestas históricas. Los diseños originales se conservan identificados en [docs/archivo](docs/archivo/README.md).

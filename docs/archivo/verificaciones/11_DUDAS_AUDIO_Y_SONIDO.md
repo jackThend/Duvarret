@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Audio por escena, sonidos a tiempo y banco de efectos — plan de trabajo
 
 **Qué es este documento.** El resultado de una sesión de dudas con el autor (31-10-2026) sobre cómo

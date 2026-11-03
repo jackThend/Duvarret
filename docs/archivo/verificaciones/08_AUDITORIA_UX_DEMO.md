@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Revisión de autoría tras la demo
 
 Objetivo: que una persona que escribe pueda editar, conservar, escuchar y compartir su obra sin conocer formatos ni comandos. Se mantiene la identidad editorial del Studio. La evaluación utiliza El último minuto y El archivo de las mareas como obras reales.

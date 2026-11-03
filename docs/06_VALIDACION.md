@@ -1,104 +1,45 @@
-# 06 · Validación en condiciones reales
+# Validar Duvarret y una obra
 
-Mediciones y pruebas del producto compilado, fuera del entorno de pruebas unitarias. Cada apartado indica cómo repetirlo.
+Referencia vigente: [documento principal](PROYECTO_DUVARRET.md), Studio 0.2.0. Las medidas y resultados antiguos se conservan en [el informe histórico](archivo/verificaciones/06_VALIDACION_ANTERIOR.md); no son una certificación de cada compilación nueva.
 
-## 1. Compilación de escritorio (`npm run build:desktop`)
+## Cambios de código
 
-Compila el reproductor portátil, lo incluye como recurso y empaqueta el Studio.
+Ejecutar las pruebas pertinentes a la función modificada, tipos y lint. Para cambios amplios, comprobar las suites y el runtime afectado:
 
-| Artefacto (Linux x86_64) | Tamaño |
-| :--- | ---: |
-| Binario del Studio (`duvarret`) | 6,7 MB |
-| Reproductor portátil incluido (`duvarret-player`) | 5,3 MB |
-| Paquete `.deb` | 6,1 MB |
-| Paquete `.rpm` | 6,1 MB |
-| AppImage (incluye WebKitGTK y GStreamer) | 79 MB |
-| Obra insignia exportada como ejecutable | 5,8 MB |
-
-Todos los ejecutables cumplen el límite de 20 MB. La AppImage es mayor porque lleva dentro el motor web; el `.deb` y el `.rpm` usan el WebKitGTK del sistema. En CI se generan los ejecutables de Windows, macOS y Linux en cada cambio.
-
-## 2. Memoria (RNF-02: el reproductor debe operar con menos de 150 MB)
-
-```bash
-npm run medir-ram -- <ejecutable> [--segundos 30] [--solo-medir] [--informe salida.json] [--clic 640,456@6] [--captura ventana.png]
+```text
+npm run typecheck
+npm run lint
+npx vitest run --maxWorkers=2
+npx playwright test --workers=2
 ```
 
-El script arranca el ejecutable y suma la memoria de todos sus procesos: el shell de Rust y los del motor web (en macOS, los servicios XPC de WebKit, que no cuelgan del ejecutable). Usa en cada sistema la cifra que muestra su propio monitor:
+En `src-tauri`, `cargo test` comprueba la parte nativa. El número de trabajadores limitado evita saturar equipos de desarrollo. No es necesario reconstruir Windows por editar solo Markdown.
 
-| Sistema | Métrica principal | Secundaria |
-| :--- | :--- | :--- |
-| Linux | PSS (reparte las bibliotecas compartidas) | Memoria privada (USS) |
-| Windows | Conjunto de trabajo privado (columna «Memoria» del Administrador de tareas) | Conjunto de trabajo |
-| macOS | `footprint` (lo que muestra el Monitor de Actividad) | RSS |
+## Recorrido de autoría
 
-En Linux sin pantalla arranca un Xvfb propio; `--clic` y `--captura` solo funcionan allí. Descarta las muestras incompletas (un proceso que se reinicia entre la lista y la lectura) y avisa de cuántas fueron.
+1. Crear una obra, editar, esperar autoguardado y volver a abrir.
+2. Cambiar de obra con cambios pendientes y comprobar que se conservan.
+3. Importar un recurso, verificar sus bytes y preescucharlo o visualizarlo.
+4. Guardarlo en Mis recursos, buscarlo, etiquetarlo y reutilizarlo en otro proyecto.
+5. Enviar a papelera, restaurar y borrar la copia personal; la otra obra debe mantener su recurso.
+6. Confirmar que el proyecto abierto y los recursos en uso están protegidos, y que no se borran carpetas externas por el comando de obras personales.
 
-**En el CI** se mide en cada cambio, en los tres sistemas, la obra insignia y el mismo shell con una página en blanco (la base del motor web). Las cifras salen en el resumen de la ejecución y en el artefacto `memoria-<sistema>`.
+## Recorrido del lector
 
-### Resultados (Linux, WebKitGTK 2.x, Xvfb sin GPU, septiembre de 2026)
+Recorrer cada final y las condiciones de inventario. Resolver y fallar acertijos, abandonar búsquedas y comprobar que hay continuación. Verificar marcas por desplazamiento, retardo, silencio, fuentes en movimiento, cambios de escena y voces pendientes. Ensayar la adaptación sin pantalla y los controles de teclado.
 
-PSS total del árbol de procesos, régimen estable:
+Los recursos ausentes y los errores de integridad deben comunicarse. Una exportación permitida como borrador no pasa a ser una publicación completa por existir un ZIP.
 
-| Caso | Composición GL por software (por defecto aquí) | Sin composición GL (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) |
-| :--- | ---: | ---: |
-| Página en blanco en el mismo shell de Tauri | 322 MB | 199 MB |
-| Página en blanco + `AudioContext` sonando | 352 MB | — |
-| Obra insignia, pantalla de título | 384 MB | 226 MB |
-| Obra insignia, jugando (Resonance Audio 3D) | 467 MB | 286 MB |
-| Obra insignia, jugando (`stereo_simple`) | — | 264 MB |
-| Studio, recién abierto | 438 MB | — |
+## Voz y distribución
 
-Lo que aporta el propio reproductor sobre la página en blanco: **+27 MB** en el título y **+65–87 MB** jugando, según el motor de audio. En Chromium, el heap de JavaScript de la obra jugando es de 4,6 MB y el DOM tiene 78 nodos: casi todo el aumento está en la parte nativa del motor web (audio, capas de pintado).
+Seguir [la aceptación del instalador](10_VERIFICACION_INSTALADOR_VOZ.md). Probar sobre la instalación o extracción declarada, con WAV nuevos y reproducción real. Diferenciar la prueba del panel de narración (HTMLAudio) de la salida Web Audio del reproductor. Verificar regeneración incremental y caché.
 
-### Resultados en el CI (runners de GitHub, pantalla de título, 40 s, septiembre de 2026)
+La entrega 0.2.0 comprobó 20 E2E y 446 casos unitarios entre la ejecución general y la repetición focalizada. El ejecutable extraído generó y reprodujo Kokoro y copió la voz a la biblioteca. Sus 1.472 archivos de voz se cotejaron con los hashes del paquete. Los informes locales están en `terminados/bibliotecas-0.2.0`; las extracciones y los perfiles temporales pueden retirarse después de conservar esa evidencia.
 
-| Sistema | Obra insignia | Página en blanco | Lo que añade la obra |
-| :--- | ---: | ---: | ---: |
-| Windows (WebView2) · conjunto de trabajo privado | **65,2 MB** | 64,7 MB | +0,5 MB |
-| macOS (WKWebView) · `footprint` | **61,5 MB** | 41,5 MB | +20 MB |
-| Linux (WebKitGTK) · PSS | **281 MB**¹ | 226 MB | +55 MB |
+Estos resultados no sustituyen un ensayo en VM limpia ni una prueba con cuentas reales de todos los proveedores. La infraestructura de conexión se puede probar con respuestas simuladas, pero la disponibilidad del servicio requiere una comprobación autorizada aparte.
 
-¹ En los runners de Ubuntu los procesos de WebKitGTK no cuelgan del ejecutable (probablemente por el sandbox `bwrap`) y aparecen a ratos: el script también los busca por nombre y descarta las muestras en que falta alguno (32 de 40 en la obra, 7 de 39 en blanco), así que la cifra de la obra sale de pocas muestras. Sin GPU, la composición GL por software infla la de Linux; en este contenedor, con `WEBKIT_DISABLE_DMABUF_RENDERER=1`, la obra ocupa 203 MB.
+## Rendimiento y accesibilidad
 
-En Windows, casi toda la memoria es del proceso principal de WebView2 (30,6 MB); el conjunto de trabajo total, que cuenta varias veces lo compartido con otros programas, ronda los 307 MB y no es la cifra que ve el usuario. En macOS, el proceso de contenido de WebKit pasa de 14 MB (en blanco) a 34 MB con la obra.
+El consumo debe medirse en una compilación concreta, con su sistema, escenas, audio y procesos del motor web. Las metas históricas de memoria y tamaño no se deben presentar como medidas universales del instalador con voz incluida.
 
-### Conclusiones
-
-- **RNF-02 se cumple con holgura en Windows y macOS** en la pantalla de título: unos 60–65 MB, menos de la mitad del límite. Queda medir jugando (con audio 3D), que en Linux añadía 40–60 MB: incluso así seguiría por debajo de 150 MB.
-- **En Linux no se cumple:** WebKitGTK con una página vacía ya ronda los 200–225 MB. Ninguna optimización del reproductor puede bajar de esa base. Sin GPU (en este contenedor y en los runners), la composición GL por software añade 120–180 MB; con GPU la cifra real estará más cerca de la columna «sin composición GL».
-- **Decisión abierta para el producto:** fijar RNF-02 para Windows y macOS (los destinos del `.exe` y del `.app`) y dar para Linux una cifra orientativa, o expresarlo como «memoria añadida por la obra sobre el motor web», que es lo que Duvarret controla (hoy entre 0,5 y 87 MB según el sistema y el momento).
-
-## 3. Proveedores de IA reales
-
-```bash
-npm run duvarret -- probar-ia <obra> --proveedor anthropic|ollama|openai|gemini|local [--modelo m] [--url base] [--escena id]
-```
-
-También en el Studio: **⚙ Preferencias → Probar conexión**. Hace una vuelta real del co-director sobre una **copia** de la obra (no la cambia) pidiéndole que sitúe un sonido de prueba a la izquierda del oyente, y comprueba:
-
-1. conexión con el modelo;
-2. que use las herramientas del co-director en lugar de escribir JSON;
-3. que coloque el sonido donde se pidió (x < 0);
-4. que la obra siga siendo válida.
-
-Las claves se leen del entorno (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`). Claude también acepta `ANTHROPIC_AUTH_TOKEN` o un perfil de `ant auth login`.
-
-| Proveedor | Estado |
-| :--- | :--- |
-| Director local | ✓ supera las cuatro comprobaciones |
-| Ollama | Sin probar con un modelo real: el entorno de desarrollo no puede descargar Ollama ni modelos. El error de conexión se detecta y se explica bien. |
-| Anthropic Claude | Sin probar con la API real: falta una clave en el entorno. |
-
-Para Ollama se traducen los fallos habituales a un paso concreto: servicio apagado («¿Está abierto? o ejecuta `ollama serve`»), modelo sin descargar («`ollama pull <modelo>`») y modelo sin herramientas («prueba con llama3.1, qwen2.5 o mistral-nemo»).
-
-### Fallo encontrado y corregido
-
-Si un modelo inventaba el identificador de una escena, las herramientas creaban en silencio una escena vacía con ese nombre. Ahora el bus de herramientas rechaza la llamada y devuelve la lista de escenas válidas para que el modelo corrija en el siguiente paso.
-
-## 4. Fidelidad del sonido 3D (KPI 3)
-
-Objetivo del roadmap: en una prueba a ciegas con auriculares, más del 90 % de los oyentes distinguen si un sonido está delante, detrás, a la izquierda o a la derecha.
-
-En el Studio: **⚙ Preferencias → Sonido 3D → Prueba de escucha**. Suenan 12 ráfagas de ruido de banda ancha (tres por dirección, a 2 m, en orden aleatorio) con el mismo motor de audio que las obras. Al final da el porcentaje de aciertos, el de cada dirección y las confusiones delante/detrás, y permite copiar el resultado en JSON para juntar los de varias personas. Avisa si el equipo usa sonido estéreo simple, que no puede separar delante de detrás.
-
-**Estado:** la herramienta está lista y probada (unitarias y E2E en Chromium); **faltan las pruebas con personas**.
+La prueba de escucha 3D sirve para evaluar localización con auriculares y el motor del equipo. Para accesibilidad se necesitan recorridos con las tecnologías de apoyo y dispositivos reales, además de pruebas automatizadas.

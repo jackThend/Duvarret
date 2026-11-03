@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Documento de Arquitectura de Software y Sistema (ADD)
 ## Proyecto: Duvarret — Director Agéntico de Literatura Polimórfica
 
