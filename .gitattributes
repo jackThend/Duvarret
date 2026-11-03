@@ -1,0 +1,5 @@
+# Mantener estable la fuente de la copia PDF en todos los sistemas.
+docs/PROYECTO_DUVARRET.md text eol=lf
+*.pdf binary
+# Mostrar los fixtures de pruebas TypeScript como texto revisable.
+*.ts text diff

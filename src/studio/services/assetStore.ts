@@ -83,6 +83,11 @@ export class BrowserAssetStore implements AssetStore {
   async remove(path: string) {
     await tx('readwrite', (s) => s.delete(this.key(path)));
   }
+  async read(path: string): Promise<Uint8Array> {
+    const blob = await tx<Blob>('readonly', s => s.get(this.key(path)));
+    if (!blob) throw new Error('El recurso ya no está en este dispositivo.');
+    return new Uint8Array(await blob.arrayBuffer());
+  }
   async urls() {
     const prefix = `${this.location}::`;
     const range = IDBKeyRange.bound(prefix, `${prefix}￿`);

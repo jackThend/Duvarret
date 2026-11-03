@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Especificación de Diseño UI/UX: Duvarret Studio
 ## Interfaz de Co-creación y Edición para Artistas
 

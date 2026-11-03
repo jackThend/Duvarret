@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Roadmap y Plan de Desarrollo de Ingeniería
 ## Proyecto: Duvarret — Director Agéntico de Literatura Polimórfica
 

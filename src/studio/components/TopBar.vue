@@ -43,7 +43,8 @@ function setMode(event: Event) {
         <option v-for="mode in WORK_MODES" :key="mode" :value="mode">{{ WORK_MODE_LABELS[mode] }}</option>
       </select>
     </label>
-    <button type="button" class="dv-btn-ghost" data-testid="open-works" @click="studio.worksOpen = true">Obras</button>
+    <button type="button" class="dv-btn-ghost" data-testid="open-works" @click="studio.worksOpen = true">Mis obras</button>
+    <button type="button" class="dv-btn-ghost" data-testid="open-personal-resources" @click="studio.libraryOpen = true">Mis recursos</button>
     <button type="button" class="dv-btn-ghost" data-testid="open-import" @click="studio.importOpen = true">Importar manuscrito</button>
     <button type="button" class="dv-icon-btn" aria-label="Deshacer" :disabled="!project.canUndo" data-testid="undo" @click="project.undo()">↶</button>
     <button type="button" class="dv-icon-btn" aria-label="Rehacer" :disabled="!project.canRedo" data-testid="redo" @click="project.redo()">↷</button>

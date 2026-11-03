@@ -17,6 +17,7 @@ import {
 } from '@/core/manifest';
 import { ManifestEditor } from '@/core/agent/manifestEditor';
 import { AssetRegistry } from '@/core/assets/registry';
+import { personalLibrary } from '../services/personalLibrary';
 import { ContinuitySupervisor, LoreGraph, seedFromManifest, type ContinuityIssue } from '@/core/lore';
 import { createMeta, manifestFromManuscript, MemoryStorage, ProjectMetaSchema, WorkLibrary, type ProjectMeta, type ProjectStorage } from '@/core/project';
 import type { ParsedManuscript } from '@/core/ingest/sceneParser';
@@ -84,6 +85,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
   const lastSavedAt = ref<string | null>(null);
   const savingCount = ref(0);
   const saveError = ref('');
+  const libraryError = ref('');
   const loadIssues = ref<ManifestIssue[]>([]);
   const continuity = ref<Record<string, ContinuityIssue[]>>({});
   const assetBase = ref('');
@@ -154,7 +156,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
    * Aporta un archivo de la autora. Si `replacePath` se indica, ocupa ese lugar (p. ej. un sonido
    * que la obra ya usaba pero faltaba); si no, recibe una ruta nueva según su nombre.
    */
-  async function addAsset(file: { name: string; data: Uint8Array }, options: { replacePath?: string } = {}): Promise<string> {
+  async function addAsset(file: { name: string; data: Uint8Array }, options: { replacePath?: string; collect?: boolean } = {}): Promise<string> {
     const epoch = workEpoch;
     if (file.data.byteLength > MAX_ASSET_BYTES) throw new Error(`«${file.name}» pesa demasiado (máximo 50 MB).`);
     const folder = assetFolderFor(file.name);
@@ -185,16 +187,23 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     triggerRef(assets);
     dirty.value = true;
     changedAt.value = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (options.collect !== false) await collectResource(file, assets.value.get(path));
     return path;
+  }
+
+  async function collectResource(file: { name: string; data: Uint8Array }, provenance?: Parameters<typeof personalLibrary.add>[1]) {
+    try { await personalLibrary.add(file, provenance, true); libraryError.value = ''; }
+    catch { libraryError.value = 'El recurso está guardado en la obra, pero no se pudo copiar a Mis recursos. Puedes volver a añadirlo desde Recursos de esta obra.'; }
   }
 
   /** Los bytes generados se guardan como cualquier archivo, con su procedencia verificable. */
   async function addGeneratedAsset(file: { name: string; data: Uint8Array }, provenance: GeneratedProvenance, options: { replacePath?: string } = {}) {
     const epoch = workEpoch;
-    const path = await addAsset(file, options);
+    const path = await addAsset(file, { ...options, collect: false });
     if (epoch !== workEpoch) throw new Error('La obra cambió. Vuelve a generar el recurso para la obra abierta.');
     assets.value.register({ path, origin: 'synthetic', status: 'ready', bytes: file.data.byteLength, ...provenance });
     triggerRef(assets);
+    await collectResource(file, assets.value.get(path));
     return path;
   }
 
@@ -291,6 +300,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
 
   /** Retira un recurso aportado. Sus usos seguirán en la obra y sonarán como tono de prueba. */
   async function removeAsset(path: string) {
+    if (assetUsages(manifest.value).has(path)) throw new Error('Este recurso está en uso. Sustitúyelo o retíralo de sus escenas antes de borrarlo.');
     await assetStore.value.remove(path);
     setAssetOverride(path, null);
     assets.value.remove(path);
@@ -517,6 +527,12 @@ export const useProjectStore = defineStore('duvarret-project', () => {
       triggerRef(assets);
       commit(applyNarration(manifest.value, plan));
       await save();
+      for (const clip of generated) {
+        try {
+          const data = target.kind === 'tauri' ? await readGeneratedClip(target.location, clip.asset) : new Uint8Array(await (await fetch(resolveAsset(clip.asset))).arrayBuffer());
+          await collectResource({ name: `Voz ${clip.text.slice(0, 70)}.${clip.asset.split('.').pop()}`, data }, { ...assets.value.get(clip.asset), title: clip.text });
+        } catch { libraryError.value = 'Las voces están guardadas en la obra; no se pudieron copiar todas a Mis recursos.'; }
+      }
       return { generated: generated.length, pending: missingSpeech(manifest.value).length };
     } finally {
       narrationBusy.value = false;
@@ -570,7 +586,9 @@ export const useProjectStore = defineStore('duvarret-project', () => {
 
   /** Acepta el borrador propuesto por el co-director. */
   function applyDraft(draft: StoryManifest) {
-    commit(validateManifest(draft).manifest);
+    // Las tarjetas son reactivas: z.unknown conserva proxies dentro de parameters.
+    // La obra es JSON declarativo; toma una copia propia antes de validarla y editarla.
+    commit(validateManifest(JSON.parse(JSON.stringify(draft))).manifest);
   }
 
   /** Radar: reubica una fuente sonora sin que el autor escriba una cifra. */
@@ -704,6 +722,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
     lastSavedAt,
     savingCount,
     saveError,
+    libraryError,
     canUndo,
     canRedo,
     loadIssues,

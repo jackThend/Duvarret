@@ -7,6 +7,7 @@ import { useStudioStore } from '../stores/studio';
 import { STUDIO_AUDIO } from '../services/audio';
 import { presentAssets } from '../services/assetProbe';
 import Modal from './Modal.vue';
+import { personalLibrary, readWorkResource } from '../services/personalLibrary';
 import { useAiStore } from '../stores/ai';
 import { generateImage, generateSoundEffect, providerFetch } from '../services/ai';
 import { searchSoundBank, type BankSound } from '@/core/assets/freesound';
@@ -152,10 +153,23 @@ function assign(path: string) {
 }
 
 async function remove(path: string) {
+  try {
   await project.removeAsset(path);
   present.value = new Set([...present.value].filter((p) => p !== path));
   confirmRemove.value = null;
   studio.previewNonce++;
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : 'No se pudo quitar el recurso.'; }
+}
+
+async function collect(path: string) {
+  busy.value = true; error.value = message.value = '';
+  try {
+    const record = project.assets.get(path), name = path.split('/').pop()!;
+    const data = await readWorkResource(project, path);
+    await personalLibrary.add({ name, data }, record);
+    message.value = 'Copia guardada en Mis recursos. Podrás reutilizarla en otras obras.';
+  } catch { error.value = 'No se pudo copiar a Mis recursos. El original permanece en la obra.'; }
+  finally { busy.value = false; }
 }
 
 let player: HTMLAudioElement | null = null;
@@ -240,13 +254,15 @@ const seconds = (value: number) => (value < 10 ? value.toFixed(1) : Math.round(v
 const nameOf = (path: string) => path.split('/').pop() ?? path;
 const originOf = (path: string) => project.assets.get(path)?.origin;
 const creditOf = (path: string) => { const r = project.assets.get(path); return r?.license && r.author ? `${r.license.split(' ')[0]} · ${r.author}` : ''; };
-const canRemove = (path: string) => originOf(path) === 'author' && project.assets.get(path)?.status === 'ready';
+const canRemove = (path: string) => originOf(path) === 'author' && project.assets.get(path)?.status === 'ready' && !usages.value.has(path);
 const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, label: n.title ?? n.node_id })));
 </script>
 
 <template>
   <Modal title="Recursos de la obra" wide @close="emit('close')">
     <div class="space-y-5 text-sm" data-testid="assets-dialog">
+      <div class="flex flex-wrap items-center gap-3"><p class="text-xs text-dv-muted">Recursos de esta obra. Los archivos en uso están protegidos contra el borrado.</p><button type="button" class="dv-btn-ghost" @click="emit('close'); studio.libraryOpen = true">Abrir Mis recursos</button></div>
+      <p v-if="project.libraryError" role="alert" class="text-dv-danger">{{ project.libraryError }}</p>
       <section class="space-y-3 rounded border border-dv-border p-4" aria-label="Crear una ilustración" data-testid="image-generation">
         <h3 class="dv-section-title">Crear una ilustración</h3>
         <p class="text-xs text-dv-muted">Para la escena «{{ project.selectedNode?.title ?? 'selecciona una escena' }}». Primero verás el resultado y decidirás si usarlo.</p>
@@ -388,7 +404,8 @@ const sceneOptions = computed(() => project.nodes.map((n) => ({ id: n.node_id, l
                 <button type="button" class="dv-btn-ghost" @click="assigning = null">Cancelar</button>
               </div>
             </div>
-            <div v-else class="mt-2 flex gap-3 text-xs">
+            <div v-else class="mt-2 flex flex-wrap gap-3 text-xs">
+              <button type="button" class="dv-btn-ghost" :disabled="busy" data-testid="asset-collect" @click="collect(path)">Guardar en Mis recursos</button>
               <button type="button" class="dv-link !opacity-80" data-testid="assign-open" @click="openAssign(path)">Colocar en la obra…</button>
               <template v-if="canRemove(path)">
                 <button v-if="confirmRemove !== path" type="button" class="dv-link !opacity-70" data-testid="asset-remove" @click="confirmRemove = path">Quitar</button>

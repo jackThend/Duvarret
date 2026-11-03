@@ -1,5 +1,7 @@
 import { ref } from 'vue';
-import { createMeta, type ProjectMeta, type WorkEntry } from '@/core/project';
+import { createMeta, WorkLibrary, type ProjectMeta, type WorkEntry } from '@/core/project';
+import { deletePersonalWork } from '../services/desktop';
+import { personalLibrary } from '../services/personalLibrary';
 import type { ParsedManuscript } from '@/core/ingest/sceneParser';
 import { useProjectStore } from '../stores/project';
 import { useStudioStore } from '../stores/studio';
@@ -22,13 +24,14 @@ export function useWorks() {
   const error = ref('');
   const recents = ref<WorkEntry[]>(recentWorks());
 
-  const refresh = () => (recents.value = recentWorks());
+  const all = ref<WorkEntry[]>(new WorkLibrary().list(true));
+  const refresh = () => { recents.value = recentWorks(); all.value = new WorkLibrary().list(true); };
 
   async function switchTo(load: () => Promise<boolean>) {
     error.value = '';
     busy.value = true;
     try {
-      if (project.dirty) await project.save();
+      if (project.dirty || project.savingCount) await project.save();
       const done = await load();
       if (done) {
         studio.reset();
@@ -51,10 +54,10 @@ export function useWorks() {
   };
 
   /** Obra en blanco (modo Taller). */
-  const createBlank = (options: { title: string; author: string }) =>
+  const createBlank = (options: { title: string; author: string; chooseFolder?: boolean }) =>
     switchTo(async () => {
       const meta: ProjectMeta = createMeta({ title: options.title || 'Obra sin título', author: options.author, mode: 'taller' });
-      return withTarget(await prepareNewWork(meta), (t) =>
+      return withTarget(await prepareNewWork(meta, options.chooseFolder), (t) =>
         project.createWork({ storage: t.storage, manifest: blankManifest(meta.title, meta.author), meta, assetResolver: t.assetResolver }),
       );
     });
@@ -62,9 +65,10 @@ export function useWorks() {
   /** Obra nueva a partir de un manuscrito importado. */
   const createFromManuscript = (parsed: ParsedManuscript, options: { title: string; author?: string }) =>
     switchTo(async () => {
-      const meta = createMeta({ title: options.title, author: options.author ?? '', mode: 'exegesis' });
+      const author = options.author ?? (await personalLibrary.load()).profile.name;
+      const meta = createMeta({ title: options.title, author, mode: 'exegesis' });
       return withTarget(await prepareNewWork(meta), (t) =>
-        project.importManuscript(parsed, { title: options.title, ...(options.author ? { author: options.author } : {}), storage: t.storage, assetResolver: t.assetResolver }),
+        project.importManuscript(parsed, { title: options.title, author, storage: t.storage, assetResolver: t.assetResolver }),
       );
     });
 
@@ -81,17 +85,27 @@ export function useWorks() {
     );
 
   function forget(entry: WorkEntry) {
-    forgetWork(entry);
-    refresh();
+    catalogAction(() => forgetWork(entry));
   }
 
   async function deleteFromDevice(entry: WorkEntry) {
-    if (entry.kind !== 'browser') return;
-    await deleteBrowserWork(entry.location);
-    refresh();
+    if (isCurrent(entry) || !new WorkLibrary().list(true).find(e => e.kind === entry.kind && e.location === entry.location)?.trashedAt) {
+      error.value = 'Envía primero la obra cerrada a la papelera.'; return false;
+    }
+    busy.value = true; error.value = '';
+    try {
+      if (entry.kind === 'browser') await deleteBrowserWork(entry.location);
+      else { await deletePersonalWork(entry.location); forgetWork(entry); }
+      return true;
+    } catch { error.value = 'No se pudo borrar. Las obras externas conservan sus archivos; puedes quitar su referencia de la biblioteca.'; return false; }
+    finally { busy.value = false; refresh(); }
   }
+
+  function catalogAction(action: () => void) { error.value = ''; try { action(); refresh(); } catch { error.value = 'No se pudo actualizar Mis obras. Tus archivos se conservan.'; } }
+  function trash(entry: WorkEntry) { if (!isCurrent(entry)) catalogAction(() => new WorkLibrary().trash(entry)); }
+  function restore(entry: WorkEntry) { catalogAction(() => new WorkLibrary().restore(entry)); }
 
   const isCurrent = (entry: WorkEntry) => project.storage.kind === entry.kind && project.storage.location === entry.location;
 
-  return { busy, error, recents, refresh, createBlank, createFromManuscript, openRecent, openFolder, forget, deleteFromDevice, isCurrent };
+  return { busy, error, recents, all, refresh, createBlank, createFromManuscript, openRecent, openFolder, forget, trash, restore, deleteFromDevice, isCurrent };
 }

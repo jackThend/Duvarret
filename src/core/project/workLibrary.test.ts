@@ -7,6 +7,14 @@ function memory(): KeyValueStore & { data: Map<string, string> } {
 }
 
 describe('WorkLibrary', () => {
+  it('migra referencias antiguas sin mover archivos y permite papelera y restauración', () => {
+    const store = memory();
+    store.data.set('duvarret:obras-recientes', JSON.stringify([{ kind: 'tauri', location: 'C:/Obras/Antes.duvarret', title: 'Antes', author: 'Ana', openedAt: '2026-01-01' }]));
+    const lib = new WorkLibrary(store), entry = lib.list()[0]!;
+    lib.trash(entry); expect(lib.list()).toEqual([]); expect(lib.list(true)).toHaveLength(1);
+    expect(store.data.has('duvarret:obras-recientes')).toBe(true);
+    lib.restore(entry); expect(lib.list()[0]?.location).toBe(entry.location);
+  });
   it('ordena por apertura, sin duplicados', () => {
     const lib = new WorkLibrary(memory());
     lib.touch({ kind: 'browser', location: 'a', title: 'A', author: '', openedAt: '2026-01-01T00:00:00Z' });
@@ -25,11 +33,12 @@ describe('WorkLibrary', () => {
     expect(lib.list().map((e) => e.title)).toEqual(['1']);
   });
 
-  it('limita la lista y tolera datos dañados o sin almacenamiento', () => {
+  it('conserva todas las obras y tolera datos dañados o sin almacenamiento', () => {
     const store = memory();
     const lib = new WorkLibrary(store);
     for (let i = 0; i < MAX_RECENT_WORKS + 5; i++) lib.touch({ kind: 'browser', location: `o${i}`, title: `${i}`, author: '', openedAt: new Date(2026, 0, 1, 0, i).toISOString() });
-    expect(lib.list()).toHaveLength(MAX_RECENT_WORKS);
+    expect(lib.list()).toHaveLength(MAX_RECENT_WORKS + 5);
+    store.data.delete('duvarret:mis-obras-v1');
     store.data.set('duvarret:obras-recientes', '{roto');
     expect(lib.list()).toEqual([]);
     store.data.set('duvarret:obras-recientes', JSON.stringify([{ kind: 'nube', location: 'x' }, { kind: 'browser', location: 'ok', openedAt: '2026-01-01T00:00:00Z' }]));

@@ -219,9 +219,11 @@ test.describe('Obras: crear, cambiar y recordar', () => {
     await expect(page.getByTestId('work-title')).toHaveValue('Cuaderno de la Mancha');
     await expect(page.getByTestId('prose')).toHaveValue('Amanecía sobre la llanura.');
 
-    // Eliminar del dispositivo pide confirmación.
+    // La papelera conserva la obra hasta confirmar el borrado definitivo.
     await page.getByTestId('open-works').click();
     const example = page.getByTestId('recent-works').locator('li', { hasText: 'El Corazón Delator' });
+    await example.getByTestId('trash-work').click();
+    await page.getByTestId('works-trash-tab').click();
     await example.getByTestId('delete-recent').click();
     await example.getByTestId('confirm-delete').click();
     await expect(page.getByTestId('recent-works')).not.toContainText('El Corazón Delator');

@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Aceptación nativa: La casa que aprendió mi nombre
 
 Prueba solicitada el 01-11-2026 antes de fusionar el PR #6. Se usa un relato original de horror

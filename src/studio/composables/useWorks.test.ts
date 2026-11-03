@@ -56,6 +56,8 @@ describe('useWorks', () => {
     const works = useWorks();
     await works.createBlank({ title: 'Otra', author: '' });
     const first = works.recents.value.find((e) => e.location === 'primera')!;
+    works.trash(first);
+    expect((await new BrowserStorage('primera').load()).manifest).not.toBeNull();
     await works.deleteFromDevice(first);
     expect((await new BrowserStorage('primera').load()).manifest).toBeNull();
     expect(new WorkLibrary().list().map((e) => e.location)).not.toContain('primera');

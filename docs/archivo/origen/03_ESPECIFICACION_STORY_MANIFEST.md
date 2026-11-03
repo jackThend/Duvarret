@@ -1,3 +1,5 @@
+> **Documento histórico.** Conservado como antecedente; no describe por sí solo la edición actual. Referencia vigente: [Duvarret](../../PROYECTO_DUVARRET.md).
+
 # Especificación Técnica del Manifiesto Declarativo
 ## Archivo Maestro: `story_manifest.json`
 

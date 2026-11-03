@@ -1,84 +1,45 @@
-# 07 · Publicar una obra
+# Publicar y compartir una obra
 
-Qué falta para pasar de «exporta y funciona» a «se puede distribuir»: la voz grabada y la firma de los ejecutables.
+La guía general de uso y formatos está en [el documento principal](PROYECTO_DUVARRET.md). Este documento se centra en la entrega. La guía anterior queda en [archivo](archivo/verificaciones/07_PUBLICACION_ANTERIOR.md) y contiene procedimientos históricos que no deben confundirse con la voz empaquetada actual.
 
-## 1. Narración grabada (modo sin pantalla)
+## Desde Studio
 
-Sin grabación, el modo sin pantalla lee cada escena con la voz del sistema, que cambia de un equipo a otro y suele sonar mecánica. Con una grabación por escena, la obra suena igual en todas partes.
+1. Revisar texto, caminos, recursos y narración.
+2. Abrir Exportar, elegir Web/PWA, audio-drama, escritorio o una combinación.
+3. Preparar los formatos seleccionados. Se obtiene un ZIP independiente por formato, cada uno con las ramas y finales de la obra.
+4. Leer los avisos y probar cada salida antes de compartirla.
 
-**En el Studio:** panel izquierdo → **Recursos → Narración grabada**.
+El ejecutable portátil requiere Studio de escritorio y su lector incluido. Se extrae el ZIP completo y se mantiene el programa junto a la carpeta `obra`. Para editar después se conserva la fuente `.duvarret`, no solo la publicación.
 
-1. Elige una escena. A la derecha aparece el texto que hay que leer (la narración específica del modo sin pantalla, si la tiene, o el texto de la escena).
-2. Pulsa **● Grabar**, lee con calma y pulsa **■ Detener y guardar**. Los silencios del principio y del final se recortan solos.
-3. **▶ Escuchar** para revisarla; **Volver a grabar** la sustituye sin dejar archivos sueltos.
-4. **Siguiente escena sin grabar →** salta a la próxima pendiente. Arriba se ve cuántas escenas tienen voz.
+## Web y audio-drama
 
-También se puede **importar** un archivo grabado con otro programa (WAV, MP3, OGG, FLAC, M4A). Las grabaciones del Studio se guardan en WAV mono de 24 kHz, que todos los motores web reproducen; al exportar, si está `ffmpeg`, se comprimen.
+Ambos son reproductores web. El audio-drama conserva decisiones y controles: no es un MP3 lineal. Se extrae el paquete y se sirve por HTTP o se aloja en un servidor estático compatible. Abrir directamente el HTML mediante `file://` no es el procedimiento de publicación.
 
-**Cómo suena en la obra:** una única cola espera el final del título antes de comenzar la narración y después lee los diálogos, hallazgos y opciones. Las teclas funcionan desde el primer momento. **R** repite la escena, **S** la detiene y **O** encola las opciones. Cambiar de escena o salir cancela la voz actual y sus cargas pendientes. En las obras antiguas, sin una voz de obra configurada, se conservan la voz del sistema y las grabaciones por escena.
+La PWA prepara caché para lectura sin conexión después de una carga y precarga correctas. Probar una actualización, el origen de la URL y el funcionamiento offline evita confundir una caché antigua con la edición recién publicada.
 
-### Voz natural uniforme
+Studio prepara los archivos; la edición actual no integra un servicio general para publicarlos automáticamente en la cuenta de alojamiento del usuario. Las publicaciones de demos realizadas desde desarrollo fueron acciones separadas y autorizadas.
 
-`npm run duvarret -- narrar <carpeta.duvarret> --python <python-3.12>` genera localmente títulos, prosa, opciones, ayudas y avisos con Kokoro. Requiere `kokoro-onnx` y `soundfile` en `.cache/voz/runtime`, y los pesos `kokoro-v1.0.onnx` y `voices-v1.0.bin` en `.cache/voz/modelos`; se pueden indicar otras carpetas con `--runtime-voz` y `--modelos-voz`. La generación no envía el texto a servicios externos.
+## Voz incluida y voces de la obra
 
-La voz elegida y el catálogo de frases se guardan en `global_settings.narration_voice`. Las futuras actualizaciones conservan esa identidad y reutilizan las grabaciones cuyo texto sigue vigente. El reproductor nunca sustituye esa voz por la del navegador: si una frase falta, avisa de que hay que actualizarla. La exportación bloquea frases pendientes o archivos de voz ausentes. El esquema y el compilador incluyen todos los audios del catálogo.
+En el Studio Windows distribuido, Narración y voz utiliza el Kokoro incluido. La aplicación genera y guarda las frases necesarias; al cambiar texto se actualizan las pendientes. Micrófono e importación de audios propios son otras vías disponibles.
 
-Se puede seguir editando la obra en Studio. Cuando una narración era una copia del texto de la escena, ambas se actualizan juntas. En el escritorio, **Narración y voz → Actualizar voz** genera las frases pendientes y guarda sobre la obra abierta, sin cerrarla ni ejecutar comandos. La interpretación **Dulce y pausada** de Dora mezcla sus timbres ef_dora (75 %) y af_bella (25 %) con fonemas españoles y velocidad 0.91; todos los pasajes conservan esos ajustes. Un cambio de interpretación regenera el conjunto una vez. La narración se escucha por un canal directo sin reverberación de sala; los efectos mantienen su espacialización.
+Una publicación transporta los WAV y otros recursos finales, no el entorno de síntesis. El lector no necesita Python, los modelos de Kokoro ni las claves del autor. La preparación debe comprobar cobertura de voz y archivos antes de declarar terminada la salida.
 
-Studio integra las grabaciones sobre el texto actual, conserva ediciones hechas durante la síntesis y deja pendientes las frases nuevas. No aplica resultados a otra obra si se cambia de proyecto. Los guardados se serializan. El comando nativo usa Python local en segundo plano y solo escribe WAV; la edición del manifiesto sigue pasando por ManifestEditor y el validador. La app busca `.cache/voz` entre las carpetas superiores de la obra y del ejecutable, o usa `DUVARRET_KOKORO_MODELS`, `DUVARRET_KOKORO_RUNTIME` y `DUVARRET_PYTHON`.
+La CLI conserva herramientas de desarrollo para narrar y compilar. Su preparación manual no es un paso que deba realizar quien instaló la distribución Windows completa. Ver [construcción de voz](10_MOTOR_VOZ_INCLUIDO.md).
 
-Después de actualizar, usa **Exportar**. `ACTUALIZAR-VOZ.cmd` sigue disponible para actualizar externamente las escuchas y publicaciones del ejemplo; solo esa vía requiere cerrar la obra antes. La caché PWA cambia con el contenido para no conservar una edición de audio anterior.
+## CLI
 
-**Consejos de grabación:** un micrófono de diadema o de solapa a un palmo, una habitación con cortinas o muebles blandos, y el mismo sitio y la misma distancia en todas las sesiones para que el volumen no cambie entre escenas.
-
-## 2. Firma de código
-
-Sin firmar, los ejecutables funcionan, pero:
-
-- **Windows** muestra la pantalla azul de SmartScreen («Windows protegió su PC») y hay que pulsar «Más información → Ejecutar de todas formas».
-- **macOS** se niega a abrirlo con doble clic; hay que usar clic derecho → Abrir, o quitar la cuarentena.
-
-`npm run duvarret -- export <obra> --target native` (y `--target portable`) firma el ejecutable si encuentra los certificados en el entorno, y si no, lo dice y sigue.
-
-### Conseguir los certificados
-
-| Sistema | Qué hace falta | Dónde |
-| :--- | :--- | :--- |
-| Windows | Certificado de firma de código (OV o EV) en formato `.pfx`, o Azure Trusted Signing | Una autoridad de certificación (DigiCert, Sectigo, SSL.com…). Los EV quitan el aviso de SmartScreen desde el primer día; los OV van ganando reputación con las descargas. |
-| macOS | Programa de Desarrolladores de Apple, certificado **Developer ID Application** exportado como `.p12`, y una contraseña específica de app para notarizar | developer.apple.com (cuota anual) y appleid.apple.com (contraseñas de app). |
-
-### En el CI (recomendado)
-
-En GitHub: **Settings → Secrets and variables → Actions → New repository secret**. El CI los usa en el job «Ejecutable de la obra insignia»; si no existen, publica sin firmar.
-
-| Secreto | Contenido |
-| :--- | :--- |
-| `WINDOWS_CERTIFICATE` | El `.pfx` en base64 (`base64 -w0 cert.pfx`, o `certutil -encode` en Windows) |
-| `WINDOWS_CERTIFICATE_PASSWORD` | Su contraseña |
-| `APPLE_CERTIFICATE` | El `.p12` en base64 (`base64 -i cert.p12`) |
-| `APPLE_CERTIFICATE_PASSWORD` | Su contraseña |
-| `APPLE_SIGNING_IDENTITY` | El nombre completo, p. ej. `Developer ID Application: Nombre Apellido (ABCDE12345)` |
-| `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_PASSWORD` | Para notarizar: tu Apple ID, el identificador de equipo y la contraseña específica de app |
-
-Los certificados y contraseñas van solo en los secretos del repositorio o en el entorno de tu equipo: nunca en el código ni en un chat.
-
-### En tu equipo
-
-```bash
-# Windows (PowerShell): signtool viene con el Windows SDK
-$env:DUVARRET_WIN_CERT = "C:\ruta\cert.pfx"; $env:DUVARRET_WIN_CERT_PASSWORD = "…"
-npm run duvarret -- export works/mi-obra.duvarret --target native
-
-# macOS: el certificado debe estar en el llavero
-export DUVARRET_MAC_IDENTITY="Developer ID Application: Nombre Apellido (ABCDE12345)"
-export APPLE_ID=… APPLE_TEAM_ID=… APPLE_PASSWORD=…   # opcional, para notarizar
-npm run duvarret -- export works/mi-obra.duvarret --target native
+```text
+npm run duvarret -- validate <carpeta.duvarret>
+npm run duvarret -- export <carpeta.duvarret> --target web --zip
+npm run duvarret -- export <carpeta.duvarret> --target audio --zip
+npm run duvarret -- export <carpeta.duvarret> --target native
 ```
 
-Opcional: `DUVARRET_TIMESTAMP_URL` cambia el servidor de sello de tiempo y `DUVARRET_SIGNTOOL` la ruta de `signtool`.
+`native` construye el ejecutable para el sistema y necesita el entorno nativo de desarrollo. La exportación portátil de Studio utiliza el lector que se distribuye con la aplicación. Esas rutas de desarrollo y uso no deben confundirse.
 
-En macOS, el ejecutable exportado es un binario suelto (no un `.app`): Apple lo notariza, pero el sello no se puede «grapar» al archivo, así que Gatekeeper lo comprueba en línea la primera vez que se abre.
+## Firma y alcance de la entrega
 
-### Estado
+El código dispone de preparación opcional de firma mediante `scripts/lib/sign.ts` y secretos de CI. La firma real requiere certificados y comprobación de la distribución; las pruebas de comandos con dobles de prueba no certifican una firma emitida. No se deben guardar certificados ni contraseñas dentro del proyecto o las obras.
 
-La firma está preparada y probada con pruebas unitarias (los comandos que se ejecutan), pero **no se ha probado con certificados reales**: el entorno de desarrollo no los tiene. La primera ejecución del CI con los secretos es la prueba de verdad.
+Los avisos del sistema y la confianza de distribución dependen del paquete y del entorno. El historial de una compilación anterior no sustituye la verificación de una nueva entrega. La edición Windows 0.2.0 tiene un instalador y huellas SHA256 comprobados; la documentación no la presenta como una versión 1.0 certificada en todas las plataformas.

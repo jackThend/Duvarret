@@ -12,6 +12,7 @@ export const WorkEntrySchema = z.object({
   title: z.string().catch('Obra sin título'),
   author: z.string().catch(''),
   openedAt: z.string(),
+  trashedAt: z.string().optional(),
 });
 
 export type WorkEntry = z.output<typeof WorkEntrySchema>;
@@ -22,7 +23,8 @@ export interface KeyValueStore {
   removeItem(key: string): void;
 }
 
-const KEY = 'duvarret:obras-recientes';
+const KEY = 'duvarret:mis-obras-v1';
+const LEGACY_KEY = 'duvarret:obras-recientes';
 export const MAX_RECENT_WORKS = 20;
 
 function safeStore(): KeyValueStore | null {
@@ -36,13 +38,14 @@ function safeStore(): KeyValueStore | null {
 export class WorkLibrary {
   constructor(private readonly store: KeyValueStore | null = safeStore()) {}
 
-  list(): WorkEntry[] {
+  list(includeTrashed = false): WorkEntry[] {
     try {
-      const raw = this.store?.getItem(KEY);
+      const raw = this.store?.getItem(KEY) ?? this.store?.getItem(LEGACY_KEY);
       const parsed: unknown = raw ? JSON.parse(raw) : [];
       return (Array.isArray(parsed) ? parsed : [])
         .map((e) => WorkEntrySchema.safeParse(e))
         .flatMap((r) => (r.success ? [r.data] : []))
+        .filter(e => includeTrashed || !e.trashedAt)
         .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
     } catch {
       return [];
@@ -50,23 +53,23 @@ export class WorkLibrary {
   }
 
   private write(entries: WorkEntry[]) {
-    try {
-      this.store?.setItem(KEY, JSON.stringify(entries.slice(0, MAX_RECENT_WORKS)));
-    } catch {
-      /* sin almacenamiento local: la lista no se recuerda */
-    }
+    if (!this.store) throw new Error('No se puede guardar la biblioteca en este dispositivo.');
+    this.store.setItem(KEY, JSON.stringify(entries));
   }
 
   /** Registra (o actualiza) una obra y la coloca la primera. */
   touch(entry: Omit<WorkEntry, 'openedAt'> & { openedAt?: string }): WorkEntry {
     const full: WorkEntry = { ...entry, openedAt: entry.openedAt ?? new Date().toISOString() };
-    this.write([full, ...this.list().filter((e) => !(e.kind === full.kind && e.location === full.location))]);
+    this.write([full, ...this.list(true).filter((e) => !(e.kind === full.kind && e.location === full.location))]);
     return full;
   }
 
   remove(kind: WorkEntry['kind'], location: string) {
-    this.write(this.list().filter((e) => !(e.kind === kind && e.location === location)));
+    this.write(this.list(true).filter((e) => !(e.kind === kind && e.location === location)));
   }
+
+  trash(entry: WorkEntry) { this.write(this.list(true).map(e => e.kind === entry.kind && e.location === entry.location ? { ...e, trashedAt: new Date().toISOString() } : e)); }
+  restore(entry: WorkEntry) { this.touch({ ...entry, trashedAt: undefined }); }
 
   mostRecent(): WorkEntry | null {
     return this.list()[0] ?? null;

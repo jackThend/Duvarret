@@ -4,6 +4,15 @@ import { joinPath, workFolderName, type ProjectMeta } from '@/core/project';
 
 export { isTauri };
 
+export async function createPersonalWork(meta: ProjectMeta): Promise<string> {
+  const { works } = await invoke<{ works: string }>('studio_library_paths', {});
+  const root = joinPath(works, `${workFolderName(meta.title).replace(/\.duvarret$/, '')}-${crypto.randomUUID()}.duvarret`);
+  await invoke('project_create', { root, projectJson: JSON.stringify(meta) });
+  return root;
+}
+
+export async function deletePersonalWork(root: string) { await invoke('studio_delete_managed_work', { root }); }
+
 export async function showExportFolder(root: string): Promise<void> {
   await invoke('project_show_exports', { root });
 }

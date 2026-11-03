@@ -1,5 +1,7 @@
 # Verificación de la voz incluida en Windows
 
+Guía especializada; el producto y sus límites se describen en [el documento principal](PROYECTO_DUVARRET.md). Tras conservar los informes, las extracciones y los perfiles temporales de QA pueden limpiarse. Antes de hacerlo se comprueba el registro del sistema: una instalación de prueba puede haberse convertido en la instalación activa del usuario.
+
 El guion `scripts/verificar-instalacion-windows.mjs` prepara una obra original mínima mediante `ManifestEditor` y el validador. No utiliza grabaciones de las demos. Genera la primera voz desde Studio, escucha una escena, modifica el texto y comprueba actualización incremental de una frase y después cero frases nuevas. Finalmente exporta una aplicación portátil y reproduce sus grabaciones.
 
 ## Ejecución
