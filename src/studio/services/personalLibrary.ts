@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { AssetRecordSchema, type AssetRecord } from '@/core/assets/registry';
 import { checkAssetContent } from '@/core/assets/content';
-import { MAX_ASSET_BYTES } from '@/core/assets/usages';
+import { MAX_ASSET_BYTES, mimeFor } from '@/core/assets/usages';
 import { BrowserAssetStore, DesktopAssetStore } from './assetStore';
 import { isTauri, fileUrlResolver } from './desktop';
 
@@ -55,7 +55,8 @@ async function backend(): Promise<LibraryBackend> {
   return {
     readIndex: async () => localStorage.getItem(KEY), writeIndex: async text => { localStorage.setItem(KEY, text); },
     read: path => store.read(path), put: (path, data) => store.put(path, data), remove: path => store.remove(path),
-    url: async path => URL.createObjectURL(new Blob([(await store.read(path)).slice().buffer])),
+    // Los SVG requieren su MIME explícito para que el navegador pueda representarlos.
+    url: async path => URL.createObjectURL(new Blob([(await store.read(path)).slice().buffer], { type: mimeFor(path) })),
   };
 }
 
