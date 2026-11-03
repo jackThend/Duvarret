@@ -87,7 +87,7 @@ describe('readers', () => {
   });
 
   it('extrae el texto de un PDF real', async () => {
-    const pdf = readFileSync(resolve(__dirname, '../../../Duvarret.pdf'));
+    const pdf = readFileSync(resolve(__dirname, '../../../docs/archivo/origen/Duvarret.pdf'));
     const text = await readManuscript('Duvarret.pdf', new Uint8Array(pdf));
     expect(text.length).toBeGreaterThan(1000);
     expect(text).toMatch(/Duvarret/i);

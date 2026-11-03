@@ -132,6 +132,7 @@ describe('Narración grabada', () => {
     const w = mount(NarrationDialog);
     expect(w.get('[data-testid="narration-coverage"]').text()).toBe('0 de 4 escenas con voz grabada');
     expect(w.get('[data-testid="narration-text"]').text()).toContain('angosto');
+    w.unmount();
   });
 
   it('graba, guarda como WAV, asigna la narración y regraba sobre el mismo archivo', async () => {
@@ -142,7 +143,7 @@ describe('Narración grabada', () => {
     await flushPromises();
     expect(w.find('[data-testid="narration-clock"]').exists()).toBe(true);
     await w.get('[data-testid="narration-stop"]').trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(w.get('[data-testid="narration-record"]').attributes('disabled')).toBeUndefined());
     expect(voiceOf('inicio')).toBe('assets/audio/narracion_inicio.wav');
     expect(useProjectStore().assets.get('assets/audio/narracion_inicio.wav')?.origin).toBe('author');
     expect(w.get('[data-testid="narration-message"]').text()).toContain('Narración guardada');
@@ -151,9 +152,10 @@ describe('Narración grabada', () => {
     await w.get('[data-testid="narration-record"]').trigger('click');
     await flushPromises();
     await w.get('[data-testid="narration-stop"]').trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(w.get('[data-testid="narration-record"]').attributes('disabled')).toBeUndefined());
     expect(voiceOf('inicio')).toBe('assets/audio/narracion_inicio.wav');
     expect([...useProjectStore().assetPaths].filter((p) => p.includes('narracion'))).toHaveLength(1);
+    w.unmount();
   });
 
   it('cerrar en plena grabación guarda la toma en vez de descartarla', async () => {
@@ -164,11 +166,13 @@ describe('Narración grabada', () => {
     await w.get('[data-testid="narration-record"]').trigger('click');
     await flushPromises();
     await w.get('[aria-label="Cerrar"]').trigger('click');
-    await flushPromises();
+    // Cerrar espera a guardar la toma y a copiarla a la biblioteca personal.
+    await vi.waitFor(() => expect(w.emitted('close')).toHaveLength(1));
     expect(stop).toHaveBeenCalled();
     expect(cancel).not.toHaveBeenCalled();
     expect(voiceOf('inicio')).toBeTruthy();
     expect(w.emitted('close')).toHaveLength(1);
+    w.unmount();
   });
 
   it('explica por qué no puede grabar', async () => {
@@ -178,6 +182,7 @@ describe('Narración grabada', () => {
     await flushPromises();
     expect(w.get('[data-testid="narration-error"]').text()).toContain('micrófono');
     expect(voiceOf('inicio')).toBeUndefined();
+    w.unmount();
   });
 
   it('sin micrófono permite importar un archivo, pasar a la siguiente escena y quitar la narración', async () => {
@@ -196,5 +201,6 @@ describe('Narración grabada', () => {
     await w.get('[data-testid="narration-scene-inicio"]').trigger('click');
     await w.get('[data-testid="narration-remove"]').trigger('click');
     expect(voiceOf('inicio')).toBeUndefined();
+    w.unmount();
   });
 });
