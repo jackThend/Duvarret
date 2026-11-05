@@ -16,6 +16,7 @@ import {
   type StoryNode,
 } from '@/core/manifest';
 import { ManifestEditor } from '@/core/agent/manifestEditor';
+import { setInventoryIllustration } from '@/core/visual/authoring';
 import { AssetRegistry } from '@/core/assets/registry';
 import { personalLibrary } from '../services/personalLibrary';
 import { ContinuitySupervisor, LoreGraph, seedFromManifest, type ContinuityIssue } from '@/core/lore';
@@ -316,7 +317,7 @@ export const useProjectStore = defineStore('duvarret-project', () => {
         ed.patchManifest({ character_registry: { [target.characterId]: { sprites: { [target.mood || 'neutral']: path } } } });
         break;
       case 'item_icon':
-        ed.patchManifest({ item_registry: { [target.itemId]: { icon: path } } });
+        setInventoryIllustration(ed, target.itemId, path);
         break;
       case 'ambience':
         ed.patchManifest({ acoustic_environment: { ambience_bed: path } });

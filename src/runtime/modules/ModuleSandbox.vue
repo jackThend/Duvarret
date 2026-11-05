@@ -8,6 +8,10 @@ import CircuitWiring from './CircuitWiring.vue';
 import FictionalDesktop from './FictionalDesktop.vue';
 import Lockpick from './Lockpick.vue';
 import RoomSearch from './RoomSearch.vue';
+import NarrativeScene from './NarrativeScene.vue';
+import { isNarrativeType } from '@/core/gameplay/narrative';
+import { useRuntimeServices } from '../services';
+const { resolveAsset } = useRuntimeServices();
 
 /**
  * Caja de arena de los minijuegos (doc 02 §5.3, RNF-08): el módulo recibe una copia congelada
@@ -24,6 +28,9 @@ const MODULES: Record<ModuleType, Component> = {
   fictional_desktop: FictionalDesktop,
   lockpick: Lockpick,
   room_search: RoomSearch,
+  radio_tuning: NarrativeScene, memory_weave: NarrativeScene, voice_negotiation: NarrativeScene,
+  sound_trail: NarrativeScene, surface_rubbing: NarrativeScene, alchemy_mix: NarrativeScene,
+  paper_fold: NarrativeScene, burden_balance: NarrativeScene, photo_development: NarrativeScene, symbol_ritual: NarrativeScene,
 };
 
 function deepFreeze<T>(value: T): T {
@@ -60,6 +67,7 @@ function retry() {
 
 <template>
   <section class="dv-sandbox" data-testid="module-sandbox" :aria-label="overlay.title || MODULE_LABELS[overlay.type]">
+    <img v-if="!['surface_rubbing','paper_fold','photo_development'].includes(overlay.type) && typeof parameters.artwork === 'string' && parameters.artwork" :src="resolveAsset(parameters.artwork)" :alt="typeof parameters.artwork_alt === 'string' ? parameters.artwork_alt : 'Entorno del puzle'" class="dv-puzzle-artwork" data-testid="puzzle-artwork" />
     <header class="dv-sandbox-head">
       <span>{{ overlay.title || MODULE_LABELS[overlay.type] }}</span>
       <button v-if="!solved && !finished && !crashed" type="button" class="dv-sandbox-giveup" data-testid="sandbox-giveup" @click="settle(false)">Abandonar</button>
@@ -69,12 +77,14 @@ function retry() {
       <button type="button" @click="retry">Intentar de nuevo</button>
       <button type="button" @click="settle(false)">Seguir leyendo</button>
     </div>
-    <p v-else-if="solved && overlay.type !== 'fictional_desktop'" class="dv-sandbox-solved">Resuelto.</p>
+    <p v-else-if="solved && overlay.type !== 'fictional_desktop' && !isNarrativeType(overlay.type)" class="dv-sandbox-solved">Resuelto.</p>
     <component
       :is="MODULES[overlay.type]"
       v-else
       :key="attempt"
       :parameters="parameters"
+      :kind="overlay.type"
+      :solved="solved || finished"
       :title="overlay.title"
       @success="settle(true)"
       @failure="settle(false)"
@@ -82,3 +92,7 @@ function retry() {
     />
   </section>
 </template>
+
+<style scoped>
+.dv-puzzle-artwork { display: block; width: 100%; max-height: 260px; object-fit: contain; margin-bottom: 1rem; }
+</style>

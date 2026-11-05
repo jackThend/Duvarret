@@ -6,6 +6,7 @@
  *  - **Tolerante**: aplica valores seguros por defecto en lugar de abortar (RNF-09).
  */
 import { z } from 'zod';
+import { VisualStyleSchema } from '../visual/style';
 // La validación funciona bajo CSP estricta, sin sondeos ni generación dinámica de JavaScript.
 z.config({ jitless: true });
 import {
@@ -94,6 +95,7 @@ function build(tolerant: boolean) {
   });
 
   const globalSettings = obj({
+    visual_style: o(VisualStyleSchema),
     default_mode: d(z.enum(PLAYBACK_MODES), 'multimedia'),
     allow_screenless_toggle: d(z.boolean(), true),
     audio_engine: d(z.enum(AUDIO_ENGINES), 'resonance_3d'),

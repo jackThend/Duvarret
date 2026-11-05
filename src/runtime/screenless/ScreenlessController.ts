@@ -1,3 +1,4 @@
+import { isNarrativeType, narrativeConfig } from '@/core/gameplay/narrative';
 /**
  * Bucle auditivo del Modo Sin Pantalla (RF-10, RNF-07): cada escena se narra por voz y foley 3D,
  * y las decisiones se toman con el teclado numérico, atajos universales o comandos de voz.
@@ -126,6 +127,11 @@ export class ScreenlessController {
     const prompt = node.screenless_mode?.voice_prompts[0];
 
     if (this.store.puzzlePending && node.gameplay_overlay) {
+      if (isNarrativeType(node.gameplay_overlay.type)) {
+        try { const p = narrativeConfig(node.gameplay_overlay.type, node.gameplay_overlay.parameters);
+          return [{ key: '1', label: p.audio_success_option, action: 'attempt_puzzle' }, { key: '2', label: p.audio_failure_option, action: 'abandon_puzzle' }];
+        } catch { return [{ key: '2', label: 'abandonar el enigma', action: 'abandon_puzzle' }]; }
+      }
       if (typeof node.gameplay_overlay.parameters.target_code !== 'string') {
         options.push({ key: '1', label: 'intentar resolver el enigma', action: 'attempt_puzzle' });
         options.push({ key: '2', label: 'abandonar el enigma', action: 'abandon_puzzle' });
@@ -168,6 +174,7 @@ export class ScreenlessController {
     const overlay = node.gameplay_overlay;
     if (this.store.puzzlePending && overlay) {
       parts.push(overlay.title || 'Un enigma bloquea el camino.');
+      if (isNarrativeType(overlay.type)) { try { parts.push(narrativeConfig(overlay.type, overlay.parameters).audio_prompt); } catch { /* El menú permite abandonar una configuración inválida. */ } }
       if (typeof overlay.parameters.prompt_text === 'string') parts.push(overlay.parameters.prompt_text);
       if (typeof overlay.parameters.target_code === 'string') parts.push('Teclea el código con los números y pulsa Intro.');
     } else if (introductionText(prompt?.spoken_prompt)) parts.push(introductionText(prompt?.spoken_prompt));

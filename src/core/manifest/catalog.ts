@@ -1,3 +1,4 @@
+import { NARRATIVE_TYPES } from '../gameplay/narrative';
 /**
  * Catálogo cerrado de directivas polimórficas del runtime (doc 03 §5).
  *
@@ -40,7 +41,7 @@ export const ACOUSTIC_TRIGGERS = [
   'on_text_marker',
 ] as const;
 
-export const MODULE_TYPES = ['crt_terminal', 'fictional_desktop', 'cipher_lock', 'circuit_wiring', 'lockpick', 'room_search'] as const;
+export const MODULE_TYPES = ['crt_terminal', 'fictional_desktop', 'cipher_lock', 'circuit_wiring', 'lockpick', 'room_search', ...NARRATIVE_TYPES] as const;
 
 export const AVATAR_POSITIONS = ['left', 'center', 'right'] as const;
 export const OVERLAY_TRIGGERS = ['on_node_enter', 'on_text_complete'] as const;
@@ -100,6 +101,11 @@ export const MODULE_LABELS: Record<ModuleType, string> = {
   circuit_wiring: 'Cableado de circuitos',
   lockpick: 'Cerradura de ganzúa',
   room_search: 'Exploración con linterna',
+  radio_tuning: 'Sintonizar una presencia', memory_weave: 'Reconstruir un recuerdo',
+  voice_negotiation: 'Negociar con una voz', sound_trail: 'Seguir algo por el oído',
+  surface_rubbing: 'Hacer un calco', alchemy_mix: 'Preparar una mezcla',
+  paper_fold: 'Doblar una página imposible', burden_balance: 'Sostener un equilibrio',
+  photo_development: 'Revelar una fotografía', symbol_ritual: 'Representar un ritual',
 };
 
 export const MODE_LABELS: Record<PlaybackMode, string> = {

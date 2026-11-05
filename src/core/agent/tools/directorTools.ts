@@ -8,6 +8,19 @@ import { describePosition } from '../../../runtime/audio/coordinates';
 import { parseSpatialDescription } from '../spatialLanguage';
 import { defineTool, type AgentTool } from './registry';
 import { SCENE_CAPABILITIES } from '../sceneCapabilities';
+import { NARRATIVE_TYPES, isNarrativeType, validateNarrativeParams } from '../../gameplay/narrative';
+import { configureVisualScene, VisualSceneSchema } from '../../visual/authoring';
+
+export const setVisualSearchScene = defineTool({
+  name: 'setVisualSearchScene',
+  description: 'Configura una escena visual con fondo sin el objeto, objeto ilustrado separado, linterna e inventario. Usa imágenes existentes en la obra; conserva salidas previas. Pregunta el estilo y la fuente (código, Mis recursos, propias o proveedor con clave) antes de generar. No inventes archivos.',
+  schema: VisualSceneSchema,
+  async run(args, ctx) {
+    if (ctx.assets && [args.image, args.item_image].some(path => ctx.assets?.get(path)?.status !== 'ready' && !ctx.isDraftAsset?.(path))) throw new Error('Prepara las dos imágenes reales desde Dirección visual antes de componer la búsqueda.');
+    const issues = configureVisualScene(ctx.editor, args);
+    return { result: { ok: true, item_id: args.item_id }, summary: `Búsqueda ilustrada de «${args.item_label}»: la misma imagen pasa al inventario al recogerlo.`, mutates: true, nodeId: args.node_id, issues };
+  },
+});
 
 const nodeId = z.string().min(1).describe('Identificador del nodo (escena) del manifiesto');
 const looseParams = z.record(z.string(), z.unknown()).default({});
@@ -157,27 +170,32 @@ export const setVisualNovelSegment = defineTool({
   },
 });
 
-const MODULE_ALIASES = { crt_terminal: 'crt_terminal', fictional_desktop: 'fictional_desktop', circuit_puzzle: 'circuit_wiring', circuit_wiring: 'circuit_wiring', cipher_lock: 'cipher_lock', lockpick: 'lockpick', room_search: 'room_search' } as const;
+const MODULE_ALIASES = { crt_terminal: 'crt_terminal', fictional_desktop: 'fictional_desktop', circuit_puzzle: 'circuit_wiring', circuit_wiring: 'circuit_wiring', cipher_lock: 'cipher_lock', lockpick: 'lockpick', room_search: 'room_search', ...Object.fromEntries(NARRATIVE_TYPES.map(t => [t,t])) } as const;
 
 export const mountSimulatedModule = defineTool({
   name: 'mountSimulatedModule',
   description: 'Monta un minijuego aislado en una escena (terminal retro, escritorio simulado, puzle de circuitos, cerradura de combinación, ganzúa, habitación con linterna).',
   schema: z.object({
     node_id: nodeId,
-    module_type: z.enum(['crt_terminal', 'fictional_desktop', 'circuit_puzzle', 'circuit_wiring', 'cipher_lock', 'lockpick', 'room_search']),
+    module_type: z.enum(['crt_terminal', 'fictional_desktop', 'circuit_puzzle', 'circuit_wiring', 'cipher_lock', 'lockpick', 'room_search', ...NARRATIVE_TYPES]),
+    replace_existing: z.boolean().default(false).describe('Solo true si el autor ha pedido sustituir el mecanismo existente.'),
     config: looseParams,
   }),
-  async run({ node_id, module_type, config }, ctx) {
-    const type = MODULE_ALIASES[module_type];
+  async run({ node_id, module_type, config, replace_existing }, ctx) {
+    const type = isNarrativeType(module_type) ? module_type : MODULE_ALIASES[module_type as keyof typeof MODULE_ALIASES];
+    const previous = ctx.editor.node(node_id)?.gameplay_overlay;
+    if (isNarrativeType(type) && previous && previous.type !== type && !replace_existing) throw new Error('La escena ya tiene otro mecanismo. Pide al autor que lo sustituya desde Escenas jugables o utiliza otra escena.');
     const { title, is_mandatory_to_advance, on_success, on_failure, ...parameters } = config;
+    const safeParameters = isNarrativeType(type) ? validateNarrativeParams(type, parameters) : parameters;
+    if (isNarrativeType(type) && previous && previous.type !== type) ctx.editor.patchNode(node_id, { gameplay_overlay: undefined });
     const patch = ctx.editor.patchNode(node_id, {
       gameplay_overlay: {
         type,
         title: typeof title === 'string' ? title : MODULE_LABELS[type],
         is_mandatory_to_advance: typeof is_mandatory_to_advance === 'boolean' ? is_mandatory_to_advance : true,
-        parameters,
-        ...(on_success && typeof on_success === 'object' ? { on_success } : {}),
-        ...(on_failure && typeof on_failure === 'object' ? { on_failure } : {}),
+        parameters: safeParameters,
+        ...(on_success && typeof on_success === 'object' ? { on_success } : previous ? { on_success: previous.on_success } : {}),
+        ...(on_failure && typeof on_failure === 'object' ? { on_failure } : previous ? { on_failure: previous.on_failure } : {}),
       },
     });
     return { result: { ok: true, type }, summary: `${MODULE_LABELS[type]} en «${node_id}».`, mutates: true, issues: patch.issues, nodeId: node_id };
@@ -327,6 +345,7 @@ export const requestAssetSynthesis = defineTool({
 });
 
 export const DIRECTOR_TOOLS: AgentTool[] = [
+  setVisualSearchScene,
   listSceneCapabilities,
   defineInventoryItem,
   queryLoreGraph,

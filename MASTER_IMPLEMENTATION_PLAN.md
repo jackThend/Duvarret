@@ -1,6 +1,6 @@
 # Estado y plan vigente de Duvarret
 
-Referencia: **Studio 0.2.0**, revisada el **3 de noviembre de 2026**.
+Referencia: **Studio 0.3.0**, revisada el **4 de noviembre de 2026**.
 
 La descripción del producto y su arquitectura está consolidada en [el documento principal](docs/PROYECTO_DUVARRET.md). Este archivo conserva únicamente el estado y el trabajo pendiente. Las antiguas oleadas y sus registros están en [el plan histórico](docs/archivo/verificaciones/MASTER_IMPLEMENTATION_PLAN_HISTORICO.md).
 
@@ -15,8 +15,12 @@ La descripción del producto y su arquitectura está consolidada en [el document
 - [x] Mis obras, Mis recursos, perfil opcional, búsqueda, etiquetas, preescucha, deduplicación, papelera y borrado protegido.
 - [x] Migración de recientes sin mover obras ni mantener el límite de 20.
 - [x] Correcciones de propuestas reactivas y de la última marca visible al agotar scroll.
-- [x] Instalador Windows x64 0.2.0 entregado en Escritorio/Instaladores con SHA256.
+- [x] Instalador Windows x64 0.3.0 entregado con SHA-256, Kokoro integrado e icono propio para el instalador.
 - [x] Documentación general consolidada y limpieza selectiva de salidas temporales.
+- [x] Dirección visual: fondo y objeto separados, estilo de obra, linterna, inventario y colocación adaptable; imágenes por código, propias, de Mis recursos o con los proveedores actuales. Integración de ilustraciones, retratos y entornos de puzles. Sin generador local de imágenes.
+- [x] Diez escenas narrativas nuevas: sintonía, recuerdos, negociación, rastro sonoro, calco, mezcla, pliegues, equilibrio, fotografía y ritual. Configuración para el autor, imágenes opcionales, resultados y adaptación de audio-drama; sugerencias del co-director y validación compartida.
+
+- [x] Repertorio con paquetes .duvescena, buscador, favoritos, sugerencias y copia editable.
 
 La aceptación de 0.2.0 incluyó 20 E2E, 446 casos unitarios entre la suite y su repetición focalizada, tipos/lint y la protección nativa de carpetas. Los informes locales se conservan en `terminados/bibliotecas-0.2.0`. No se presume que ese estado local sea idéntico al de una rama remota; publicar o fusionar cambios es otra operación.
 

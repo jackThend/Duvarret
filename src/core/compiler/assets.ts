@@ -21,6 +21,8 @@ export function collectAssetReferences(manifest: StoryManifest): string[] {
     add(node.gameplay_overlay?.on_success.play_sfx);
     add(node.gameplay_overlay?.on_failure.play_sfx);
     if (node.gameplay_overlay?.type === 'room_search' && typeof node.gameplay_overlay.parameters.image === 'string') add(node.gameplay_overlay.parameters.image);
+    if (node.gameplay_overlay?.type === 'room_search' && typeof node.gameplay_overlay.parameters.item_image === 'string') add(node.gameplay_overlay.parameters.item_image);
+    if (typeof node.gameplay_overlay?.parameters.artwork === 'string') add(node.gameplay_overlay.parameters.artwork);
     add(node.screenless_mode?.voice_over_asset);
     add(node.screenless_mode?.foley_bed);
   }

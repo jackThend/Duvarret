@@ -41,6 +41,8 @@ defineExpose({ focus: () => input.value?.focus() });
       </p>
     </div>
     <button type="button" class="dv-btn-ghost self-start text-sm" data-testid="agent-capabilities" :disabled="studio.busy" @click="draft = '¿Qué tipos de escenas puedes sugerir para este pasaje?'; send()">Explorar escenas posibles</button>
+    <button type="button" class="dv-btn-ghost self-start text-sm" :disabled="!project.selectedNode" data-testid="agent-visual-scene" @click="studio.visualSceneOpen = true">Preparar imágenes, estilo y linterna</button>
+    <button type="button" class="dv-btn-ghost self-start text-sm" :disabled="!project.selectedNode" data-testid="agent-playable-scene" @click="studio.playableSceneType = null; studio.playableSceneOpen = true">Explorar y configurar escenas jugables</button>
     <form class="flex items-end gap-2" @submit.prevent="send">
       <label class="sr-only" for="dv-agent-input">Mensaje para el co-director</label>
       <textarea

@@ -2,7 +2,7 @@
 
 **Qué es, para qué sirve, cómo se utiliza y cómo está construido**
 
-Edición de referencia: **Studio 0.2.0**. Revisión: **3 de noviembre de 2026**.
+Edición de referencia: **Studio 0.3.0**. Revisión: **4 de noviembre de 2026**.
 
 Este es el documento principal del proyecto. Describe el producto de esta edición y distingue sus capacidades de las ampliaciones pendientes. El PDF que lo acompaña es una copia de lectura del mismo contenido. Para cambiar la documentación se edita este Markdown y se vuelve a generar el PDF.
 
@@ -117,6 +117,55 @@ El chat permite pedir una transformación, como «quiero una escena de búsqueda
 
 Aceptar una propuesta cambia la obra mediante herramientas y validación. El flujo protege las ediciones concurrentes para que una propuesta preparada sobre un texto anterior no sobrescriba sin más una revisión nueva. Se conserva la capacidad de deshacer y rehacer las operaciones admitidas por el editor.
 
+### 5.5 Dirección visual: ilustrar y componer escenas
+
+El botón **Dirección visual** de la escena abre un editor para ilustraciones o portadas de escena, personajes y expresiones de novela visual, objetos de inventario, escenarios con linterna y entornos ilustrados de puzles. También se puede abrir desde el co-director y sus propuestas de búsqueda.
+
+El autor conserva las imágenes actuales o elige entre plantillas por código sin conexión, imágenes de **Mis recursos**, archivos propios o generación con su clave de Gemini o Cloudflare. Las plantillas son esquemáticas: una habitación, una cocina, un bosque, un retrato o un objeto. No simulan un modelo de imágenes ni convierten una petición de realismo en una fotografía. No se instala un generador local de imágenes.
+
+El **aspecto** (ilustración, realista, cómic, independiente o prerenderizado), la **atmósfera** (natural, terror, terror analógico, melancolía o fantasía) y las notas de continuidad se guardan en la obra al aplicar. Orientan las próximas generaciones; no garantizan que un modelo conserve exactamente el rostro o la identidad de un objeto entre peticiones. Cambiar el estilo no regenera las imágenes existentes.
+
+Para una búsqueda se preparan dos recursos: el fondo sin el objeto recogible y una imagen separada del objeto. Se recomienda un PNG transparente o SVG. Un recorte local opcional retira fondos uniformes conectados al borde; se revisa antes de aceptar y no sustituye una segmentación compleja. Las vistas previas generadas o subidas no se incorporan hasta pulsar **Usar esta imagen**. Las aceptadas quedan en los recursos de la obra y pueden incorporarse automáticamente a la biblioteca según el perfil, aunque después se cierre la composición.
+
+El objeto se coloca arrastrando o tocando el escenario, con las flechas o mediante coordenadas. Se ajustan tamaño, radio de luz y si es obligatorio recogerlo. La prueba permite iluminarlo y ver cómo pasaría al inventario sin alterar el estado de lectura. **Aplicar y guardar** registra fondo, objeto y recompensa en una operación que se puede deshacer. Durante la lectura, el objeto desaparece al recogerlo y conserva su imagen en el inventario. La imagen completa mantiene sus proporciones en móvil, sin recortes que desplacen el hallazgo.
+
+El editor conserva las salidas de una búsqueda existente y rechaza sustituir otro puzle por una búsqueda sin más. Los objetos preparados por separado no se entregan automáticamente al lector. La ilustración del entorno de un puzle acompaña sus controles; ganzúas, combinaciones y otros mecanismos continúan funcionando por código. Las imágenes utilizadas se incluyen en la publicación y están protegidas frente al borrado mientras sigan en uso.
+
+### 5.6 Escenas jugables narrativas
+
+Studio 0.3.0 incorpora diez acciones adicionales, disponibles desde **Escenas jugables** en el lienzo, el co-director y sus propuestas. No son imágenes que fingen ser un juego: cada una tiene estado y reglas propios y funciona sin servicios de IA durante la lectura.
+
+| Escena | Acción del lector | Qué configura el escritor |
+| --- | --- | --- |
+| Sintonizar una presencia | Ajustar dos frecuencias, distinguir sus mensajes y combinar las señales. | Frecuencias, tolerancia y mensajes. |
+| Reconstruir un recuerdo | Reordenar fragmentos y aceptar una interpretación. | Fragmentos en el orden previsto y una lectura alternativa opcional. |
+| Negociar con una voz | Decidir cuándo escuchar, responder o guardar silencio en cada turno. | Intervenciones, respuestas favorables y confianza necesaria. No requiere micrófono. |
+| Seguir algo por el oído | Escuchar una señal direccional y avanzar por sus tramos. | Recorrido y ayuda escrita. Las señales por código usan posición estéreo y tonos distintos para delante y detrás; no simulan pasos realistas por sí solas. |
+| Hacer un calco | Frotar una superficie con distinta presión y detenerse a leerla. | Inscripción, cobertura necesaria y desgaste permitido. Existe un botón de franja para usarlo con teclado. |
+| Preparar una mezcla | Añadir cantidades en orden, ajustar temperatura y reposo y comprobar la reacción. | Ingredientes, cantidades, temperatura y reposo abstractos; no se exige esperar tiempo real. |
+| Doblar una página imposible | Plegar y girar cuatro fragmentos, superponiéndolos para leer otra relación. | Cuatro fragmentos, pliegues, orientación y lectura final. |
+| Sostener un equilibrio | Distribuir cargas entre dos lados o dejarlas atrás. | Pesos, valores, desnivel admisible y mínimo que salvar. Se comprueba que exista una solución. |
+| Revelar una fotografía | Ajustar exposición y baño, observar cómo emerge la imagen y decidir cuándo detenerse. | Intervalos válidos y hallazgo. Puede usar una imagen propia, generada o una figura por código. |
+| Representar un ritual | Trazar una secuencia sobre símbolos o romper el rito deliberadamente. | Símbolos en orden y consecuencias de completarlo o romperlo. |
+
+El panel ofrece instrucciones, título, **resultado previsto** y **otro resultado, error o abandono**. Ambos admiten texto, marcas, objetos que se entregan o consumen y una continuación. Un resultado distinto puede ser una pérdida, una interpretación válida o una decisión deliberada; no significa necesariamente que el lector deba repetir. El calco, la fotografía y el reparto son definitivos al aceptarse; la conversación se resuelve al terminar sus turnos. Los demás mecanismos permiten configurar intentos cuando corresponde. No hay cronómetros obligatorios.
+
+Las pistas pertenecen al relato o a las instrucciones escritas por el autor. El editor muestra soluciones al escritor, pero no las copia automáticamente a las instrucciones del lector. Valida cantidades coherentes, órdenes alternativos distinguibles, intervalos y repartos posibles. La prueba es aislada: no concede objetos ni cambia la lectura real. Aplicar guarda reglas y consecuencias en una operación reversible. Sustituir otro mecanismo exige confirmación.
+
+Todas conservan las opciones de Dirección visual: representación por código, conservar imágenes, archivos propios, **Mis recursos** o generación con la clave del autor mediante los proveedores actuales. En fotografías, calcos y pliegues, la imagen se integra dentro del mecanismo; en las demás puede acompañarlo como ilustración. No se instala un generador local de imágenes.
+
+En audio-drama sin pantalla se utiliza una **adaptación narrativa explícita**, no una simulación de gestos visuales ni una resolución automática presentada como habilidad del lector. El escritor configura la situación y dos decisiones habladas, que aplican los mismos resultados y salidas. Sus frases forman parte del catálogo de voz de la obra. La versión visual permite teclado y ayudas textuales, incluida la orientación del rastro sonoro.
+
+El asistente conoce para qué sirve cada acción y puede sugerirla según el pasaje, sin sustituir un mecanismo existente de forma proactiva. Las propuestas se validan antes de aplicarse. Las reglas viven en `src/core/gameplay/narrative.ts`; el reproductor y el configurador comparten ese contrato. Una configuración incoherente genera un diagnóstico de integridad y bloquea la exportación hasta corregirla.
+
+### 5.7 Repertorio
+
+**Repertorio** reúne las diez escenas narrativas incluidas y las que guarda o importa el autor. Se puede buscar por nombre, descripción y etiquetas, marcar favoritas y probar una escena antes de añadirla a la obra. La vista **Sugeridas** usa el pasaje actual. En el chat, una petición como «Sugiere del Repertorio una escena de revelado fotográfico» activa la búsqueda temática local, incluida la colección personal.
+
+Los archivos `.duvescena` son paquetes JSON declarativos. Llevan el nombre, la mecánica, sus reglas y resultados, el estilo opcional y los recursos usados. Para compartir con otra persona, guarda una escena configurada y expórtala desde Repertorio. En Studio de escritorio el archivo se guarda en `export/` de la obra. Quien lo recibe puede importarlo, jugarlo en una vista aislada y añadir una copia editable a su proyecto.
+
+Para preparar una escena con una IA de chat, exporta una plantilla de Repertorio y úsala como ejemplo. El archivo lleva `format: "duvarret-scene"`, `version: 1` y un `overlay` de una mecánica incluida. Las imágenes y los sonidos van en `assets` en base64 y las rutas que los mencionan deben coincidir. El límite es de 24 MiB por archivo y 32 recursos. Duvarret valida las reglas y los recursos antes de importarlos. En la obra de destino se configuran los saltos entre pasajes y se revisan las condiciones de los objetos que deban consumirse. Cada copia conserva sus propios recursos.
+
 ## 6. Mis obras y el perfil local
 
 **Mis obras** es el catálogo de proyectos del dispositivo. Permite buscarlos por título o autoría y continuar una obra existente. La versión 0.2.0 incorpora las referencias de la antigua lista de recientes y elimina su límite de 20 entradas, sin mover las carpetas originales.
@@ -155,7 +204,7 @@ Si el copiado automático a la biblioteca falla, el recurso que ya se guardó en
 
 ### 8.1 Narración con Kokoro
 
-La distribución Windows de referencia incluye Kokoro con su intérprete privado, runtime, modelos y licencias. La síntesis se procesa localmente. El autor no necesita preparar Python, instalar dependencias desde una terminal ni configurar una clave para esa voz incluida.
+**En Windows, el cliente descarga y ejecuta un solo archivo, «Duvarret Studio 0.3.0 para Windows.exe». Kokoro ya viene incluido.** Después de instalar Studio, el autor puede generar voz desde **Narración y voz**, incluso sin conexión. La instalación incluye el motor, sus modelos, sus licencias y las dependencias que necesita. Todo se configura en el mismo paso, sin una descarga adicional, una instalación de Python ni una clave para la voz local.
 
 **Narración y voz** permite actualizar las grabaciones. La identidad de voz y un catálogo de frases quedan asociados al proyecto. Se generan también los textos auxiliares para una experiencia coherente: títulos, opciones, ayudas y avisos. Una actualización reutiliza frases que siguen vigentes y genera las pendientes; cambiar determinados ajustes puede requerir rehacer el conjunto.
 
@@ -181,6 +230,8 @@ Para asistencia con un modelo se pueden configurar conexiones de texto, entre el
 
 El co-director dispone de un catálogo de escenas con finalidad narrativa, parámetros y recursos necesarios. Conoce la ganzúa, la exploración ilustrada, el escritorio, la combinación, la terminal y los circuitos, además de novela visual, inventario, tipografía y audio. El aprendizaje de las demos se incorporó a ese catálogo y a las instrucciones enviadas a los proveedores.
 
+Conoce además el flujo de Dirección visual y las alternativas de origen y estilo. La herramienta `setVisualSearchScene` compone una búsqueda con dos rutas de imágenes, posición, linterna y objeto registrado. El estilo guardado se comunica a los proveedores del co-director y se aplica a sus solicitudes de ilustración. Una ruta inventada no sustituye a los bytes del recurso.
+
 El modelo solicita herramientas de autoría. Estas modifican un borrador mediante operaciones reconocidas y validación del manifiesto. Una ruta reservada para una imagen que todavía no existe se presenta como un recurso pendiente; no se declara una imagen generada solo por inventar su nombre.
 
 Las decisiones editoriales siguen siendo humanas: qué cambiar, cuánto dura una escena, qué aporta un acertijo, qué interpretación resulta adecuada y si la historia conserva su intención. Una conexión de IA no sustituye la revisión del relato ni la comprobación de sus salidas.
@@ -195,7 +246,7 @@ En **Exportar** se puede elegir uno, dos o los tres formatos. La aplicación pre
 | Audio-drama | Una experiencia web de escucha con controles y decisiones. | Se publica o sirve por HTTP como la salida web. No es un MP3 lineal. |
 | Escritorio | El lector nativo acompañado de la carpeta de la obra en la salida portátil. | Se extrae el ZIP completo y se mantienen juntos el programa y sus recursos. |
 
-El lector se compila para el sistema de destino; la aplicación Windows no es un compilador universal para obtener desde el mismo botón cualquier paquete macOS o Linux. Hay infraestructura multiplataforma en el proyecto, pero la distribución 0.2.0 comprobada en esta entrega es Windows x64.
+El lector se compila para el sistema de destino; la aplicación Windows no es un compilador universal para obtener desde el mismo botón cualquier paquete macOS o Linux. Hay infraestructura multiplataforma en el proyecto; los instaladores locales de esta entrega se preparan para Windows x64.
 
 La preparación guarda primero y comprueba la obra, los recursos y las voces necesarias. Los errores de integridad pueden bloquear la publicación. Las rutas multimedia ausentes se diagnostican; las opciones explícitas de borrador no equivalen a una publicación terminada. El autor debe revisar los avisos y probar el archivo obtenido.
 
@@ -240,7 +291,7 @@ Separar núcleo, Studio y runtime permite reutilizar el mismo contrato para la v
 
 `manifest/story_manifest.json` describe la obra. Sus familias principales son metadatos, configuración global, personajes, objetos, entorno acústico y nodos narrativos. Los nodos contienen texto, tipografía, eventos acústicos, superposiciones de diálogo o juego, comprobaciones y navegación.
 
-El esquema ejecutable está en `src/core/manifest/schema.ts` y los valores reconocidos en `src/core/manifest/catalog.ts`. El JSON Schema derivado está en `schemas/story-manifest.schema.json`. La versión de ese contrato no es el número del instalador: la aplicación 0.2.0 utiliza el contrato de runtime definido en el catálogo.
+El esquema ejecutable está en `src/core/manifest/schema.ts` y los valores reconocidos en `src/core/manifest/catalog.ts`. El JSON Schema derivado está en `schemas/story-manifest.schema.json`. La versión de ese contrato no es el número del instalador: la aplicación 0.3.0 utiliza el contrato de runtime definido en el catálogo.
 
 El validador normaliza entradas y devuelve diagnósticos. La integridad detecta referencias y destinos inválidos, identificadores duplicados y otros problemas que una estructura JSON correcta no revela. Ciertos campos desconocidos o capacidades no disponibles utilizan fallbacks; esto no autoriza a ignorar errores que dejan la obra incoherente.
 
@@ -339,7 +390,11 @@ Studio 0.2.0 incorpora las bibliotecas personales, el perfil local opcional y el
 
 En la entrega se ejecutaron 20 recorridos E2E. La suite unitaria comprobó 446 casos entre la ejecución general y la repetición del archivo cuya espera asíncrona se corrigió. Pasaron tipos, lint y la protección nativa de borrado. El Studio extraído del instalador completó el recorrido de bibliotecas y generó y reprodujo voz Kokoro; sus archivos de voz se cotejaron con los SHA-256 del paquete.
 
-El instalador Windows x64 de referencia ocupa 593.048.775 bytes, aproximadamente 566 MiB, porque incluye el motor de voz, sus recursos y componentes de instalación. Ese tamaño no debe confundirse con el de un lector portátil ni con el de una obra y todos sus audios. Las antiguas metas de ejecutables inferiores a 20 MB no son una promesa para el instalador completo.
+El instalador de Windows usa el logo de Duvarret con la insignia de flecha y bandeja. El ejecutable de Studio conserva el icono original del acceso directo. La configuración NSIS asigna el icono de instalación por separado.
+
+La aceptación de 0.3.0 recorrió las diez escenas en Studio y en las exportaciones web, audio-drama y Windows. La adaptación de audio-drama permite elegir los resultados narrados. Repertorio se verificó en dos perfiles independientes y en Studio para Windows, con importación, edición, juego y exportación de una escena.
+
+El instalador único de Studio 0.3.0 para Windows x64 ocupa 594.433.807 bytes, aproximadamente 567 MiB. Incluye Kokoro y sus modelos, el lector para exportar obras y los componentes de instalación. Los lectores portátiles y las obras exportadas se distribuyen por separado y su tamaño depende del contenido de cada obra.
 
 Las historias de aceptación han ejercitado navegación, varios finales, inventario, diálogo, marcas con retardo, fracaso de acertijos y exploración. Son evidencias de esos recorridos, no una garantía de que cualquier obra futura carezca de errores. La validación automática ayuda, pero el autor debe probar sus propias rutas y recursos.
 

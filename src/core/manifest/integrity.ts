@@ -1,3 +1,4 @@
+import { isNarrativeType, validateNarrativeParams } from '../gameplay/narrative';
 /**
  * Integridad referencial del manifiesto en tiempo de compilación (doc 03 §6).
  *
@@ -87,6 +88,10 @@ export function checkIntegrity(manifest: StoryManifest): ManifestIssue[] {
 
     const gp = node.gameplay_overlay;
     if (gp) {
+      if (isNarrativeType(gp.type)) {
+        try { validateNarrativeParams(gp.type, gp.parameters); }
+        catch (error) { issues.push({ severity: 'error', code: 'invalid_gameplay_parameters', path: `${base}.gameplay_overlay.parameters`, nodeId: id, message: error instanceof Error ? error.message : 'Revisa la configuración de la escena jugable.' }); }
+      }
       requireNode(gp.on_success.transition_to_node, `${base}.gameplay_overlay.on_success.transition_to_node`, id, 'El éxito del enigma');
       requireNode(gp.on_failure.transition_to_node, `${base}.gameplay_overlay.on_failure.transition_to_node`, id, 'El fracaso del enigma');
       for (const key of ['grant_items', 'consume_items'] as const) {

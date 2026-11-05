@@ -1,6 +1,7 @@
 /**
  * Estado de la estación de trabajo: tema, paneles, co-director (chat y Pitch Cards) y vista previa.
  */
+import { refreshRepertoire, suggestScenes } from '../services/repertoire';
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef, toRaw, watch } from 'vue';
 import type { StoryManifest } from '@/core/manifest';
@@ -20,6 +21,7 @@ import { useProjectStore } from './project';
 import { useAiStore } from './ai';
 import { generateImage, generateSoundEffect, providerFetch } from '../services/ai';
 import { searchSoundBank } from '@/core/assets/freesound';
+import { VisualStyleSchema, visualPrompt } from '@/core/visual/style';
 
 export interface ChatEntry {
   id: number;
@@ -117,6 +119,11 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
   const worksOpen = ref(false);
   const libraryOpen = ref(false);
   const assetsOpen = ref(false);
+  const visualSceneOpen = ref(false);
+  const repertoireOpen = ref(false);
+  const repertoirePrompt = ref('');
+  const playableSceneOpen = ref(false);
+  const playableSceneType = ref<string | null>(null);
   const narrationOpen = ref(false);
   const pathsMapOpen = ref(false);
   const mobilePreview = ref(false);
@@ -213,7 +220,7 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
             return new OfflineSynthesizer().synthesize(request);
           }
           if ((request.type !== 'portrait' && request.type !== 'background') || !await ai.refresh(ai.image.provider)) return new OfflineSynthesizer().synthesize(request);
-          const prompt = `${request.prompt}\nEstilo: ${request.style_preset}`;
+          const prompt = visualPrompt(`${request.prompt}\nIndicaciones: ${request.style_preset}`, request.type === 'portrait' ? 'portrait' : 'background', VisualStyleSchema.parse(project.manifest.global_settings.visual_style ?? {}));
           const result = await generateImage({ provider: ai.image.provider, model: ai.image.model, accountId: ai.image.accountId, prompt });
           if (work !== project.workIdentity()) throw new Error('La obra cambió durante la creación de la imagen. La propuesta se ha descartado.');
           const extension = /jpe?g/.test(result.mimeType) ? 'jpg' : /webp/.test(result.mimeType) ? 'webp' : 'png';
@@ -265,6 +272,16 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     if (!text || busy.value) return null;
     const work = project.workIdentity();
     say('author', text);
+    if (/\brepertorio\b/i.test(text)) {
+      try {
+        refreshRepertoire();
+        repertoirePrompt.value = text.replace(/\brepertorio\b/gi, '') + ' ' + (project.selectedNode?.text_payload ?? '');
+        const picks = suggestScenes(repertoirePrompt.value);
+        say('director', picks.length ? 'Para este pasaje sugiero ' + picks.slice(0, 3).map(scene => scene.name).join(', ') + '. Puedes probarlas en Repertorio.' : 'Abre Repertorio para explorar las escenas. Añade una pista temática a tu petición para obtener sugerencias.');
+        repertoireOpen.value = true;
+      } catch { say('director', 'No pude leer el catálogo local de Repertorio.'); }
+      return null;
+    }
     const selectedNodeId = project.selectedNodeId;
     const thinking = say('director', 'Pensando la puesta en escena…', true);
     busy.value = true;
@@ -440,6 +457,11 @@ export const useStudioStore = defineStore('duvarret-studio', () => {
     worksOpen,
     libraryOpen,
     assetsOpen,
+    visualSceneOpen,
+    repertoireOpen,
+    repertoirePrompt,
+    playableSceneOpen,
+    playableSceneType,
     narrationOpen,
     pathsMapOpen,
     mobilePreview,
