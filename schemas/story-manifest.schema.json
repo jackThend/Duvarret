@@ -60,6 +60,38 @@
       },
       "type": "object",
       "properties": {
+        "visual_style": {
+          "type": "object",
+          "properties": {
+            "style": {
+              "default": "illustration",
+              "type": "string",
+              "enum": [
+                "illustration",
+                "realistic",
+                "comic",
+                "prerendered",
+                "independent"
+              ]
+            },
+            "atmosphere": {
+              "default": "neutral",
+              "type": "string",
+              "enum": [
+                "neutral",
+                "horror",
+                "analog",
+                "melancholy",
+                "fantasy"
+              ]
+            },
+            "notes": {
+              "default": "",
+              "type": "string",
+              "maxLength": 1200
+            }
+          }
+        },
         "default_mode": {
           "default": "multimedia",
           "type": "string",
@@ -854,7 +886,17 @@
                   "cipher_lock",
                   "circuit_wiring",
                   "lockpick",
-                  "room_search"
+                  "room_search",
+                  "radio_tuning",
+                  "memory_weave",
+                  "voice_negotiation",
+                  "sound_trail",
+                  "surface_rubbing",
+                  "alchemy_mix",
+                  "paper_fold",
+                  "burden_balance",
+                  "photo_development",
+                  "symbol_ritual"
                 ]
               },
               "is_mandatory_to_advance": {

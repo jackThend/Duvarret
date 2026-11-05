@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useStudioStore, type PitchCard } from '../stores/studio';
 import { useProjectStore } from '../stores/project';
 import { kindFromPath, type SynthesisResult } from '@/core/assets/registry';
+import { isNarrativeType } from '@/core/gameplay/narrative';
 
 const studio = useStudioStore();
 const project = useProjectStore();
@@ -89,6 +90,8 @@ const cards = computed(() => studio.openPitches);
         <p v-if="!numericFields(card).length" class="text-xs text-dv-muted">Esta propuesta no tiene matices ajustables.</p>
       </div>
       <footer class="mt-3 flex flex-wrap gap-2">
+        <button v-if="card.calls.some(c => typeof c.arguments.module_type === 'string' && isNarrativeType(c.arguments.module_type))" type="button" class="dv-btn-ghost" data-testid="pitch-playable-scene" @click="project.select(card.nodeId); studio.playableSceneType = String(card.calls.find(c => c.name === 'mountSimulatedModule')?.arguments.module_type || ''); studio.playableSceneOpen = true">Configurar escena jugable</button>
+        <button v-if="card.calls.some(c => c.arguments.module_type === 'room_search' || c.name === 'setVisualSearchScene')" type="button" class="dv-btn-ghost" data-testid="pitch-visual-scene" @click="project.select(card.nodeId); studio.visualSceneOpen = true">Elegir imágenes y componer escena</button>
         <button type="button" class="dv-btn-accent" data-testid="pitch-apply" @click="studio.applyPitch(card.id)">Aplicar al instante</button>
         <button type="button" class="dv-btn-ghost" :aria-expanded="adjusting === card.id" data-testid="pitch-adjust-toggle" @click="adjusting = adjusting === card.id ? null : card.id">Ajustar parámetros</button>
         <button v-if="card.alternatives?.length" type="button" class="dv-btn-ghost" data-testid="pitch-alternative" @click="studio.alternative(card.id)">Ver alternativa</button>

@@ -29,6 +29,8 @@ export function assetUsageList(manifest: StoryManifest): AssetUsage[] {
     add(node.gameplay_overlay?.on_success.play_sfx, `Sonido de acierto en ${scene}`, id);
     add(node.gameplay_overlay?.on_failure.play_sfx, `Sonido de fallo en ${scene}`, id);
     if (node.gameplay_overlay?.type === 'room_search' && typeof node.gameplay_overlay.parameters.image === 'string') add(node.gameplay_overlay.parameters.image, `Habitación para registrar en ${scene}`, id);
+    if (node.gameplay_overlay?.type === 'room_search' && typeof node.gameplay_overlay.parameters.item_image === 'string') add(node.gameplay_overlay.parameters.item_image, `Objeto para recoger en ${scene}`, id);
+    if (typeof node.gameplay_overlay?.parameters.artwork === 'string') add(node.gameplay_overlay.parameters.artwork, `Ilustración del puzle en ${scene}`, id);
     add(node.screenless_mode?.voice_over_asset, `Narración de ${scene}`, id);
     add(node.screenless_mode?.foley_bed, `Fondo sonoro de ${scene} (sin pantalla)`, id);
   }

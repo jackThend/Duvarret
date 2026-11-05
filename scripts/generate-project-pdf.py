@@ -5,6 +5,7 @@ from pathlib import Path
 from hashlib import sha256
 from html import escape
 import re
+import json
 import textwrap
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -16,6 +17,7 @@ from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, 
 from reportlab.platypus.tableofcontents import TableOfContents
 
 ROOT = Path(__file__).resolve().parent.parent
+VERSION = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
 SOURCE = ROOT / 'docs/PROYECTO_DUVARRET.md'
 OUTPUT = ROOT / 'docs/PROYECTO_DUVARRET.pdf'
 FONT_PATHS = [Path('C:/Windows/Fonts'), Path('/usr/share/fonts/truetype/dejavu')]
@@ -74,7 +76,7 @@ def page_frame(canvas,document):
     canvas.setFont('Body',8)
     canvas.setFillColor(MUTED)
     canvas.drawString(52,HEIGHT-30,'DUVARRET  /  DOCUMENTO DEL PROYECTO')
-    canvas.drawString(52,31,'Studio 0.2.0  |  3 de noviembre de 2026')
+    canvas.drawString(52,31,f'Studio {VERSION}  |  4 de noviembre de 2026')
     canvas.drawRightString(WIDTH-52,31,str(document.page))
     canvas.restoreState()
 
@@ -87,7 +89,7 @@ doc.addPageTemplates(PageTemplate(id='pages',frames=Frame(52,51,CONTENT,HEIGHT-1
 flow = [Spacer(1,100),Paragraph('Duvarret',styles['cover']),Paragraph('Documento del proyecto',styles['subtitle']),
         Paragraph('Qué es, para qué sirve, cómo se utiliza y cómo está construido.',styles['body']),Spacer(1,25),
         Paragraph('Un estudio de autoría para convertir textos en experiencias literarias interactivas.',styles['body']),
-        Spacer(1,25),Paragraph('<b>Edición de referencia: Studio 0.2.0</b><br/>Revisión: 3 de noviembre de 2026',styles['body']),
+        Spacer(1,25),Paragraph(f'<b>Edición de referencia: Studio {VERSION}</b><br/>Revisión: 4 de noviembre de 2026',styles['body']),
         Spacer(1,26),Paragraph('Descripción del producto, guía de uso y arquitectura técnica. Las posibilidades actuales y los trabajos pendientes se presentan por separado.',styles['body']),PageBreak(),
         Paragraph('Contenido',ParagraphStyle('toc-title',parent=styles['h1'])),Spacer(1,8)]
 toc = TableOfContents()

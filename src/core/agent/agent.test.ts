@@ -187,7 +187,7 @@ describe('herramientas del director', () => {
   it('expone esquemas JSON estándar para las herramientas nucleares', () => {
     const specs = registry.specs();
     expect(specs.map((s) => s.name).sort()).toEqual(
-      ['listSceneCapabilities', 'defineInventoryItem', 'mountSimulatedModule', 'placeSpatialAudio', 'queryLoreGraph', 'requestAssetSynthesis', 'setTypographicEffect', 'setVisualNovelSegment', 'updateLoreEntity', 'validateContinuity'].sort(),
+      ['setVisualSearchScene', 'listSceneCapabilities', 'defineInventoryItem', 'mountSimulatedModule', 'placeSpatialAudio', 'queryLoreGraph', 'requestAssetSynthesis', 'setTypographicEffect', 'setVisualNovelSegment', 'updateLoreEntity', 'validateContinuity'].sort(),
     );
     for (const spec of specs) expect(spec.parameters.type).toBe('object');
   });

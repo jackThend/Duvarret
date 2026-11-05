@@ -6,6 +6,7 @@
 import { analyzeBeat, normalizeText, TONE_LABELS } from '../ingest/toneAnalyzer';
 import { parseSpatialDescription } from './spatialLanguage';
 import type { StoryNode } from '../manifest';
+import { NARRATIVE_SCENES, defaultNarrativeParams } from '../gameplay/narrative';
 import { SCENE_CAPABILITIES } from './sceneCapabilities';
 import { newCallId, type CompletionRequest, type CompletionResponse, type LlmProvider, type ToolCall } from './types';
 
@@ -55,10 +56,14 @@ export function suggestForBeat(nodeId: string, text: string, options: { characte
   const out: PitchSuggestion[] = [];
   const node = options.node;
   const norm = normalizeText(text);
+  if (!node?.gameplay_overlay) {
+    const scene = NARRATIVE_SCENES.find(s => s.match.test(norm));
+    if (scene) out.push({ id: `${nodeId}:${scene.type}`, title: scene.title, rationale: `${scene.when} Puedes configurar reglas, imágenes y consecuencias en Escenas jugables.`, calls: [call('mountSimulatedModule', { node_id: nodeId, module_type: scene.type, config: defaultNarrativeParams(scene.type) })] });
+  }
   if (!node?.gameplay_overlay && /ganzua|forzar.{0,35}cerradura/.test(norm)) {
     out.push({ id: `${nodeId}:lockpick`, title: 'Abrir con ganzúa', rationale: 'La cerradura puede convertirse en una prueba de tacto y tensión: ajustar tres pernos antes de agotar los intentos.', calls: [call('mountSimulatedModule', { node_id: nodeId, module_type: 'lockpick', config: { pin_heights: [1, 3, 2], max_attempts: 5 } })] });
   } else if (!node?.gameplay_overlay && /linterna/.test(norm) && /buscar|encontr|recog|registr|inventario/.test(norm)) {
-    out.push({ id: `${nodeId}:room-search`, title: 'Buscar con la linterna', rationale: 'Podemos explorar una habitación ilustrada y recoger un hallazgo para el inventario. Habrá que aportar la imagen del cuarto.', calls: searchRoomCalls(nodeId, text) });
+    out.push({ id: `${nodeId}:room-search`, title: 'Buscar con la linterna', rationale: 'Podemos componer un lugar y un objeto separado que pase al inventario. En Dirección visual eliges estilo e imágenes: código, Mis recursos, propias o generadas con tu clave. Prueba la linterna antes de guardar.', calls: searchRoomCalls(nodeId, text) });
   }
   const tone = analysis.dominantTone ? TONE_LABELS[analysis.dominantTone].toLowerCase() : null;
   const te = node?.typographic_engine;
@@ -237,6 +242,8 @@ export function interpretInstruction(message: string, nodeId: string, nodeText =
     const lines = dialogueFromText(nodeText, characters);
     if (lines.length) calls.push(call('setVisualNovelSegment', { node_id: nodeId, speakers: [], dialogue_tree: lines }));
   }
+  const narrative = NARRATIVE_SCENES.find(s => s.match.test(t));
+  if (narrative) return [call('mountSimulatedModule', { node_id: nodeId, module_type: narrative.type, config: defaultNarrativeParams(narrative.type) })];
   if (/terminal|consola|ordenador/.test(t)) calls.push(call('mountSimulatedModule', { node_id: nodeId, module_type: 'crt_terminal', config: {} }));
   if (searchRoom) calls.push(...searchRoomCalls(nodeId, message));
   else if (lockpick) calls.push(call('mountSimulatedModule', { node_id: nodeId, module_type: 'lockpick', config: { pin_heights: [1, 3, 2], max_attempts: 5 } }));
@@ -336,8 +343,11 @@ export class LocalDirectorProvider implements LlmProvider {
     const message = last?.role === 'user' ? last.content : '';
     const ctx = request.context ?? {};
     const nodeId = ctx.nodeId ?? 'nodo_001';
+    if (/estilo visual|direccion visual|ilustracion|ilustrar|dibuj|imagen|retrato/.test(normalizeText(message)) && !NARRATIVE_SCENES.some(s => s.match.test(normalizeText(message))) && !/assets\/images\//.test(message)) {
+      return { content: 'Abre «Preparar imágenes, estilo y linterna» o Dirección visual en la escena. Puedes conservar las ilustraciones, dibujarlas por código sin conexión, elegir Mis recursos, subir imágenes propias o generar con tu clave de Gemini o Cloudflare. Elige aspecto y atmósfera para la obra. Para la linterna prepara el fondo sin el objeto y el objeto por separado; colócalo y prueba la recogida al inventario antes de aplicar. También sirve para retratos, expresiones, ilustraciones y entornos de puzles. ¿Qué estilo y fuente prefieres?', toolCalls: [], stopReason: 'stop' };
+    }
     if (/que (?:puedes|se puede) hacer|capacidades|tipos de escenas|que minijuegos/.test(normalizeText(message))) {
-      return { content: `Puedo proponer ${SCENE_CAPABILITIES.map(c => c.title.toLowerCase()).join(', ')}, además de novela visual, efectos de letras y audio espacial. La búsqueda con linterna puede guardar un objeto en el inventario; necesita una imagen del cuarto. Tú decides qué aplicar.`, toolCalls: [], stopReason: 'stop' };
+      return { content: `Puedo proponer ${SCENE_CAPABILITIES.map(c => c.title.toLowerCase()).join(', ')}, además de novela visual, efectos de letras y audio espacial. En Escenas jugables puedes configurar sus reglas, pistas, ayudas y resultados sin escribir código. En Dirección visual puedes elegir estilo, fondo y objeto separado: por código, desde Mis recursos, con imágenes propias o generadas con tu clave. Prueba la linterna y la recogida al inventario antes de guardar. Tú decides qué aplicar.`, toolCalls: [], stopReason: 'stop' };
     }
     let calls = interpretInstruction(message, nodeId, ctx.nodeText, ctx.characters);
     if (!calls.length && ctx.nodeText && /propon|sugier|analiz|ideas|que harias|dirige|mejora/.test(normalizeText(message))) {

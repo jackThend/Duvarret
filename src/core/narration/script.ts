@@ -1,3 +1,4 @@
+import { isNarrativeType, narrativeConfig } from '../gameplay/narrative';
 import type { StoryManifest } from '../manifest/schema';
 import { stripTextMarkers } from '../manifest/markers';
 
@@ -48,6 +49,9 @@ export function speechTexts(manifest: StoryManifest): string[] {
     const overlay = node.gameplay_overlay;
     if (overlay) {
       add(overlay.title || 'Un enigma bloquea el camino.');
+      if (isNarrativeType(overlay.type)) {
+        try { const p = narrativeConfig(overlay.type, overlay.parameters); add(p.audio_prompt); add(optionText('1', p.audio_success_option)); add(optionText('2', p.audio_failure_option)); add(p.success_text); add(p.failure_text); } catch { /* El diagnóstico de integridad explica la configuración inválida. */ }
+      }
       if (typeof overlay.parameters.prompt_text === 'string') add(overlay.parameters.prompt_text);
       if (typeof overlay.parameters.target_code === 'string') {
         add('Teclea el código con los números y pulsa Intro.');
@@ -55,7 +59,7 @@ export function speechTexts(manifest: StoryManifest): string[] {
         (/^\d+$/.test(overlay.parameters.target_code) ? '0123456789' : '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ').split('').forEach(add);
         const attempts = typeof overlay.parameters.max_attempts === 'number' ? overlay.parameters.max_attempts : 3;
         for (let remaining = 1; remaining < Math.min(attempts, 100); remaining++) add(`Código incorrecto. Quedan ${remaining} intentos.`);
-      } else {
+      } else if (!isNarrativeType(overlay.type)) {
         add(optionText('1', 'intentar resolver el enigma'));
         add(optionText('2', 'abandonar el enigma'));
       }

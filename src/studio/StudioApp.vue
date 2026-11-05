@@ -14,6 +14,9 @@ import { LEGACY_SLOT, forgetWork, targetFor } from './services/workManager';
 import WorksDialog from './components/WorksDialog.vue';
 import ResourcesDialog from './components/ResourcesDialog.vue';
 import AssetsDialog from './components/AssetsDialog.vue';
+import VisualSceneDialog from './components/VisualSceneDialog.vue';
+import RepertoireDialog from './components/RepertoireDialog.vue';
+import PlayableSceneDialog from './components/PlayableSceneDialog.vue';
 import NarrationDialog from './components/NarrationDialog.vue';
 import ListeningTest from './components/ListeningTest.vue';
 import PathsEditor from './components/PathsEditor.vue';
@@ -183,6 +186,9 @@ const columns = computed(() => (studio.leftCollapsed ? 'minmax(0,0fr) minmax(0,5
     <WorksDialog v-if="studio.worksOpen" @close="studio.worksOpen = false" />
     <ResourcesDialog v-if="studio.libraryOpen" @close="studio.libraryOpen = false" />
     <AssetsDialog v-if="studio.assetsOpen" @close="studio.assetsOpen = false" />
+    <VisualSceneDialog v-if="studio.visualSceneOpen" @close="studio.visualSceneOpen = false" />
+    <RepertoireDialog v-if="studio.repertoireOpen" @close="studio.repertoireOpen = false; studio.repertoirePrompt = ''" />
+    <PlayableSceneDialog v-if="studio.playableSceneOpen" :initial-type="studio.playableSceneType" @close="studio.playableSceneOpen = false; studio.playableSceneType = null" />
     <NarrationDialog v-if="studio.narrationOpen" @close="studio.narrationOpen = false" />
     <ListeningTest v-if="studio.listeningOpen" @close="studio.listeningOpen = false" />
     <PathsMap v-if="studio.pathsMapOpen" @close="studio.pathsMapOpen = false" />

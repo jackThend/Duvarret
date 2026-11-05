@@ -80,7 +80,7 @@ export class DirectorOrchestrator {
     const ctx: ToolContext = { ...(options.tools ?? {}), editor };
     const specs = this.registry.specs();
     const history: ChatMessage[] = [...(options.history ?? []), { role: 'user', content: options.message }];
-    const messages = (): ChatMessage[] => [{ role: 'system', content: `${this.options.systemPrompt ?? DIRECTOR_SYSTEM_PROMPT}\n\n${SCENE_DIRECTION_GUIDE}` }, ...history];
+    const messages = (): ChatMessage[] => [{ role: 'system', content: `${this.options.systemPrompt ?? DIRECTOR_SYSTEM_PROMPT}\n\n${SCENE_DIRECTION_GUIDE}\nEstilo visual guardado de esta obra: ${JSON.stringify(editor.current.global_settings.visual_style ?? null)}. Si aún no existe, ofrece elegirlo.` }, ...history];
     const executions: ToolExecution[] = [];
     let reply = '';
     let stopReason: DirectorTurn['stopReason'] = 'max_steps';

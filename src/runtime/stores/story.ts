@@ -285,7 +285,7 @@ export const useStoryStore = defineStore('duvarret-story', () => {
   function resolvePuzzle(success: boolean) {
     const node = currentNode.value;
     const overlay = node?.gameplay_overlay;
-    if (!node || !overlay) return;
+    if (!node || !overlay || solvedPuzzles.value.includes(node.node_id)) return;
     if (!solvedPuzzles.value.includes(node.node_id)) solvedPuzzles.value.push(node.node_id);
     const outcome = success ? overlay.on_success : overlay.on_failure;
     setState(applyOutcome(gameState.value, outcome));

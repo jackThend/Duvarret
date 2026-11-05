@@ -4,8 +4,10 @@ import { LAYOUT_LABELS, MODULE_LABELS, TEXT_MARKER, markerName, parseTextMarkers
 import { assetFolderFor } from '@/core/assets/usages';
 import { describePosition } from '@/runtime/audio/coordinates';
 import { useProjectStore } from '../stores/project';
+import { useStudioStore } from '../stores/studio';
 
 const project = useProjectStore();
+const studio = useStudioStore();
 const textarea = ref<HTMLTextAreaElement | null>(null);
 let lastEdit = 0;
 let analysisTimer: ReturnType<typeof setTimeout> | undefined;
@@ -137,6 +139,9 @@ onBeforeUnmount(() => analysisTimer && clearTimeout(analysisTimer));
       @input="project.updateTitle(node.node_id, ($event.target as HTMLInputElement).value)"
     />
     <p class="mt-2 text-xs text-dv-muted" data-testid="word-count">{{ wordCount }} {{ wordCount === 1 ? 'palabra' : 'palabras' }} · Los cambios se guardan automáticamente</p>
+    <button type="button" class="dv-btn-ghost mt-3" data-testid="open-visual-scene" @click="studio.visualSceneOpen = true">Dirección visual · imágenes y escenas</button>
+    <button type="button" class="dv-btn-ghost mt-3 ml-2" data-testid="open-repertoire" @click="studio.repertoireOpen = true">Repertorio</button>
+    <button type="button" class="dv-btn-ghost mt-3 ml-2" data-testid="open-playable-scene" @click="studio.playableSceneType = null; studio.playableSceneOpen = true">Escenas jugables · configurar y probar</button>
     <div class="relative mt-4 flex gap-4">
       <ul class="dv-ghost-markers" aria-label="Marcas de dirección">
         <li v-for="(m, i) in markers" :key="i" class="dv-ghost-marker" :title="m.label" data-testid="ghost-marker">
